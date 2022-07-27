@@ -72,10 +72,20 @@ impl PolkitAgent {
     }
 }
 
-// /usr/libexec/polkit-agent-helper-1 <pw_name, from passwd for uid>
-// <cookie>
-// // emit `request` depending on read output
-// <response, like cookie>
+fn request(s: &str, echo: bool) {}
+
+fn show_error(s: &str) {}
+
+fn show_debug(s: &str) {}
+
+fn complete(success: bool) {}
+
+enum AgentMsg {
+    Request(&str, bool),
+    ShowError(&str),
+    ShowDebug(&str),
+    Complete(bool),
+}
 
 fn agent_helper(pw_name: &str, cookie: &str) -> io::Result<()> {
     let mut child = Command::new("/usr/libexec/polkit-agent-helper-1")
@@ -89,15 +99,21 @@ fn agent_helper(pw_name: &str, cookie: &str) -> io::Result<()> {
     stdin.write(b"\n")?;
     stdin.flush()?;
     for line in stdout.lines() {
-        match line?.trim() {
-            "PAM_PROMPT_ECHO_OFF" => (),
-            "PAM_PROMPT_ECHO_ON" => (),
-            "PAM_ERROR_MSG" => (),
-            "PAM_TEXT_INFO" => (),
-            "SUCCESS" => (),
-            "FAILURE" => (),
-            _ => (),
+        let line = line?;
+        let line = line.trim();
+        let (prefix, rest) = line.split_once(' ').unwrap_or((line, ""));
+        match prefix {
+            "PAM_PROMPT_ECHO_OFF" => request(rest, false),
+            "PAM_PROMPT_ECHO_ON" => request(rest, true),
+            "PAM_ERROR_MSG" => show_error(rest),
+            "PAM_TEXT_INFO" => show_debug(rest),
+            "SUCCESS" => complete(true),
+            "FAILURE" => complete(false),
+            _ => eprintln!("Unknown line '{}' from 'polkit-agent-helper-1'", line),
         }
     }
     Ok(())
 }
+
+// fn response
+// write to stdin
