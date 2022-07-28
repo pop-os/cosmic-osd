@@ -80,10 +80,10 @@ fn show_debug(s: &str) {}
 
 fn complete(success: bool) {}
 
-enum AgentMsg {
-    Request(&str, bool),
-    ShowError(&str),
-    ShowDebug(&str),
+enum AgentMsg<'a> {
+    Request(&'a str, bool),
+    ShowError(&'a str),
+    ShowDebug(&'a str),
     Complete(bool),
 }
 
