@@ -1,5 +1,6 @@
 // TODO: implement
 // gtk4::PasswordEntry
+// Emit `org.freedesktop.PolicyKit1.Error.Cancelled` if cancelled
 
 use std::{
     collections::HashMap,
@@ -32,6 +33,16 @@ impl<'a> zvariant::Type for Identity<'a> {
     fn signature() -> zvariant::Signature<'static> {
         unsafe { zvariant::Signature::from_bytes_unchecked(b"(sa{sv})") }
     }
+}
+
+#[zbus::dbus_proxy(
+    default_service = "org.freedesktop.login1",
+    interface = "org.freedesktop.login1.Session",
+    default_path = "/org/freedesktop/login1/session/auto"
+)]
+trait LogindSession {
+    #[dbus_proxy(property)]
+    fn id(&self) -> zbus::Result<String>;
 }
 
 #[zbus::dbus_proxy(
@@ -71,7 +82,34 @@ impl PolkitAgent {
         cookie: String,
         identities: Vec<Identity>,
     ) -> zbus::fdo::Result<()> {
+        // XXX?
         println!("Begin auth");
+
+        let mut users = Vec::new();
+        for ident in identities {
+            if ident.identity_kind == "unix-user" {
+                if let Some(zvariant::Value::U32(uid)) = ident.identity_details.get("uid") {
+                    if let Some(user) = users::get_user_by_uid(*uid) {
+                        if let Some(name) = user.name().to_str() {
+                            users.push((*uid, name.to_string()));
+                        }
+                    }
+                }
+            }
+            // `unix-group` is apparently a thing too, but Gnome Shell doesn't seem to handle it...
+        }
+
+        // Like Gnome Shell, try own uid, then root, then first UID in `identities`
+        if let Some((_uid, name)) = users
+            .iter()
+            .find(|(uid, _)| *uid == users::get_current_uid())
+            .or(users.iter().find(|(uid, _)| *uid == 0))
+            .or_else(|| users.first())
+        {
+            eprintln!("Name: {}", name);
+            agent_helper(name, &cookie);
+        }
+
         Ok(())
     }
     fn cancel_authentication(&self, cookie: String) -> zbus::fdo::Result<()> {
@@ -84,14 +122,19 @@ pub async fn register_agent(system_connection: &zbus::Connection) -> zbus::Resul
         .object_server()
         .at(OBJECT_PATH, PolkitAgent)
         .await?;
-    let authority = PolkitAuthorityProxy::new(system_connection).await?;
+
+    let session = LogindSessionProxy::new(system_connection).await?;
+    let session_id = session.id().await?;
+
     let mut subject_details = HashMap::new();
-    subject_details.insert("session-id", "2".into()); // XXX
+    subject_details.insert("session-id", session_id.into());
     let subject = Subject {
         subject_kind: "unix-session",
         subject_details,
     };
+
     // XXX locale
+    let authority = PolkitAuthorityProxy::new(system_connection).await?;
     authority
         .register_authentication_agent(subject, "en_US", OBJECT_PATH)
         .await?;

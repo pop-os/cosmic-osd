@@ -8,4 +8,5 @@ license = "GPL-3.0-or-later"
 futures = "0.3"
 gtk4 = "0.4"
 serde = { version = "1.0.140", features = ["derive"] }
+users = "0.11.0"
 zbus = "2.3.2"
