@@ -2,6 +2,7 @@
 // gtk4::PasswordEntry
 // Emit `org.freedesktop.PolicyKit1.Error.Cancelled` if cancelled
 
+use gtk4::prelude::*;
 use std::{
     collections::HashMap,
     io::{self, prelude::*},
@@ -12,7 +13,7 @@ use zbus::zvariant;
 const OBJECT_PATH: &str = "/com/system76/CosmicOsd";
 
 #[derive(serde::Serialize)]
-struct Subject<'a> {
+pub struct Subject<'a> {
     subject_kind: &'a str,
     subject_details: HashMap<&'a str, zvariant::Value<'a>>,
 }
@@ -24,7 +25,7 @@ impl<'a> zvariant::Type for Subject<'a> {
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
-struct Identity<'a> {
+pub struct Identity<'a> {
     identity_kind: &'a str,
     identity_details: HashMap<&'a str, zvariant::Value<'a>>,
 }
@@ -107,6 +108,8 @@ impl PolkitAgent {
             .or_else(|| users.first())
         {
             eprintln!("Name: {}", name);
+            let dialog = gtk4::Dialog::new();
+            dialog.show();
             agent_helper(name, &cookie);
         }
 
