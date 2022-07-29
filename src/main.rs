@@ -1,4 +1,6 @@
 mod polkit_agent;
+mod polkit_agent_helper;
+mod polkit_dialog;
 mod settings_daemon;
 
 use gtk4::glib;

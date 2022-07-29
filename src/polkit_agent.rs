@@ -6,9 +6,11 @@ use gtk4::prelude::*;
 use std::{
     collections::HashMap,
     io::{self, prelude::*},
-    process::{Command, Stdio},
+    process::{self, Command, Stdio},
 };
 use zbus::zvariant;
+
+use crate::polkit_agent_helper::AgentHelper;
 
 const OBJECT_PATH: &str = "/com/system76/CosmicOsd";
 
@@ -144,48 +146,10 @@ pub async fn register_agent(system_connection: &zbus::Connection) -> zbus::Resul
     Ok(())
 }
 
-fn request(s: &str, echo: bool) {}
-
-fn show_error(s: &str) {}
-
-fn show_debug(s: &str) {}
-
-fn complete(success: bool) {}
-
-enum AgentMsg<'a> {
-    Request(&'a str, bool),
-    ShowError(&'a str),
-    ShowDebug(&'a str),
-    Complete(bool),
-}
-
 fn agent_helper(pw_name: &str, cookie: &str) -> io::Result<()> {
-    let mut child = Command::new("/usr/libexec/polkit-agent-helper-1")
-        .arg(pw_name)
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .spawn()?;
-    let mut stdin = child.stdin.take().unwrap();
-    let stdout = io::BufReader::new(child.stdout.take().unwrap());
-    stdin.write(cookie.as_bytes())?;
-    stdin.write(b"\n")?;
-    stdin.flush()?;
-    for line in stdout.lines() {
-        let line = line?;
-        let line = line.trim();
-        let (prefix, rest) = line.split_once(' ').unwrap_or((line, ""));
-        match prefix {
-            "PAM_PROMPT_ECHO_OFF" => request(rest, false),
-            "PAM_PROMPT_ECHO_ON" => request(rest, true),
-            "PAM_ERROR_MSG" => show_error(rest),
-            "PAM_TEXT_INFO" => show_debug(rest),
-            "SUCCESS" => complete(true),
-            "FAILURE" => complete(false),
-            _ => eprintln!("Unknown line '{}' from 'polkit-agent-helper-1'", line),
-        }
+    let mut helper = AgentHelper::new(pw_name, cookie)?;
+    while let Some(msg) = helper.next()? {
+        println!("{:?}", msg);
     }
     Ok(())
 }
-
-// fn response
-// write to stdin
