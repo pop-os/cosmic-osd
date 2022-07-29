@@ -8,6 +8,8 @@ use std::{
 };
 use zbus::zvariant;
 
+const OBJECT_PATH: &str = "/com/system76/CosmicOsd";
+
 #[derive(serde::Serialize)]
 struct Subject<'a> {
     subject_kind: &'a str,
@@ -16,7 +18,7 @@ struct Subject<'a> {
 
 impl<'a> zvariant::Type for Subject<'a> {
     fn signature() -> zvariant::Signature<'static> {
-        unsafe { zvariant::Signature::from_bytes_unchecked(b"sa{sv}") }
+        unsafe { zvariant::Signature::from_bytes_unchecked(b"(sa{sv})") }
     }
 }
 
@@ -28,11 +30,15 @@ struct Identity<'a> {
 
 impl<'a> zvariant::Type for Identity<'a> {
     fn signature() -> zvariant::Signature<'static> {
-        unsafe { zvariant::Signature::from_bytes_unchecked(b"sa{sv}") }
+        unsafe { zvariant::Signature::from_bytes_unchecked(b"(sa{sv})") }
     }
 }
 
-#[zbus::dbus_proxy]
+#[zbus::dbus_proxy(
+    default_service = "org.freedesktop.PolicyKit1",
+    interface = "org.freedesktop.PolicyKit1.Authority",
+    default_path = "/org/freedesktop/PolicyKit1/Authority"
+)]
 trait PolkitAuthority {
     fn register_authentication_agent(
         &self,
@@ -65,11 +71,31 @@ impl PolkitAgent {
         cookie: String,
         identities: Vec<Identity>,
     ) -> zbus::fdo::Result<()> {
+        println!("Begin auth");
         Ok(())
     }
     fn cancel_authentication(&self, cookie: String) -> zbus::fdo::Result<()> {
         Ok(())
     }
+}
+
+pub async fn register_agent(system_connection: &zbus::Connection) -> zbus::Result<()> {
+    system_connection
+        .object_server()
+        .at(OBJECT_PATH, PolkitAgent)
+        .await?;
+    let authority = PolkitAuthorityProxy::new(system_connection).await?;
+    let mut subject_details = HashMap::new();
+    subject_details.insert("session-id", "2".into()); // XXX
+    let subject = Subject {
+        subject_kind: "unix-session",
+        subject_details,
+    };
+    // XXX locale
+    authority
+        .register_authentication_agent(subject, "en_US", OBJECT_PATH)
+        .await?;
+    Ok(())
 }
 
 fn request(s: &str, echo: bool) {}
