@@ -5,6 +5,7 @@ edition = "2021"
 license = "GPL-3.0-or-later"
 
 [dependencies]
+async-process = "1.4.0"
 futures = "0.3"
 gtk4 = "0.4"
 serde = { version = "1.0.140", features = ["derive"] }

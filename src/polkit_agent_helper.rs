@@ -1,7 +1,8 @@
+use async_process::{self, Command, Stdio};
+use futures::{io::BufReader, prelude::*};
 use std::{
     collections::HashMap,
     io::{self, prelude::*},
-    process::{self, Command, Stdio},
 };
 
 const HELPER_PATH: &str = "/usr/libexec/polkit-agent-helper-1";
@@ -15,31 +16,32 @@ pub enum AgentMsg {
 }
 
 pub struct AgentHelper {
-    child: process::Child,
-    stdin: process::ChildStdin,
-    stdout: io::BufReader<process::ChildStdout>,
+    child: async_process::Child,
+    stdin: async_process::ChildStdin,
+    stdout: BufReader<async_process::ChildStdout>,
 }
 
 impl AgentHelper {
-    pub fn new(pw_name: &str, cookie: &str) -> io::Result<Self> {
+    pub async fn new(pw_name: &str, cookie: &str) -> io::Result<Self> {
         let mut child = Command::new(HELPER_PATH)
             .arg(pw_name)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .spawn()?;
-        let mut stdin = child.stdin.take().unwrap();
-        let stdout = io::BufReader::new(child.stdout.take().unwrap());
-        writeln!(stdin, "{}", cookie)?;
-        Ok(Self {
+        let stdin = child.stdin.take().unwrap();
+        let stdout = BufReader::new(child.stdout.take().unwrap());
+        let mut helper = Self {
             child,
             stdin,
             stdout,
-        })
+        };
+        helper.response(cookie).await?;
+        Ok(helper)
     }
 
-    pub fn next(&mut self) -> io::Result<Option<AgentMsg>> {
+    pub async fn next(&mut self) -> io::Result<Option<AgentMsg>> {
         let mut line = String::new();
-        while self.stdout.read_line(&mut line)? != 0 {
+        while self.stdout.read_line(&mut line).await? != 0 {
             let line = line.trim();
             let (prefix, rest) = line.split_once(' ').unwrap_or((line, ""));
             return Ok(Some(match prefix {
@@ -58,7 +60,9 @@ impl AgentHelper {
         Ok(None)
     }
 
-    pub fn response(&mut self, resp: &str) -> io::Result<()> {
-        writeln!(self.stdin, "{}", resp)
+    pub async fn response(&mut self, resp: &str) -> io::Result<()> {
+        self.stdin.write(resp.as_bytes()).await?;
+        self.stdin.write(b"\n").await?;
+        Ok(())
     }
 }

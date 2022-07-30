@@ -76,14 +76,14 @@ struct PolkitAgent;
 
 #[zbus::dbus_interface(name = "org.freedesktop.PolicyKit1.AuthenticationAgent")]
 impl PolkitAgent {
-    fn begin_authentication(
+    async fn begin_authentication(
         &self,
         action_id: String,
         message: String,
         icon_name: String,
         details: HashMap<String, String>,
         cookie: String,
-        identities: Vec<Identity>,
+        identities: Vec<Identity<'_>>,
     ) -> zbus::fdo::Result<()> {
         // XXX?
         println!("Begin auth");
@@ -110,9 +110,9 @@ impl PolkitAgent {
             .or_else(|| users.first())
         {
             eprintln!("Name: {}", name);
-            let dialog = gtk4::Dialog::new();
-            dialog.show();
-            agent_helper(name, &cookie);
+            // let dialog = gtk4::Dialog::new();
+            // dialog.show();
+            agent_helper(name, &cookie).await;
         }
 
         Ok(())
@@ -146,9 +146,9 @@ pub async fn register_agent(system_connection: &zbus::Connection) -> zbus::Resul
     Ok(())
 }
 
-fn agent_helper(pw_name: &str, cookie: &str) -> io::Result<()> {
-    let mut helper = AgentHelper::new(pw_name, cookie)?;
-    while let Some(msg) = helper.next()? {
+async fn agent_helper(pw_name: &str, cookie: &str) -> io::Result<()> {
+    let mut helper = AgentHelper::new(pw_name, cookie).await?;
+    while let Some(msg) = helper.next().await? {
         println!("{:?}", msg);
     }
     Ok(())
