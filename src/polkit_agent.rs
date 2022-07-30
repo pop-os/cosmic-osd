@@ -88,31 +88,11 @@ impl PolkitAgent {
         // XXX?
         println!("Begin auth");
 
-        let mut users = Vec::new();
-        for ident in identities {
-            if ident.identity_kind == "unix-user" {
-                if let Some(zvariant::Value::U32(uid)) = ident.identity_details.get("uid") {
-                    if let Some(user) = users::get_user_by_uid(*uid) {
-                        if let Some(name) = user.name().to_str() {
-                            users.push((*uid, name.to_string()));
-                        }
-                    }
-                }
-            }
-            // `unix-group` is apparently a thing too, but Gnome Shell doesn't seem to handle it...
-        }
-
-        // Like Gnome Shell, try own uid, then root, then first UID in `identities`
-        if let Some((_uid, name)) = users
-            .iter()
-            .find(|(uid, _)| *uid == users::get_current_uid())
-            .or(users.iter().find(|(uid, _)| *uid == 0))
-            .or_else(|| users.first())
-        {
+        if let Some((_uid, name)) = select_user_from_identities(&identities) {
             eprintln!("Name: {}", name);
             // let dialog = gtk4::Dialog::new();
             // dialog.show();
-            agent_helper(name, &cookie).await;
+            agent_helper(&name, &cookie).await;
         }
 
         Ok(())
@@ -120,6 +100,28 @@ impl PolkitAgent {
     fn cancel_authentication(&self, cookie: String) -> zbus::fdo::Result<()> {
         Ok(())
     }
+}
+
+fn select_user_from_identities(identities: &[Identity]) -> Option<(u32, String)> {
+    let mut uids = Vec::new();
+    for ident in identities {
+        if ident.identity_kind == "unix-user" {
+            if let Some(zvariant::Value::U32(uid)) = ident.identity_details.get("uid") {
+                uids.push(*uid);
+            }
+        }
+        // `unix-group` is apparently a thing too, but Gnome Shell doesn't seem to handle it...
+    }
+
+    // Like Gnome Shell, try own uid, then root, then first UID in `identities`
+    let uid = *uids
+        .iter()
+        .find(|uid| **uid == users::get_current_uid())
+        .or(uids.iter().find(|uid| **uid == 0))
+        .or_else(|| uids.first())?;
+
+    let user = users::get_user_by_uid(uid)?;
+    Some((uid, user.name().to_str()?.to_string()))
 }
 
 pub async fn register_agent(system_connection: &zbus::Connection) -> zbus::Result<()> {
