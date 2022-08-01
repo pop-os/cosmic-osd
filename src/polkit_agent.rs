@@ -65,11 +65,6 @@ trait PolkitAuthority {
         subject: Subject<'_>,
         object_path: &str,
     ) -> zbus::Result<()>;
-    fn authentication_agent_response(
-        &self,
-        cookie: &str,
-        identity: Identity<'_>,
-    ) -> zbus::Result<()>;
 }
 
 struct PolkitAgent;

@@ -7,7 +7,8 @@ license = "GPL-3.0-or-later"
 [dependencies]
 async-process = "1.4.0"
 futures = "0.3"
-gtk4 = "0.4"
+gtk4 = { git = "https://github.com/gtk-rs/gtk4-rs" }
+relm4 = { git = "https://github.com/relm4/relm4", features = ["macros"] }
 serde = { version = "1.0.140", features = ["derive"] }
 users = "0.11.0"
 zbus = "2.3.2"
