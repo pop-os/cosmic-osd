@@ -144,7 +144,7 @@ pub async fn register_agent(system_connection: &zbus::Connection) -> zbus::Resul
 }
 
 async fn agent_helper(pw_name: &str, cookie: &str) -> io::Result<()> {
-    let mut helper = AgentHelper::new(pw_name, cookie).await?;
+    let (mut helper, _) = AgentHelper::new(pw_name, cookie).await?;
     while let Some(msg) = helper.next().await? {
         println!("{:?}", msg);
     }

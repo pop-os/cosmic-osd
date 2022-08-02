@@ -17,26 +17,27 @@ pub enum AgentMsg {
 
 pub struct AgentHelper {
     child: async_process::Child,
-    stdin: async_process::ChildStdin,
     stdout: BufReader<async_process::ChildStdout>,
 }
 
 impl AgentHelper {
-    pub async fn new(pw_name: &str, cookie: &str) -> io::Result<Self> {
+    pub async fn new(pw_name: &str, cookie: &str) -> io::Result<(Self, AgentHelperResponder)> {
         let mut child = Command::new(HELPER_PATH)
             .arg(pw_name)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .spawn()?;
-        let stdin = child.stdin.take().unwrap();
-        let stdout = BufReader::new(child.stdout.take().unwrap());
-        let mut helper = Self {
-            child,
-            stdin,
-            stdout,
+        let mut responder = AgentHelperResponder {
+            stdin: child.stdin.take().unwrap(),
         };
-        helper.response(cookie).await?;
-        Ok(helper)
+        responder.response(cookie).await?;
+        Ok((
+            Self {
+                stdout: BufReader::new(child.stdout.take().unwrap()),
+                child,
+            },
+            responder,
+        ))
     }
 
     pub async fn next(&mut self) -> io::Result<Option<AgentMsg>> {
@@ -59,7 +60,13 @@ impl AgentHelper {
         }
         Ok(None)
     }
+}
 
+pub struct AgentHelperResponder {
+    stdin: async_process::ChildStdin,
+}
+
+impl AgentHelperResponder {
     pub async fn response(&mut self, resp: &str) -> io::Result<()> {
         self.stdin.write(resp.as_bytes()).await?;
         self.stdin.write(b"\n").await?;
