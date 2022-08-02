@@ -1,6 +1,4 @@
-// TODO: implement
-// gtk4::PasswordEntry
-// Emit `org.freedesktop.PolicyKit1.Error.Cancelled` if cancelled
+// TODO: only open one dialog at a time?
 
 use gtk4::prelude::*;
 use std::{

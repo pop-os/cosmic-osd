@@ -39,9 +39,10 @@ impl SimpleComponent for PolkitDialogModel {
     type Output = Result<(), PolkitError>;
 
     view! {
-        gtk4::Dialog {
+        gtk4::Dialog::builder().use_header_bar(1).build() {
             #[watch]
             set_visible: model.visible,
+            set_receives_default: true,
             set_default_response: gtk4::ResponseType::Accept,
             add_button: ("Cancel", gtk4::ResponseType::Cancel),
             add_button: ("Ok", gtk4::ResponseType::Accept),
@@ -161,7 +162,6 @@ impl SimpleComponent for PolkitDialogModel {
                 }
                 AgentMsg::Complete(success) => {
                     self.visible = false; // TODO: destroy widget/component?
-                                          // Notify PolkitAgent
                     sender.output(if success {
                         Ok(())
                     } else {
