@@ -1,7 +1,7 @@
-use futures::channel::oneshot;
+use futures::{channel::oneshot, lock::Mutex};
 use gtk4::{glib, prelude::*};
 use relm4::{ComponentController, ComponentParts, ComponentSender, RelmApp, SimpleComponent};
-use std::{collections::HashMap, io};
+use std::{collections::HashMap, io, sync::Arc};
 
 use super::polkit_agent::PolkitError;
 use super::polkit_agent_helper::{AgentHelper, AgentHelperResponder, AgentMsg};
@@ -14,7 +14,7 @@ struct PolkitDialogModel {
     details: HashMap<String, String>,
     password_label: String,
     echo: bool,
-    responder: AgentHelperResponder,
+    responder: Arc<Mutex<AgentHelperResponder>>,
 }
 
 #[derive(Debug)]
@@ -118,7 +118,7 @@ impl SimpleComponent for PolkitDialogModel {
             message: params.1,
             icon_name: params.2,
             details: params.3,
-            responder,
+            responder: Arc::new(Mutex::new(responder)),
             echo: false,
             password_label: String::new(),
             visible: false,
@@ -171,9 +171,9 @@ impl SimpleComponent for PolkitDialogModel {
                 }
             },
             PolkitDialogMsg::Response(resp) => {
-                // XXX block
-                futures::executor::block_on(async {
-                    if let Err(err) = self.responder.response(&resp).await {}
+                let responder = self.responder.clone();
+                glib::MainContext::default().spawn(async move {
+                    if let Err(err) = responder.lock().await.response(&resp).await {}
                 });
             }
         }
