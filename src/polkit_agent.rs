@@ -115,7 +115,6 @@ impl PolkitAgent {
     }
 
     async fn cancel_authentication(&self, cookie: String) -> Result<(), PolkitError> {
-        println!("Foo");
         if let Some(handle) = self.abort_handle_by_cookie.lock().unwrap().remove(&cookie) {
             handle.abort();
             Ok(())

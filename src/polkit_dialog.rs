@@ -8,6 +8,7 @@ use super::polkit_agent_helper::{AgentHelper, AgentHelperResponder, AgentMsg};
 
 struct PolkitDialogModel {
     visible: bool,
+    show_entry: bool,
     destroyed: bool,
     action_id: String,
     message: String,
@@ -49,9 +50,9 @@ impl SimpleComponent for PolkitDialogModel {
             set_default_response: gtk4::ResponseType::Accept,
             add_button: ("Cancel", gtk4::ResponseType::Cancel),
             add_button: ("Ok", gtk4::ResponseType::Accept),
-            connect_response[sender, entry, password_entry, stack] => move |_, resp| {
+            connect_response[sender, entry, password_entry, entry_stack] => move |_, resp| {
                 if resp == gtk4::ResponseType::Accept {
-                    let text = if stack.visible_child().as_ref() == Some(password_entry.upcast_ref()) {
+                    let text = if entry_stack.visible_child().as_ref() == Some(password_entry.upcast_ref()) {
                         password_entry.text()
                     } else {
                         entry.text()
@@ -80,8 +81,10 @@ impl SimpleComponent for PolkitDialogModel {
                         #[watch]
                         set_label: &model.password_label,
                     },
-                    #[name = "stack"]
+                    #[name = "entry_stack"]
                     gtk4::Stack {
+                        #[watch]
+                        set_visible: model.show_entry,
                         #[name = "entry"]
                         gtk4::Entry {
                             set_activates_default: true,
@@ -123,6 +126,7 @@ impl SimpleComponent for PolkitDialogModel {
             password_label: String::new(),
             visible: false,
             destroyed: false,
+            show_entry: false,
         };
 
         glib::MainContext::default().spawn(glib::clone!(@strong sender => async move {
@@ -151,15 +155,18 @@ impl SimpleComponent for PolkitDialogModel {
                     self.visible = true;
                     self.password_label = s;
                     self.echo = echo;
+                    self.show_entry = true;
                 }
                 AgentMsg::ShowError(s) => {
                     // XXX buttons? Don't show entry?
                     self.visible = true;
                     self.message = s;
+                    self.show_entry = false;
                 }
                 AgentMsg::ShowDebug(s) => {
                     self.visible = true;
                     self.message = s;
+                    self.show_entry = false;
                 }
                 AgentMsg::Complete(success) => {
                     self.visible = false; // TODO: destroy widget/component?
@@ -172,6 +179,7 @@ impl SimpleComponent for PolkitDialogModel {
                 }
             },
             PolkitDialogMsg::Response(resp) => {
+                self.visible = false;
                 let responder = self.responder.clone();
                 glib::MainContext::default().spawn(async move {
                     if let Err(err) = responder.lock().await.response(&resp).await {}
@@ -186,7 +194,7 @@ impl SimpleComponent for PolkitDialogModel {
     fn post_view() {
         if model.destroyed {
             sender.output(Err(PolkitError::Cancelled));
-            dialog.hide();
+            dialog.destroy();
         }
     }
 }
