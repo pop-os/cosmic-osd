@@ -11,8 +11,19 @@ use std::{
 use zbus::zvariant;
 
 use crate::polkit_agent_helper::AgentHelper;
+use crate::polkit_dialog::create_polkit_dialog;
 
 const OBJECT_PATH: &str = "/com/system76/CosmicOsd";
+
+#[derive(Debug, zbus::DBusError)]
+#[dbus_error(prefix = "org.freedesktop.PolicyKit1.Error")]
+pub enum PolkitError {
+    Failed,
+    Cancelled,
+    NotSupported,
+    NotAuthorized,
+    CancellationIdNotUnique,
+}
 
 #[derive(serde::Serialize)]
 pub struct Subject<'a> {
@@ -79,20 +90,20 @@ impl PolkitAgent {
         details: HashMap<String, String>,
         cookie: String,
         identities: Vec<Identity<'_>>,
-    ) -> zbus::fdo::Result<()> {
-        // XXX?
-        println!("Begin auth");
-
-        if let Some((_uid, name)) = select_user_from_identities(&identities) {
-            eprintln!("Name: {}", name);
-            // let dialog = gtk4::Dialog::new();
-            // dialog.show();
-            agent_helper(&name, &cookie).await;
+    ) -> Result<(), PolkitError> {
+        if let Some((_uid, pw_name)) = select_user_from_identities(&identities) {
+            match AgentHelper::new(&pw_name, &cookie).await {
+                Ok(helper) => {
+                    create_polkit_dialog(action_id, message, icon_name, details, helper).await?
+                }
+                Err(err) => {}
+            }
         }
 
         Ok(())
     }
     fn cancel_authentication(&self, cookie: String) -> zbus::fdo::Result<()> {
+        // XXX destroy dialog
         Ok(())
     }
 }
@@ -140,13 +151,5 @@ pub async fn register_agent(system_connection: &zbus::Connection) -> zbus::Resul
     authority
         .register_authentication_agent(subject, "en_US", OBJECT_PATH)
         .await?;
-    Ok(())
-}
-
-async fn agent_helper(pw_name: &str, cookie: &str) -> io::Result<()> {
-    let (mut helper, _) = AgentHelper::new(pw_name, cookie).await?;
-    while let Some(msg) = helper.next().await? {
-        println!("{:?}", msg);
-    }
     Ok(())
 }
