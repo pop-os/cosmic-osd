@@ -1,6 +1,7 @@
 // TODO: only open one dialog at a time?
 
-use gtk4::prelude::*;
+use futures::future;
+use gtk4::{glib, prelude::*};
 use std::{
     collections::HashMap,
     io::{self, prelude::*},
@@ -76,12 +77,15 @@ trait PolkitAuthority {
     ) -> zbus::Result<()>;
 }
 
-struct PolkitAgent;
+#[derive(Default)]
+struct PolkitAgent {
+    abort_handle_by_cookie: HashMap<String, future::AbortHandle>,
+}
 
 #[zbus::dbus_interface(name = "org.freedesktop.PolicyKit1.AuthenticationAgent")]
 impl PolkitAgent {
     async fn begin_authentication(
-        &self,
+        &mut self,
         action_id: String,
         message: String,
         icon_name: String,
@@ -89,20 +93,31 @@ impl PolkitAgent {
         cookie: String,
         identities: Vec<Identity<'_>>,
     ) -> Result<(), PolkitError> {
-        if let Some((_uid, pw_name)) = select_user_from_identities(&identities) {
-            match AgentHelper::new(&pw_name, &cookie).await {
-                Ok(helper) => {
-                    create_polkit_dialog(action_id, message, icon_name, details, helper).await?
+        let (future, abort_handle) = future::abortable(glib::clone!(@strong cookie => async move {
+            if let Some((_uid, pw_name)) = select_user_from_identities(&identities) {
+                match AgentHelper::new(&pw_name, &cookie).await {
+                    Ok(helper) => {
+                        create_polkit_dialog(action_id, message, icon_name, details, helper).await?
+                    }
+                    Err(err) => {}
                 }
-                Err(err) => {}
             }
-        }
+            Ok(())
+        }));
 
-        Ok(())
+        self.abort_handle_by_cookie.insert(cookie, abort_handle);
+
+        future.await.unwrap_or(Err(PolkitError::Failed))
     }
-    fn cancel_authentication(&self, cookie: String) -> zbus::fdo::Result<()> {
-        // XXX destroy dialog
-        Ok(())
+    fn cancel_authentication(&mut self, cookie: String) -> Result<(), PolkitError> {
+        eprintln!("XXX: {}", &cookie);
+        if let Some(handle) = self.abort_handle_by_cookie.remove(&cookie) {
+            eprintln!("AAA");
+            handle.abort();
+            Ok(())
+        } else {
+            Err(PolkitError::CancellationIdNotUnique)
+        }
     }
 }
 
@@ -131,7 +146,7 @@ fn select_user_from_identities(identities: &[Identity]) -> Option<(u32, String)>
 pub async fn register_agent(system_connection: &zbus::Connection) -> zbus::Result<()> {
     system_connection
         .object_server()
-        .at(OBJECT_PATH, PolkitAgent)
+        .at(OBJECT_PATH, PolkitAgent::default())
         .await?;
 
     let session = LogindSessionProxy::new(system_connection).await?;

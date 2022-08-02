@@ -8,6 +8,7 @@ use super::polkit_agent_helper::{AgentHelper, AgentHelperResponder, AgentMsg};
 
 struct PolkitDialogModel {
     visible: bool,
+    destroyed: bool,
     action_id: String,
     message: String,
     icon_name: String,
@@ -21,6 +22,7 @@ struct PolkitDialogModel {
 enum PolkitDialogMsg {
     AgentMsg(AgentMsg),
     Response(String),
+    Cancel,
 }
 
 #[relm4::component]
@@ -39,6 +41,7 @@ impl SimpleComponent for PolkitDialogModel {
     type Output = Result<(), PolkitError>;
 
     view! {
+        #[name = "dialog"]
         gtk4::Dialog::builder().use_header_bar(1).build() {
             #[watch]
             set_visible: model.visible,
@@ -54,12 +57,9 @@ impl SimpleComponent for PolkitDialogModel {
                         entry.text()
                     }.to_string();
                     sender.input(PolkitDialogMsg::Response(text));
+                } else {
+                    sender.input(PolkitDialogMsg::Cancel);
                 }
-                // TODO cancel
-            },
-            connect_close_request[sender] => move |_| {
-                sender.output(Err(PolkitError::Cancelled));
-                gtk4::Inhibit(false)
             },
             #[wrap(Some)]
             set_child = &gtk4::Box {
@@ -122,6 +122,7 @@ impl SimpleComponent for PolkitDialogModel {
             echo: false,
             password_label: String::new(),
             visible: false,
+            destroyed: false,
         };
 
         glib::MainContext::default().spawn(glib::clone!(@strong sender => async move {
@@ -176,6 +177,17 @@ impl SimpleComponent for PolkitDialogModel {
                     if let Err(err) = responder.lock().await.response(&resp).await {}
                 });
             }
+            PolkitDialogMsg::Cancel => {
+                self.destroyed = true;
+                println!("bar");
+            }
+        }
+    }
+
+    fn post_view() {
+        if model.destroyed {
+            sender.output(Err(PolkitError::Cancelled));
+            dialog.hide();
         }
     }
 }
@@ -189,14 +201,24 @@ pub async fn create_polkit_dialog(
 ) -> Result<(), PolkitError> {
     let (sender, receiver) = oneshot::channel();
     let mut sender = Some(sender);
-    relm4::ComponentBuilder::<PolkitDialogModel>::new()
+    let sender = relm4::ComponentBuilder::<PolkitDialogModel>::new()
         .launch((action_id, message, icon_name, details, helper))
         .connect_receiver(move |_, msg| {
             if let Some(sender) = sender.take() {
                 let _ = sender.send(msg);
             }
-        });
+        })
+        .sender()
+        .clone();
+    let _dropper = DestroyOnDrop(sender);
     receiver.await.unwrap_or(Err(PolkitError::Failed))
 }
 
-struct PolkitDialog {}
+struct DestroyOnDrop(relm4::Sender<PolkitDialogMsg>);
+
+impl Drop for DestroyOnDrop {
+    fn drop(&mut self) {
+        self.0.send(PolkitDialogMsg::Cancel);
+        println!("foo");
+    }
+}
