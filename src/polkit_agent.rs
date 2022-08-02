@@ -6,6 +6,7 @@ use std::{
     collections::HashMap,
     io::{self, prelude::*},
     process::{self, Command, Stdio},
+    sync::Mutex,
 };
 use zbus::zvariant;
 
@@ -79,13 +80,13 @@ trait PolkitAuthority {
 
 #[derive(Default)]
 struct PolkitAgent {
-    abort_handle_by_cookie: HashMap<String, future::AbortHandle>,
+    abort_handle_by_cookie: Mutex<HashMap<String, future::AbortHandle>>,
 }
 
 #[zbus::dbus_interface(name = "org.freedesktop.PolicyKit1.AuthenticationAgent")]
 impl PolkitAgent {
     async fn begin_authentication(
-        &mut self,
+        &self,
         action_id: String,
         message: String,
         icon_name: String,
@@ -105,14 +106,17 @@ impl PolkitAgent {
             Ok(())
         }));
 
-        self.abort_handle_by_cookie.insert(cookie, abort_handle);
+        self.abort_handle_by_cookie
+            .lock()
+            .unwrap()
+            .insert(cookie, abort_handle);
 
-        future.await.unwrap_or(Err(PolkitError::Failed))
+        future.await.unwrap_or(Err(PolkitError::Cancelled))
     }
-    fn cancel_authentication(&mut self, cookie: String) -> Result<(), PolkitError> {
-        eprintln!("XXX: {}", &cookie);
-        if let Some(handle) = self.abort_handle_by_cookie.remove(&cookie) {
-            eprintln!("AAA");
+
+    async fn cancel_authentication(&self, cookie: String) -> Result<(), PolkitError> {
+        println!("Foo");
+        if let Some(handle) = self.abort_handle_by_cookie.lock().unwrap().remove(&cookie) {
             handle.abort();
             Ok(())
         } else {

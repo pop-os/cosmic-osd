@@ -179,7 +179,6 @@ impl SimpleComponent for PolkitDialogModel {
             }
             PolkitDialogMsg::Cancel => {
                 self.destroyed = true;
-                println!("bar");
             }
         }
     }
@@ -219,6 +218,5 @@ struct DestroyOnDrop(relm4::Sender<PolkitDialogMsg>);
 impl Drop for DestroyOnDrop {
     fn drop(&mut self) {
         self.0.send(PolkitDialogMsg::Cancel);
-        println!("foo");
     }
 }
