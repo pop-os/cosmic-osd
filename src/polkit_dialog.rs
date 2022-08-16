@@ -47,10 +47,9 @@ impl SimpleComponent for PolkitDialogModel {
             // NOTE: Showing after destroying seems to cancel destruction
             #[watch]
             set_visible: model.visible && !model.destroyed,
-            set_receives_default: true,
-            set_default_response: gtk4::ResponseType::Accept,
             add_button: ("Cancel", gtk4::ResponseType::Cancel),
             add_button: ("Ok", gtk4::ResponseType::Accept),
+            set_default_response: gtk4::ResponseType::Accept,
             connect_response[sender, entry, password_entry, entry_stack] => move |_, resp| {
                 if resp == gtk4::ResponseType::Accept {
                     let text = if entry_stack.visible_child().as_ref() == Some(password_entry.upcast_ref()) {
