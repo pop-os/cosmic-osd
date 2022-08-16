@@ -44,8 +44,9 @@ impl SimpleComponent for PolkitDialogModel {
     view! {
         #[name = "dialog"]
         gtk4::Dialog::builder().use_header_bar(1).build() {
+            // NOTE: Showing after destroying seems to cancel destruction
             #[watch]
-            set_visible: model.visible,
+            set_visible: model.visible && !model.destroyed,
             set_receives_default: true,
             set_default_response: gtk4::ResponseType::Accept,
             add_button: ("Cancel", gtk4::ResponseType::Cancel),
@@ -169,7 +170,7 @@ impl SimpleComponent for PolkitDialogModel {
                     self.show_entry = false;
                 }
                 AgentMsg::Complete(success) => {
-                    self.visible = false; // TODO: destroy widget/component?
+                    self.destroyed = false;
                     sender.output(if success {
                         Ok(())
                     } else {
