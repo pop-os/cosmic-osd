@@ -1,21 +1,14 @@
 // TODO: only open one dialog at a time?
 
-use futures::future;
-use gtk4::{glib, prelude::*};
-use std::{
-    collections::HashMap,
-    io::{self, prelude::*},
-    process::{self, Command, Stdio},
-    sync::Mutex,
-};
+use std::collections::HashMap;
+use tokio::sync::{mpsc, oneshot};
 use zbus::zvariant;
 
-use crate::polkit_agent_helper::AgentHelper;
-use crate::polkit_dialog::create_polkit_dialog;
+use crate::components::app::{Msg, PolkitDialogParams};
 
 const OBJECT_PATH: &str = "/com/system76/CosmicOsd";
 
-#[derive(Debug, zbus::DBusError)]
+#[derive(Clone, Debug, zbus::DBusError)]
 #[dbus_error(prefix = "org.freedesktop.PolicyKit1.Error")]
 pub enum PolkitError {
     Failed,
@@ -78,9 +71,8 @@ trait PolkitAuthority {
     ) -> zbus::Result<()>;
 }
 
-#[derive(Default)]
 struct PolkitAgent {
-    abort_handle_by_cookie: Mutex<HashMap<String, future::AbortHandle>>,
+    sender: mpsc::Sender<Msg>,
 }
 
 #[zbus::dbus_interface(name = "org.freedesktop.PolicyKit1.AuthenticationAgent")]
@@ -94,33 +86,29 @@ impl PolkitAgent {
         cookie: String,
         identities: Vec<Identity<'_>>,
     ) -> Result<(), PolkitError> {
-        let (future, abort_handle) = future::abortable(glib::clone!(@strong cookie => async move {
-            if let Some((_uid, pw_name)) = select_user_from_identities(&identities) {
-                match AgentHelper::new(&pw_name, &cookie).await {
-                    Ok(helper) => {
-                        create_polkit_dialog(action_id, message, icon_name, details, helper).await?
-                    }
-                    Err(err) => {}
-                }
-            }
-            Ok(())
-        }));
-
-        self.abort_handle_by_cookie
-            .lock()
-            .unwrap()
-            .insert(cookie, abort_handle);
-
-        future.await.unwrap_or(Err(PolkitError::Cancelled))
+        if let Some((_uid, pw_name)) = select_user_from_identities(&identities) {
+            let (response_sender, response_receiver) = oneshot::channel();
+            let _ = self
+                .sender
+                .send(Msg::CreatePolkitDialog(PolkitDialogParams {
+                    pw_name,
+                    action_id,
+                    message,
+                    icon_name,
+                    details,
+                    cookie,
+                    response_sender,
+                }))
+                .await;
+            response_receiver.await.unwrap()
+        } else {
+            Err(PolkitError::Failed)
+        }
     }
 
     async fn cancel_authentication(&self, cookie: String) -> Result<(), PolkitError> {
-        if let Some(handle) = self.abort_handle_by_cookie.lock().unwrap().remove(&cookie) {
-            handle.abort();
-            Ok(())
-        } else {
-            Err(PolkitError::CancellationIdNotUnique)
-        }
+        let _ = self.sender.send(Msg::CancelPolkitDialog { cookie }).await;
+        Ok(())
     }
 }
 
@@ -146,10 +134,14 @@ fn select_user_from_identities(identities: &[Identity]) -> Option<(u32, String)>
     Some((uid, user.name().to_str()?.to_string()))
 }
 
-pub async fn register_agent(system_connection: &zbus::Connection) -> zbus::Result<()> {
+pub async fn register_agent(
+    system_connection: &zbus::Connection,
+    sender: mpsc::Sender<Msg>,
+) -> zbus::Result<()> {
+    let agent = PolkitAgent { sender };
     system_connection
         .object_server()
-        .at(OBJECT_PATH, PolkitAgent::default())
+        .at(OBJECT_PATH, agent)
         .await?;
 
     let session = LogindSessionProxy::new(system_connection).await?;

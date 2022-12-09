@@ -5,10 +5,15 @@ edition = "2021"
 license = "GPL-3.0-or-later"
 
 [dependencies]
-async-process = "1.4.0"
 futures = "0.3"
-gtk4 = { git = "https://github.com/gtk-rs/gtk4-rs" }
-relm4 = { git = "https://github.com/relm4/relm4", features = ["macros"] }
+iced = { git = "https://github.com/pop-os/iced", branch = "sctk-cosmic", features = ["tokio"] }
+iced_lazy = { git = "https://github.com/pop-os/iced", branch = "sctk-cosmic" }
+iced_native = { git = "https://github.com/pop-os/iced", branch = "sctk-cosmic" }
+iced_sctk = { git = "https://github.com/pop-os/iced-sctk" }
+libcosmic = { git = "https://github.com/pop-os/libcosmic" }
+sctk = { package = "smithay-client-toolkit", git = "https://github.com/Smithay/client-toolkit" }
 serde = { version = "1.0.140", features = ["derive"] }
+tokio = { version = "1.23.0", features = ["process"] }
+tokio-stream = "0.1.11"
 users = "0.11.0"
-zbus = "2.3.2"
+zbus = { version = "3.6.1", features = ["tokio"] }

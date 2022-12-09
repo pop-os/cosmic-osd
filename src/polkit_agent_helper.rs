@@ -1,46 +1,77 @@
-use async_process::{self, Command, Stdio};
-use futures::{io::BufReader, prelude::*};
-use std::{
-    collections::HashMap,
-    io::{self, prelude::*},
+// TODO more elmy design?
+// - return immediately
+// - how to split subscription and sender?
+
+use std::{fmt, io, process::Stdio, sync::Arc};
+use tokio::{
+    io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
+    process::Command,
+    sync::Mutex,
 };
 
 const HELPER_PATH: &str = "/usr/libexec/polkit-agent-helper-1";
 
+#[derive(Clone)] // XXX?
 #[derive(Debug)]
 pub enum AgentMsg {
+    Failed,
+    Responder(AgentHelperResponder),
     Request(String, bool),
     ShowError(String),
     ShowDebug(String),
     Complete(bool),
 }
 
-pub struct AgentHelper {
-    child: async_process::Child,
-    stdout: BufReader<async_process::ChildStdout>,
+pub fn agent_helper_subscription(pw_name: &str, cookie: &str) -> iced::Subscription<AgentMsg> {
+    // TODO: Avoid clone?
+    let mut args = Some((pw_name.to_owned(), cookie.to_owned()));
+    let name = format!("agent-helper-{}", cookie);
+    iced::subscription::unfold(name, None::<AgentHelper>, move |agent_helper| {
+        let args = args.take();
+        async move {
+            if let Some(mut agent_helper) = agent_helper {
+                let msg = agent_helper
+                    .next()
+                    .await
+                    .unwrap_or_else(|err| Some(AgentMsg::Failed));
+                (msg, Some(agent_helper))
+            } else {
+                let (pw_name, cookie) = args.unwrap();
+                match AgentHelper::new(&pw_name, &cookie).await {
+                    Ok((helper, responder)) => (Some(AgentMsg::Responder(responder)), Some(helper)),
+                    Err(err) => (Some(AgentMsg::Failed), None),
+                }
+            }
+        }
+    })
+}
+
+struct AgentHelper {
+    _child: tokio::process::Child,
+    stdout: BufReader<tokio::process::ChildStdout>,
 }
 
 impl AgentHelper {
-    pub async fn new(pw_name: &str, cookie: &str) -> io::Result<(Self, AgentHelperResponder)> {
+    async fn new(pw_name: &str, cookie: &str) -> io::Result<(Self, AgentHelperResponder)> {
         let mut child = Command::new(HELPER_PATH)
             .arg(pw_name)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .spawn()?;
         let mut responder = AgentHelperResponder {
-            stdin: child.stdin.take().unwrap(),
+            stdin: Arc::new(Mutex::new(child.stdin.take().unwrap())),
         };
         responder.response(cookie).await?;
         Ok((
             Self {
                 stdout: BufReader::new(child.stdout.take().unwrap()),
-                child,
+                _child: child,
             },
             responder,
         ))
     }
 
-    pub async fn next(&mut self) -> io::Result<Option<AgentMsg>> {
+    async fn next(&mut self) -> io::Result<Option<AgentMsg>> {
         let mut line = String::new();
         while self.stdout.read_line(&mut line).await? != 0 {
             let line = line.trim();
@@ -62,14 +93,28 @@ impl AgentHelper {
     }
 }
 
+#[derive(Clone)]
 pub struct AgentHelperResponder {
-    stdin: async_process::ChildStdin,
+    stdin: Arc<Mutex<tokio::process::ChildStdin>>,
 }
 
 impl AgentHelperResponder {
-    pub async fn response(&mut self, resp: &str) -> io::Result<()> {
-        self.stdin.write(resp.as_bytes()).await?;
-        self.stdin.write(b"\n").await?;
+    pub async fn response(&self, resp: &str) -> io::Result<()> {
+        let mut stdin = self.stdin.lock().await;
+        stdin.write(resp.as_bytes()).await?;
+        stdin.write(b"\n").await?;
         Ok(())
+    }
+}
+
+impl fmt::Debug for AgentHelper {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "AgentHelper")
+    }
+}
+
+impl fmt::Debug for AgentHelperResponder {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "AgentHelperResponder")
     }
 }
