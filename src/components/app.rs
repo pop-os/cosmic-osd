@@ -8,8 +8,10 @@ use iced_sctk::{
 use sctk::shell::layer::{KeyboardInteractivity, Layer};
 use std::collections::BTreeMap;
 
-use super::polkit_dialog;
-use crate::{dbus, polkit_agent, settings_daemon};
+use crate::{
+    components::polkit_dialog,
+    subscriptions::{dbus, polkit_agent, settings_daemon},
+};
 
 #[derive(Debug)]
 pub enum Msg {

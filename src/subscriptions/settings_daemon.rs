@@ -10,7 +10,7 @@ pub fn subscription(connection: zbus::Connection) -> iced::Subscription<Event> {
                 Ok(value) => value,
                 Err(_err) => iced::futures::future::pending().await,
             };
-            let mut stream = settings_daemon.receive_display_brightness_changed().await;
+            let stream = settings_daemon.receive_display_brightness_changed().await;
             stream.filter_map(
                 |evt| async move { Some(Event::DisplayBrightness(evt.get().await.ok()?)) },
             )

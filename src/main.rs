@@ -1,8 +1,5 @@
 mod components;
-mod dbus;
-mod polkit_agent;
-mod polkit_agent_helper;
-mod settings_daemon;
+mod subscriptions;
 
 fn main() {
     components::app::main().unwrap();

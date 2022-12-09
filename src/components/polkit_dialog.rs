@@ -12,8 +12,7 @@ use sctk::shell::layer::{KeyboardInteractivity, Layer};
 use std::collections::HashMap;
 use tokio::sync::oneshot;
 
-use crate::polkit_agent::PolkitError;
-use crate::polkit_agent_helper::{agent_helper_subscription, AgentHelperResponder, AgentMsg};
+use crate::subscriptions::{polkit_agent::PolkitError, polkit_agent_helper};
 
 #[derive(Debug)]
 pub struct Params {
@@ -28,7 +27,7 @@ pub struct Params {
 
 #[derive(Clone, Debug)]
 pub enum Msg {
-    AgentMsg(AgentMsg),
+    AgentMsg(polkit_agent_helper::Event),
     Authenticate,
     Cancel,
     Password(String),
@@ -37,7 +36,7 @@ pub enum Msg {
 pub struct State {
     id: SurfaceId,
     pub params: Params,
-    responder: Option<AgentHelperResponder>,
+    responder: Option<polkit_agent_helper::Responder>,
     password: String,
     message: Option<String>, // TODO show
     password_label: String,  // TODO
@@ -80,24 +79,24 @@ impl State {
     pub fn update(mut self, event: Msg) -> (Option<Self>, Command<Msg>) {
         match event {
             Msg::AgentMsg(agent_msg) => match agent_msg {
-                AgentMsg::Responder(responder) => {
+                polkit_agent_helper::Event::Responder(responder) => {
                     self.responder = Some(responder);
                 }
-                AgentMsg::Failed => {
+                polkit_agent_helper::Event::Failed => {
                     return (None, self.respond(Err(PolkitError::Failed)));
                 }
-                AgentMsg::Request(s, echo) => {
+                polkit_agent_helper::Event::Request(s, echo) => {
                     println!("request: {}", s);
                     self.password_label = s;
                     self.echo = echo;
                 }
-                AgentMsg::ShowError(s) => {
+                polkit_agent_helper::Event::ShowError(s) => {
                     self.message = Some(s);
                 }
-                AgentMsg::ShowDebug(s) => {
+                polkit_agent_helper::Event::ShowDebug(s) => {
                     self.message = Some(s);
                 }
-                AgentMsg::Complete(success) => {
+                polkit_agent_helper::Event::Complete(success) => {
                     let res = if success {
                         Ok(())
                     } else {
@@ -146,6 +145,7 @@ impl State {
     }
 
     pub fn subscription(&self) -> Subscription<Msg> {
-        agent_helper_subscription(&self.params.pw_name, &self.params.cookie).map(Msg::AgentMsg)
+        polkit_agent_helper::subscription(&self.params.pw_name, &self.params.cookie)
+            .map(Msg::AgentMsg)
     }
 }
