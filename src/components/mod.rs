@@ -1,2 +1,2 @@
 pub mod app;
-mod polkit_dialog;
+pub mod polkit_dialog;

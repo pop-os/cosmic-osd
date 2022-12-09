@@ -1,39 +1,22 @@
 use cosmic::iced_native::window::Id as SurfaceId;
-use futures::FutureExt;
 use iced::{Application, Command, Element, Subscription};
-use iced_sctk::command::platform_specific::wayland::layer_surface::SctkLayerSurfaceSettings;
 use iced_sctk::{
-    application::SurfaceIdWrapper, commands::layer_surface::destroy_layer_surface,
-    settings::InitialSurface,
+    application::SurfaceIdWrapper,
+    command::platform_specific::wayland::layer_surface::SctkLayerSurfaceSettings,
+    commands::layer_surface::destroy_layer_surface, settings::InitialSurface,
 };
 use sctk::shell::layer::{KeyboardInteractivity, Layer};
-use std::collections::{BTreeMap, HashMap};
-use tokio::sync::{mpsc, oneshot};
-use tokio_stream::wrappers::ReceiverStream;
+use std::collections::BTreeMap;
 
 use super::polkit_dialog;
-use crate::{
-    polkit_agent::{self, PolkitError},
-    polkit_agent_helper::{AgentHelperResponder, AgentMsg},
-    settings_daemon,
-};
-
-#[derive(Debug)]
-pub struct PolkitDialogParams {
-    pub pw_name: String,
-    pub action_id: String,
-    pub message: String,
-    pub icon_name: String,
-    pub details: HashMap<String, String>,
-    pub cookie: String,
-    pub response_sender: oneshot::Sender<Result<(), PolkitError>>,
-}
+use crate::{dbus, polkit_agent, settings_daemon};
 
 #[derive(Debug)]
 pub enum Msg {
-    CreatePolkitDialog(PolkitDialogParams),
-    CancelPolkitDialog { cookie: String },
+    DBus(dbus::Event),
+    PolkitAgent(polkit_agent::Event),
     PolkitDialog((SurfaceId, polkit_dialog::Msg)),
+    SettingsDaemon(settings_daemon::Event),
     Closed(SurfaceIdWrapper),
 }
 
@@ -43,6 +26,8 @@ enum Surface {
 
 #[derive(Default)]
 struct App {
+    connection: Option<zbus::Connection>,
+    system_connection: Option<zbus::Connection>,
     surfaces: BTreeMap<SurfaceId, Surface>,
 }
 
@@ -78,35 +63,48 @@ impl Application for App {
 
     fn update(&mut self, message: Msg) -> Command<Msg> {
         match message {
-            Msg::CreatePolkitDialog(params) => {
-                println!("create: {}", params.cookie);
-                // TODO open surface
-                let id = self.next_surface_id();
-                let (state, cmd) = polkit_dialog::State::new(id, params);
-                self.surfaces
-                    .insert(id.clone(), Surface::PolkitDialog(state));
-                cmd
-            }
-            Msg::CancelPolkitDialog { cookie } => {
-                println!("cancel: {}", cookie);
-                if let Some((id, _)) = self.surfaces.iter().find(|(id, surface)| {
-                    if let Surface::PolkitDialog(state) = surface {
-                        state.params.cookie == cookie
-                    } else {
-                        false
+            Msg::DBus(event) => {
+                match event {
+                    dbus::Event::Connection(connection) => self.connection = Some(connection),
+                    dbus::Event::SystemConnection(connection) => {
+                        self.system_connection = Some(connection)
                     }
-                }) {
-                    let id = *id;
-                    if let Surface::PolkitDialog(state) = self.surfaces.remove(&id).unwrap() {
-                        state.cancel()
-                    } else {
-                        unreachable!()
+                    dbus::Event::Error(context, err) => {
+                        eprintln!("Failed to {}: {}", context, err);
                     }
-                } else {
-                    Command::none()
                 }
+                iced::Command::none()
             }
-            Msg::Closed(surface) => Command::none(),
+            Msg::PolkitAgent(event) => match event {
+                polkit_agent::Event::CreateDialog(params) => {
+                    println!("create: {}", params.cookie);
+                    // TODO open surface
+                    let id = self.next_surface_id();
+                    let (state, cmd) = polkit_dialog::State::new(id, params);
+                    self.surfaces
+                        .insert(id.clone(), Surface::PolkitDialog(state));
+                    cmd
+                }
+                polkit_agent::Event::CancelDialog { cookie } => {
+                    println!("cancel: {}", cookie);
+                    if let Some((id, _)) = self.surfaces.iter().find(|(_id, surface)| {
+                        if let Surface::PolkitDialog(state) = surface {
+                            state.params.cookie == cookie
+                        } else {
+                            false
+                        }
+                    }) {
+                        let id = *id;
+                        if let Surface::PolkitDialog(state) = self.surfaces.remove(&id).unwrap() {
+                            state.cancel()
+                        } else {
+                            unreachable!()
+                        }
+                    } else {
+                        Command::none()
+                    }
+                }
+            },
             Msg::PolkitDialog((id, msg)) => {
                 if let Some(surface) = self.surfaces.remove(&id) {
                     if let Surface::PolkitDialog(state) = surface {
@@ -119,29 +117,30 @@ impl Application for App {
                 }
                 Command::none()
             }
+            Msg::SettingsDaemon(event) => {
+                println!("{:?}", event);
+                Command::none()
+            }
+            Msg::Closed(surface) => Command::none(),
         }
     }
 
     fn subscription(&self) -> Subscription<Msg> {
-        let mut subscriptions = vec![];
+        let mut subscriptions = Vec::new();
 
-        subscriptions.push(iced::subscription::run(
-            "dbus-service",
-            async move {
-                let (sender, receiver) = mpsc::channel(32);
-                tokio::spawn(async move {
-                    dbus_serve(sender).await.unwrap();
-                });
-                ReceiverStream::new(receiver)
-            }
-            .flatten_stream(),
-        ));
+        subscriptions.push(dbus::subscription().map(Msg::DBus));
 
-        for (id, surface) in &self.surfaces {
-            if let Surface::PolkitDialog(state) = surface {
-                subscriptions.push(state.subscription().with(*id).map(Msg::PolkitDialog));
-            }
+        if let Some(connection) = self.system_connection.clone() {
+            subscriptions.push(polkit_agent::subscription(connection).map(Msg::PolkitAgent));
         }
+
+        if let Some(connection) = self.connection.clone() {
+            subscriptions.push(settings_daemon::subscription(connection).map(Msg::SettingsDaemon));
+        }
+
+        subscriptions.extend(self.surfaces.iter().map(|(id, surface)| match surface {
+            Surface::PolkitDialog(state) => state.subscription().with(*id).map(Msg::PolkitDialog),
+        }));
 
         iced::Subscription::batch(subscriptions)
     }
@@ -180,20 +179,4 @@ pub fn main() -> iced::Result {
         }),
         ..Default::default()
     })
-}
-
-async fn dbus_serve(sender: mpsc::Sender<Msg>) -> zbus::Result<()> {
-    let system_connection = zbus::ConnectionBuilder::system()?
-        .internal_executor(false)
-        .build()
-        .await?;
-    let connection = zbus::ConnectionBuilder::session()?
-        .internal_executor(false)
-        .build()
-        .await?;
-
-    connection.request_name("com.system76.CosmicOsd").await?;
-    polkit_agent::register_agent(&system_connection, sender).await?;
-    settings_daemon::monitor(&connection).await?;
-    Ok(())
 }

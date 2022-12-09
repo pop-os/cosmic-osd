@@ -1,12 +1,35 @@
 // TODO: only open one dialog at a time?
 
+use iced::futures::FutureExt;
 use std::collections::HashMap;
 use tokio::sync::{mpsc, oneshot};
+use tokio_stream::wrappers::ReceiverStream;
 use zbus::zvariant;
 
-use crate::components::app::{Msg, PolkitDialogParams};
+use crate::components::polkit_dialog;
 
 const OBJECT_PATH: &str = "/com/system76/CosmicOsd";
+
+pub fn subscription(system_connection: zbus::Connection) -> iced::Subscription<Event> {
+    iced::subscription::run(
+        "dbus-polkit-agent",
+        async move {
+            let (sender, receiver) = mpsc::channel(32);
+            tokio::spawn(async move {
+                // XXX unwrap
+                register_agent(&system_connection, sender).await.unwrap();
+            });
+            ReceiverStream::new(receiver)
+        }
+        .flatten_stream(),
+    )
+}
+
+#[derive(Debug)]
+pub enum Event {
+    CreateDialog(polkit_dialog::Params),
+    CancelDialog { cookie: String },
+}
 
 #[derive(Clone, Debug, zbus::DBusError)]
 #[dbus_error(prefix = "org.freedesktop.PolicyKit1.Error")]
@@ -72,7 +95,7 @@ trait PolkitAuthority {
 }
 
 struct PolkitAgent {
-    sender: mpsc::Sender<Msg>,
+    sender: mpsc::Sender<Event>,
 }
 
 #[zbus::dbus_interface(name = "org.freedesktop.PolicyKit1.AuthenticationAgent")]
@@ -90,7 +113,7 @@ impl PolkitAgent {
             let (response_sender, response_receiver) = oneshot::channel();
             let _ = self
                 .sender
-                .send(Msg::CreatePolkitDialog(PolkitDialogParams {
+                .send(Event::CreateDialog(polkit_dialog::Params {
                     pw_name,
                     action_id,
                     message,
@@ -107,7 +130,7 @@ impl PolkitAgent {
     }
 
     async fn cancel_authentication(&self, cookie: String) -> Result<(), PolkitError> {
-        let _ = self.sender.send(Msg::CancelPolkitDialog { cookie }).await;
+        let _ = self.sender.send(Event::CancelDialog { cookie }).await;
         Ok(())
     }
 }
@@ -134,9 +157,9 @@ fn select_user_from_identities(identities: &[Identity]) -> Option<(u32, String)>
     Some((uid, user.name().to_str()?.to_string()))
 }
 
-pub async fn register_agent(
+async fn register_agent(
     system_connection: &zbus::Connection,
-    sender: mpsc::Sender<Msg>,
+    sender: mpsc::Sender<Event>,
 ) -> zbus::Result<()> {
     let agent = PolkitAgent { sender };
     system_connection

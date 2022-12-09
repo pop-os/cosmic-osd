@@ -4,15 +4,29 @@
 use cosmic::iced_native::window::Id as SurfaceId;
 use cosmic::{theme, Renderer};
 use iced::{widget, Command, Element, Subscription};
-use iced_sctk::command::platform_specific::wayland::layer_surface::SctkLayerSurfaceSettings;
-use iced_sctk::commands::layer_surface::{destroy_layer_surface, get_layer_surface};
+use iced_sctk::{
+    command::platform_specific::wayland::layer_surface::SctkLayerSurfaceSettings,
+    commands::layer_surface::{destroy_layer_surface, get_layer_surface},
+};
 use sctk::shell::layer::{KeyboardInteractivity, Layer};
+use std::collections::HashMap;
+use tokio::sync::oneshot;
 
-use super::app::PolkitDialogParams;
 use crate::polkit_agent::PolkitError;
 use crate::polkit_agent_helper::{agent_helper_subscription, AgentHelperResponder, AgentMsg};
 
-#[derive(Clone, Debug)] // XXX Clone
+#[derive(Debug)]
+pub struct Params {
+    pub pw_name: String,
+    pub action_id: String,
+    pub message: String,
+    pub icon_name: String,
+    pub details: HashMap<String, String>,
+    pub cookie: String,
+    pub response_sender: oneshot::Sender<Result<(), PolkitError>>,
+}
+
+#[derive(Clone, Debug)]
 pub enum Msg {
     AgentMsg(AgentMsg),
     Authenticate,
@@ -22,7 +36,7 @@ pub enum Msg {
 
 pub struct State {
     id: SurfaceId,
-    pub params: PolkitDialogParams,
+    pub params: Params,
     responder: Option<AgentHelperResponder>,
     password: String,
     message: Option<String>, // TODO show
@@ -31,7 +45,7 @@ pub struct State {
 }
 
 impl State {
-    pub fn new<T>(id: SurfaceId, params: PolkitDialogParams) -> (Self, Command<T>) {
+    pub fn new<T>(id: SurfaceId, params: Params) -> (Self, Command<T>) {
         let cmd = get_layer_surface(SctkLayerSurfaceSettings {
             id,
             keyboard_interactivity: KeyboardInteractivity::Exclusive,
@@ -73,6 +87,7 @@ impl State {
                     return (None, self.respond(Err(PolkitError::Failed)));
                 }
                 AgentMsg::Request(s, echo) => {
+                    println!("request: {}", s);
                     self.password_label = s;
                     self.echo = echo;
                 }

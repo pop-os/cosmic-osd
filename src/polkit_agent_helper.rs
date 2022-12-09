@@ -1,7 +1,3 @@
-// TODO more elmy design?
-// - return immediately
-// - how to split subscription and sender?
-
 use std::{fmt, io, process::Stdio, sync::Arc};
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
@@ -58,7 +54,7 @@ impl AgentHelper {
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .spawn()?;
-        let mut responder = AgentHelperResponder {
+        let responder = AgentHelperResponder {
             stdin: Arc::new(Mutex::new(child.stdin.take().unwrap())),
         };
         responder.response(cookie).await?;
