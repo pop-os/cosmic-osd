@@ -19,7 +19,7 @@ pub struct Params {
     pub pw_name: String,
     pub action_id: String,
     pub message: String,
-    pub icon_name: String,
+    pub icon_name: Option<String>,
     pub details: HashMap<String, String>,
     pub cookie: String,
     pub response_sender: oneshot::Sender<Result<(), PolkitError>>,
@@ -40,7 +40,7 @@ pub struct State {
     password: String,
     message: Option<String>, // TODO show
     password_label: String,  // TODO
-    echo: bool,              // TODO
+    echo: bool,
 }
 
 impl State {
@@ -50,7 +50,8 @@ impl State {
             keyboard_interactivity: KeyboardInteractivity::Exclusive,
             namespace: "osd".into(),
             layer: Layer::Overlay,
-            size: (Some(600), Some(600)),
+            // XXX size window to fit content?
+            size: (Some(600), Some(300)),
             ..Default::default()
         });
         (
@@ -121,16 +122,21 @@ impl State {
     }
 
     pub fn view(&self) -> Element<'_, Msg, Renderer> {
+        // TODO Allocates on every keypress?
+        let mut password_input =
+            widget::text_input("", &self.password, |password| Msg::Password(password));
+        if !self.echo {
+            password_input = password_input.password();
+        }
         widget::row![
-            // image
+            cosmic::widget::icon(self.params.icon_name.as_deref().unwrap_or(""), 64), // XXX test if name is empty
             widget::column![
                 widget::text("Authentication Required"),
                 widget::text(&self.params.message),
-                // TODO Don't echo if `self.echo` not set
-                // TODO Allocates on every keypress?
-                widget::text_input("Password", &self.password, |password| Msg::Password(
-                    password
-                )),
+                widget::row![
+                    widget::text(&self.password_label),
+                    password_input,
+                ],
                 widget::row![
                     cosmic::widget::button(theme::Button::Secondary)
                         .text("Cancel")

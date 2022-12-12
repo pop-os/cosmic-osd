@@ -6,7 +6,7 @@ use iced_sctk::{
     commands::layer_surface::destroy_layer_surface, settings::InitialSurface,
 };
 use sctk::shell::layer::{KeyboardInteractivity, Layer};
-use std::collections::BTreeMap;
+use std::collections::HashMap;
 
 use crate::{
     components::polkit_dialog,
@@ -28,24 +28,17 @@ enum Surface {
 
 #[derive(Default)]
 struct App {
+    max_surface_id: usize,
     connection: Option<zbus::Connection>,
     system_connection: Option<zbus::Connection>,
-    surfaces: BTreeMap<SurfaceId, Surface>,
+    surfaces: HashMap<SurfaceId, Surface>,
 }
 
 impl App {
-    // Get lowest unused ID
     // XXX way hashing is used in iced here may not be ideal
-    fn next_surface_id(&self) -> SurfaceId {
-        let mut id = 1;
-        for i in self.surfaces.keys() {
-            if *i == SurfaceId::new(id) {
-                id += 1;
-            } else {
-                break;
-            }
-        }
-        SurfaceId::new(id)
+    fn next_surface_id(&mut self) -> SurfaceId {
+        self.max_surface_id += 1;
+        SurfaceId::new(self.max_surface_id)
     }
 }
 
@@ -150,7 +143,6 @@ impl Application for App {
     fn view(&self, surface: SurfaceIdWrapper) -> Element<'_, Msg, iced::Renderer<Self::Theme>> {
         if let SurfaceIdWrapper::LayerSurface(id) = surface {
             if let Some(surface) = self.surfaces.get(&id) {
-                println!("FOO");
                 return match surface {
                     Surface::PolkitDialog(state) => {
                         state.view().map(move |msg| Msg::PolkitDialog((id, msg)))

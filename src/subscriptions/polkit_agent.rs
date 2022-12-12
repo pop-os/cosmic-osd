@@ -111,6 +111,11 @@ impl PolkitAgent {
     ) -> Result<(), PolkitError> {
         if let Some((_uid, pw_name)) = select_user_from_identities(&identities) {
             let (response_sender, response_receiver) = oneshot::channel();
+            let icon_name = if !icon_name.is_empty() {
+                Some(icon_name)
+            } else {
+                None
+            };
             let _ = self
                 .sender
                 .send(Event::CreateDialog(polkit_dialog::Params {
