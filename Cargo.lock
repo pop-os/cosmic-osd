@@ -245,7 +245,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "19457a0da465234abd76134a5c2a910c14bd3c5558463e4396ab9a37a328e465"
 dependencies = [
  "log",
- "nix",
+ "nix 0.25.1",
  "slotmap",
  "thiserror",
  "vec_map",
@@ -380,7 +380,7 @@ dependencies = [
  "iced_sctk",
  "libcosmic",
  "serde",
- "smithay-client-toolkit",
+ "smithay-client-toolkit 0.16.0 (git+https://github.com/Smithay/client-toolkit?rev=7334601)",
  "tokio",
  "tokio-stream",
  "users",
@@ -388,17 +388,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "cosmic-text"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ab5d29bcf58238b07dc456ba16b012513ad1f21eb25dd738fcf833bc4f6a1442"
+dependencies = [
+ "fontdb 0.10.0",
+ "libm",
+ "log",
+ "ouroboros 0.15.5",
+ "rangemap",
+ "rustybuzz 0.6.0",
+ "swash",
+ "sys-locale",
+ "unicode-bidi",
+ "unicode-linebreak",
+ "unicode-script",
+ "unicode-segmentation",
+]
+
+[[package]]
 name = "cosmic-theme"
 version = "0.1.0"
-source = "git+https://github.com/pop-os/cosmic-theme.git#896b228e4462c2fdeea0e89d1a657458b4a0a144"
+source = "git+https://github.com/pop-os/cosmic-theme.git#77aad06a6e3e2996ef24fc12e5f59d6da7226692"
 dependencies = [
  "anyhow",
  "csscolorparser",
+ "directories",
  "lazy_static",
  "palette",
  "ron",
  "serde",
- "xdg",
 ]
 
 [[package]]
@@ -580,6 +600,15 @@ checksum = "8168378f4e5023e7218c89c891c0fd8ecdb5e5e4f18cb78f38cf245dd021e76f"
 dependencies = [
  "block-buffer",
  "crypto-common",
+]
+
+[[package]]
+name = "directories"
+version = "4.0.1"
+source = "git+https://github.com/edfloreshz/directories-rs#b93c018bc319f066fbeadcd8e3b865f1fccaaa8c"
+dependencies = [
+ "anyhow",
+ "dirs-sys",
 ]
 
 [[package]]
@@ -785,6 +814,17 @@ dependencies = [
  "log",
  "memmap2 0.3.1",
  "ttf-parser 0.12.3",
+]
+
+[[package]]
+name = "fontdb"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8131752b3f3b876a20f42b3d08233ad177d6e7ec6d18aaa6954489a201071be5"
+dependencies = [
+ "log",
+ "memmap2 0.5.8",
+ "ttf-parser 0.17.1",
 ]
 
 [[package]]
@@ -1168,8 +1208,8 @@ checksum = "dfa686283ad6dd069f105e5ab091b04c62850d3e4cf5d67debad1933f55023df"
 
 [[package]]
 name = "iced"
-version = "0.5.2"
-source = "git+https://github.com/pop-os/iced?branch=sctk-cosmic#d6cd9a8f106dc4b68595c540ca4ffa466aa15a60"
+version = "0.6.0"
+source = "git+https://github.com/pop-os/libcosmic#9880bf2f5675f0256ad13292999f126942d32acd"
 dependencies = [
  "iced_core",
  "iced_futures",
@@ -1177,6 +1217,7 @@ dependencies = [
  "iced_graphics",
  "iced_native",
  "iced_sctk",
+ "iced_swbuf",
  "iced_wgpu",
  "image",
  "thiserror",
@@ -1184,8 +1225,8 @@ dependencies = [
 
 [[package]]
 name = "iced_core"
-version = "0.6.1"
-source = "git+https://github.com/pop-os/iced?branch=sctk-cosmic#d6cd9a8f106dc4b68595c540ca4ffa466aa15a60"
+version = "0.6.2"
+source = "git+https://github.com/pop-os/libcosmic#9880bf2f5675f0256ad13292999f126942d32acd"
 dependencies = [
  "bitflags",
  "palette",
@@ -1195,7 +1236,7 @@ dependencies = [
 [[package]]
 name = "iced_futures"
 version = "0.5.1"
-source = "git+https://github.com/pop-os/iced?branch=sctk-cosmic#d6cd9a8f106dc4b68595c540ca4ffa466aa15a60"
+source = "git+https://github.com/pop-os/libcosmic#9880bf2f5675f0256ad13292999f126942d32acd"
 dependencies = [
  "futures",
  "log",
@@ -1206,8 +1247,8 @@ dependencies = [
 
 [[package]]
 name = "iced_glow"
-version = "0.4.1"
-source = "git+https://github.com/pop-os/iced?branch=sctk-cosmic#d6cd9a8f106dc4b68595c540ca4ffa466aa15a60"
+version = "0.5.1"
+source = "git+https://github.com/pop-os/libcosmic#9880bf2f5675f0256ad13292999f126942d32acd"
 dependencies = [
  "bytemuck",
  "euclid",
@@ -1221,8 +1262,8 @@ dependencies = [
 
 [[package]]
 name = "iced_graphics"
-version = "0.4.0"
-source = "git+https://github.com/pop-os/iced?branch=sctk-cosmic#d6cd9a8f106dc4b68595c540ca4ffa466aa15a60"
+version = "0.5.0"
+source = "git+https://github.com/pop-os/libcosmic#9880bf2f5675f0256ad13292999f126942d32acd"
 dependencies = [
  "bitflags",
  "bytemuck",
@@ -1241,23 +1282,23 @@ dependencies = [
 
 [[package]]
 name = "iced_lazy"
-version = "0.2.0"
-source = "git+https://github.com/pop-os/iced?branch=sctk-cosmic#d6cd9a8f106dc4b68595c540ca4ffa466aa15a60"
+version = "0.3.0"
+source = "git+https://github.com/pop-os/libcosmic#9880bf2f5675f0256ad13292999f126942d32acd"
 dependencies = [
  "iced_native",
- "ouroboros",
+ "ouroboros 0.13.0",
 ]
 
 [[package]]
 name = "iced_native"
-version = "0.6.1"
-source = "git+https://github.com/pop-os/iced?branch=sctk-cosmic#d6cd9a8f106dc4b68595c540ca4ffa466aa15a60"
+version = "0.7.0"
+source = "git+https://github.com/pop-os/libcosmic#9880bf2f5675f0256ad13292999f126942d32acd"
 dependencies = [
  "iced_core",
  "iced_futures",
  "iced_style",
  "num-traits",
- "smithay-client-toolkit",
+ "smithay-client-toolkit 0.16.0 (git+https://github.com/Smithay/client-toolkit?rev=73346019952f82ec7e4d4d15f5d66841b54e8b61)",
  "twox-hash",
  "unicode-segmentation",
 ]
@@ -1265,7 +1306,7 @@ dependencies = [
 [[package]]
 name = "iced_sctk"
 version = "0.1.0"
-source = "git+https://github.com/pop-os/iced-sctk#d126b62ef1001b22dc946db91928395890ff8d9f"
+source = "git+https://github.com/pop-os/libcosmic#9880bf2f5675f0256ad13292999f126942d32acd"
 dependencies = [
  "enum-repr",
  "futures",
@@ -1276,15 +1317,15 @@ dependencies = [
  "iced_native",
  "log",
  "raw-window-handle",
- "smithay-client-toolkit",
+ "smithay-client-toolkit 0.16.0 (git+https://github.com/Smithay/client-toolkit?rev=73346019952f82ec7e4d4d15f5d66841b54e8b61)",
  "thiserror",
  "wayland-backend",
 ]
 
 [[package]]
 name = "iced_style"
-version = "0.5.0"
-source = "git+https://github.com/pop-os/iced?branch=sctk-cosmic#d6cd9a8f106dc4b68595c540ca4ffa466aa15a60"
+version = "0.5.1"
+source = "git+https://github.com/pop-os/libcosmic#9880bf2f5675f0256ad13292999f126942d32acd"
 dependencies = [
  "iced_core",
  "once_cell",
@@ -1292,9 +1333,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "iced_swbuf"
+version = "0.1.0"
+source = "git+https://github.com/pop-os/libcosmic#9880bf2f5675f0256ad13292999f126942d32acd"
+dependencies = [
+ "cosmic-text",
+ "iced_graphics",
+ "iced_native",
+ "lazy_static",
+ "log",
+ "raqote",
+ "raw-window-handle",
+ "swbuf",
+]
+
+[[package]]
 name = "iced_wgpu"
-version = "0.6.1"
-source = "git+https://github.com/pop-os/iced?branch=sctk-cosmic#d6cd9a8f106dc4b68595c540ca4ffa466aa15a60"
+version = "0.7.0"
+source = "git+https://github.com/pop-os/libcosmic#9880bf2f5675f0256ad13292999f126942d32acd"
 dependencies = [
  "bitflags",
  "bytemuck",
@@ -1357,12 +1413,12 @@ dependencies = [
 
 [[package]]
 name = "io-lifetimes"
-version = "1.0.0-rc1"
+version = "1.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6f65dae1d3aa98e6877917ab4e6fdbfdfb00e95885ea7c4f4f29e3a5dfc08fdf"
+checksum = "46112a93252b123d31a119a8d1a1ac19deac4fac6e0e8b0df58f0d4e5870e63c"
 dependencies = [
  "libc",
- "windows-sys 0.36.1",
+ "windows-sys 0.42.0",
 ]
 
 [[package]]
@@ -1445,7 +1501,7 @@ checksum = "db6d7e329c562c5dfab7a46a2afabc8b987ab9a4834c9d1ca04dc54c1546cef8"
 [[package]]
 name = "libcosmic"
 version = "0.1.0"
-source = "git+https://github.com/pop-os/libcosmic#91e826d8eacd03d8e7ef5b1a767b2164f8719ed0"
+source = "git+https://github.com/pop-os/libcosmic#9880bf2f5675f0256ad13292999f126942d32acd"
 dependencies = [
  "apply",
  "cosmic-theme",
@@ -1453,10 +1509,10 @@ dependencies = [
  "freedesktop-icons",
  "iced",
  "iced_core",
+ "iced_glow",
  "iced_lazy",
  "iced_native",
  "iced_style",
- "iced_wgpu",
  "lazy_static",
  "palette",
 ]
@@ -1470,6 +1526,12 @@ dependencies = [
  "cfg-if",
  "winapi",
 ]
+
+[[package]]
+name = "libm"
+version = "0.2.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "348108ab3fba42ec82ff6e9564fc4ca0247bdccdc68dd8af9764bbc79c3c8ffb"
 
 [[package]]
 name = "linked-hash-map"
@@ -1494,6 +1556,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "abb12e687cfb44aa40f41fc3978ef76448f9b6038cad6aef4259d3c095a2382e"
 dependencies = [
  "cfg-if",
+]
+
+[[package]]
+name = "lyon_geom"
+version = "0.16.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6ce4e12203c428a58200b8cf1c0a3aad1cda907008ea11310bb3729593e5f933"
+dependencies = [
+ "arrayvec 0.5.2",
+ "euclid",
+ "num-traits",
 ]
 
 [[package]]
@@ -1644,6 +1717,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "nix"
+version = "0.26.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "46a58d1d356c6597d08cde02c2f09d785b09e28711837b1ed667dc652c08a694"
+dependencies = [
+ "bitflags",
+ "cfg-if",
+ "libc",
+ "memoffset 0.7.1",
+ "pin-utils",
+ "static_assertions",
+]
+
+[[package]]
 name = "nom"
 version = "7.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1754,8 +1841,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f357ef82d1b4db66fbed0b8d542cbd3c22d0bf5b393b3c257b9ba4568e70c9c3"
 dependencies = [
  "aliasable",
- "ouroboros_macro",
+ "ouroboros_macro 0.13.0",
  "stable_deref_trait",
+]
+
+[[package]]
+name = "ouroboros"
+version = "0.15.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dfbb50b356159620db6ac971c6d5c9ab788c9cc38a6f49619fca2a27acb062ca"
+dependencies = [
+ "aliasable",
+ "ouroboros_macro 0.15.5",
 ]
 
 [[package]]
@@ -1763,6 +1860,19 @@ name = "ouroboros_macro"
 version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "44a0b52c2cbaef7dffa5fec1a43274afe8bd2a644fa9fc50a9ef4ff0269b1257"
+dependencies = [
+ "Inflector",
+ "proc-macro-error",
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "ouroboros_macro"
+version = "0.15.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4a0d9d1a6191c4f391f87219d1ea42b23f09ee84d64763cd05ee6ea88d9f384d"
 dependencies = [
  "Inflector",
  "proc-macro-error",
@@ -1835,7 +1945,7 @@ dependencies = [
  "cfg-if",
  "instant",
  "libc",
- "redox_syscall",
+ "redox_syscall 0.2.16",
  "smallvec",
  "winapi",
 ]
@@ -1848,7 +1958,7 @@ checksum = "7ff9f3fef3968a3ec5945535ed654cb38ff72d7495a25619e2247fb15a2ed9ba"
 dependencies = [
  "cfg-if",
  "libc",
- "redox_syscall",
+ "redox_syscall 0.2.16",
  "smallvec",
  "windows-sys 0.42.0",
 ]
@@ -2062,6 +2172,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "63e935c45e09cc6dcf00d2f0b2d630a58f4095320223d47fc68918722f0538b6"
 
 [[package]]
+name = "rangemap"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4ed5f515fe4093fa60900ac1918c9ea73f18189114588ec9b99941e22cc2aedd"
+
+[[package]]
+name = "raqote"
+version = "0.8.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d8d728aa565b374ac3a2109401af5707e941f7189914f5bb64fc416abcbd08ff"
+dependencies = [
+ "euclid",
+ "lyon_geom",
+ "sw-composite",
+ "typed-arena",
+]
+
+[[package]]
 name = "raw-window-handle"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2109,13 +2237,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "redox_syscall"
+version = "0.3.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fb02a9aee8e8c7ad8d86890f1e16b49e0bbbffc9961ff3788c31d57c98bcbf03"
+dependencies = [
+ "bitflags",
+]
+
+[[package]]
 name = "redox_users"
 version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b033d837a7cf162d7993aded9304e30a83213c648b6e389db233191f891e5c2b"
 dependencies = [
  "getrandom",
- "redox_syscall",
+ "redox_syscall 0.2.16",
  "thiserror",
 ]
 
@@ -2224,7 +2361,24 @@ dependencies = [
  "ttf-parser 0.12.3",
  "unicode-bidi-mirroring",
  "unicode-ccc",
- "unicode-general-category",
+ "unicode-general-category 0.4.0",
+ "unicode-script",
+]
+
+[[package]]
+name = "rustybuzz"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ab9e34ecf6900625412355a61bda0bd68099fe674de707c67e5e4aed2c05e489"
+dependencies = [
+ "bitflags",
+ "bytemuck",
+ "libm",
+ "smallvec",
+ "ttf-parser 0.17.1",
+ "unicode-bidi-mirroring",
+ "unicode-ccc",
+ "unicode-general-category 0.6.0",
  "unicode-script",
 ]
 
@@ -2348,7 +2502,7 @@ checksum = "a507befe795404456341dfab10cef66ead4c041f62b8b11bbb92bffe5d0953e0"
 [[package]]
 name = "smithay-client-toolkit"
 version = "0.16.0"
-source = "git+https://github.com/Smithay/client-toolkit#f1d9c3ef9cfbd508d986f7f98b2fc267fcc39b84"
+source = "git+https://github.com/Smithay/client-toolkit?rev=7334601#73346019952f82ec7e4d4d15f5d66841b54e8b61"
 dependencies = [
  "bitflags",
  "calloop",
@@ -2356,7 +2510,30 @@ dependencies = [
  "lazy_static",
  "log",
  "memmap2 0.5.8",
- "nix",
+ "nix 0.25.1",
+ "pkg-config",
+ "thiserror",
+ "wayland-backend",
+ "wayland-client",
+ "wayland-cursor",
+ "wayland-protocols",
+ "wayland-protocols-wlr",
+ "wayland-scanner",
+ "xkbcommon",
+]
+
+[[package]]
+name = "smithay-client-toolkit"
+version = "0.16.0"
+source = "git+https://github.com/Smithay/client-toolkit?rev=73346019952f82ec7e4d4d15f5d66841b54e8b61#73346019952f82ec7e4d4d15f5d66841b54e8b61"
+dependencies = [
+ "bitflags",
+ "calloop",
+ "dlib",
+ "lazy_static",
+ "log",
+ "memmap2 0.5.8",
+ "nix 0.25.1",
  "pkg-config",
  "thiserror",
  "wayland-backend",
@@ -2441,6 +2618,43 @@ dependencies = [
 ]
 
 [[package]]
+name = "sw-composite"
+version = "0.7.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0b8d4f1dd38540e3f62c393ae78e874c94491c403025368183b018e3fb098b1f"
+
+[[package]]
+name = "swash"
+version = "0.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8bb18e5888a9b5f0a89ea3ebdf6883dc479347ca9183b6c51a8f9cf2041f23a0"
+dependencies = [
+ "yazi",
+ "zeno",
+]
+
+[[package]]
+name = "swbuf"
+version = "0.1.1"
+source = "git+https://github.com/rust-windowing/swbuf?rev=9b8641fc#9b8641fc0700e2e19eb68fda30b7a92772ac0150"
+dependencies = [
+ "cocoa",
+ "core-graphics",
+ "foreign-types",
+ "nix 0.26.1",
+ "objc",
+ "raw-window-handle",
+ "redox_syscall 0.3.4",
+ "thiserror",
+ "wasm-bindgen",
+ "wayland-backend",
+ "wayland-client",
+ "web-sys",
+ "windows-sys 0.42.0",
+ "x11-dl",
+]
+
+[[package]]
 name = "syn"
 version = "1.0.105"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2452,6 +2666,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "sys-locale"
+version = "0.2.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3358acbb4acd4146138b9bda219e904a6bb5aaaa237f8eed06f4d6bc1580ecee"
+dependencies = [
+ "js-sys",
+ "libc",
+ "wasm-bindgen",
+ "web-sys",
+ "winapi",
+]
+
+[[package]]
 name = "tempfile"
 version = "3.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2460,7 +2687,7 @@ dependencies = [
  "cfg-if",
  "fastrand",
  "libc",
- "redox_syscall",
+ "redox_syscall 0.2.16",
  "remove_dir_all",
  "winapi",
 ]
@@ -2623,6 +2850,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "typed-arena"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0685c84d5d54d1c26f7d3eb96cd41550adb97baed141a761cf335d3d33bcd0ae"
+
+[[package]]
 name = "typenum"
 version = "1.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2663,10 +2896,26 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "07547e3ee45e28326cc23faac56d44f58f16ab23e413db526debce3b0bfd2742"
 
 [[package]]
+name = "unicode-general-category"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2281c8c1d221438e373249e065ca4989c4c36952c211ff21a0ee91c44a3869e7"
+
+[[package]]
 name = "unicode-ident"
 version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6ceab39d59e4c9499d4e5a8ee0e2735b891bb7308ac83dfb4e80cad195c9f6f3"
+
+[[package]]
+name = "unicode-linebreak"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c5faade31a542b8b35855fff6e8def199853b2da8da256da52f52f1316ee3137"
+dependencies = [
+ "hashbrown",
+ "regex",
+]
 
 [[package]]
 name = "unicode-script"
@@ -2718,13 +2967,13 @@ dependencies = [
  "data-url",
  "flate2",
  "float-cmp",
- "fontdb",
+ "fontdb 0.6.2",
  "kurbo",
  "log",
  "pico-args",
  "rctree",
  "roxmltree",
- "rustybuzz",
+ "rustybuzz 0.4.0",
  "simplecss",
  "siphasher",
  "svgtypes",
@@ -2836,14 +3085,14 @@ dependencies = [
 
 [[package]]
 name = "wayland-backend"
-version = "0.1.0-beta.13"
+version = "0.1.0-beta.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f3f96c52ca34b33e6bb55497327428be54dad648973aa5d3d1e02982d2fcc298"
+checksum = "50598bd298e1e01de02ad3cdcfcfcdb961189e40fea41d9325bc07ba81f8740d"
 dependencies = [
  "cc",
  "downcast-rs",
  "io-lifetimes",
- "nix",
+ "nix 0.25.1",
  "scoped-tls",
  "smallvec",
  "wayland-sys",
@@ -2851,14 +3100,14 @@ dependencies = [
 
 [[package]]
 name = "wayland-client"
-version = "0.30.0-beta.13"
+version = "0.30.0-beta.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0f6ab5911cc8a28e9d781933c1afe0f97ffa6885ad8941294784d025f06e5ad9"
+checksum = "ae06ffbf163db5cc6b40f9aa0ec66e7e1c22b979a327daf209814277f18834e1"
 dependencies = [
  "bitflags",
  "futures-channel",
  "futures-core",
- "nix",
+ "nix 0.25.1",
  "thiserror",
  "wayland-backend",
  "wayland-scanner",
@@ -2866,20 +3115,20 @@ dependencies = [
 
 [[package]]
 name = "wayland-cursor"
-version = "0.30.0-beta.13"
+version = "0.30.0-beta.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fa5ce1bbc13a3d806648974cba1d53481fea2ac29483eb147e4cce1250fc5263"
+checksum = "1e0ca2f99754a70feaddd3cb14acb152186db32841b7ac312487788ea33a78b1"
 dependencies = [
- "nix",
+ "nix 0.25.1",
  "wayland-client",
  "xcursor",
 ]
 
 [[package]]
 name = "wayland-protocols"
-version = "0.30.0-beta.13"
+version = "0.30.0-beta.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e32104ba51988754f4429dbb59c7b7fd2ccf1feaa0009bb59e49a5e2f91e985d"
+checksum = "8491945e2705791d58695ae166bb05bfb1f01f2b7b848faa73966e3462269a2f"
 dependencies = [
  "bitflags",
  "wayland-backend",
@@ -2889,9 +3138,9 @@ dependencies = [
 
 [[package]]
 name = "wayland-protocols-wlr"
-version = "0.1.0-beta.13"
+version = "0.1.0-beta.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "130613a48629204e4ab50ea4b5de2efa2e17c58f71a5af15b39535f99421f8c3"
+checksum = "90968fc47879437fa8519182e07e25eb8173e866767728f2936cd28153f3444c"
 dependencies = [
  "bitflags",
  "wayland-backend",
@@ -2902,9 +3151,9 @@ dependencies = [
 
 [[package]]
 name = "wayland-scanner"
-version = "0.30.0-beta.13"
+version = "0.30.0-beta.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1fb55ca28710dcc155078db4e2bd29aacf24bd311261c48750f38c6c5430bf1f"
+checksum = "28407261ad2bab693652acd84e8abcf1d2bef7270b5cc840ec8c6bed7c715838"
 dependencies = [
  "proc-macro2",
  "quick-xml",
@@ -2914,9 +3163,9 @@ dependencies = [
 
 [[package]]
 name = "wayland-sys"
-version = "0.30.0-beta.13"
+version = "0.30.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "882bda56e8397384ad66ec0ebe763e0b3b53153a6327344f7d74b85981a271e1"
+checksum = "96b2a02ac608e07132978689a6f9bf4214949c85998c247abadd4f4129b1aa06"
 dependencies = [
  "dlib",
  "lazy_static",
@@ -3241,6 +3490,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ec7a2a501ed189703dba8b08142f057e887dfc4b2cc4db2d343ac6376ba3e0b9"
 
 [[package]]
+name = "yazi"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c03b3e19c937b5b9bd8e52b1c88f30cce5c0d33d676cf174866175bb794ff658"
+
+[[package]]
 name = "zbus"
 version = "3.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3259,7 +3514,7 @@ dependencies = [
  "futures-util",
  "hex",
  "lazy_static",
- "nix",
+ "nix 0.25.1",
  "once_cell",
  "ordered-stream",
  "rand",
@@ -3299,6 +3554,12 @@ dependencies = [
  "static_assertions",
  "zvariant",
 ]
+
+[[package]]
+name = "zeno"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c110ba09c9b3a43edd4803d570df0da2414fed6e822e22b976a4e3ef50860701"
 
 [[package]]
 name = "zvariant"

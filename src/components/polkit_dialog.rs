@@ -3,12 +3,14 @@
 
 use cosmic::iced_native::window::Id as SurfaceId;
 use cosmic::{theme, Renderer};
-use iced::{widget, Command, Element, Subscription};
+use iced::{
+    wayland::layer_surface::{KeyboardInteractivity, Layer},
+    widget, Command, Element, Subscription,
+};
 use iced_sctk::{
     command::platform_specific::wayland::layer_surface::SctkLayerSurfaceSettings,
     commands::layer_surface::{destroy_layer_surface, get_layer_surface},
 };
-use sctk::shell::layer::{KeyboardInteractivity, Layer};
 use std::collections::HashMap;
 use tokio::sync::oneshot;
 
@@ -133,10 +135,7 @@ impl State {
             widget::column![
                 widget::text("Authentication Required"),
                 widget::text(&self.params.message),
-                widget::row![
-                    widget::text(&self.password_label),
-                    password_input,
-                ],
+                widget::row![widget::text(&self.password_label), password_input,],
                 widget::row![
                     cosmic::widget::button(theme::Button::Secondary)
                         .text("Cancel")

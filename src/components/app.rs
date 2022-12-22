@@ -1,11 +1,13 @@
 use cosmic::iced_native::window::Id as SurfaceId;
-use iced::{Application, Command, Element, Subscription};
+use iced::{
+    wayland::layer_surface::{KeyboardInteractivity, Layer},
+    Application, Command, Element, Subscription,
+};
 use iced_sctk::{
     application::SurfaceIdWrapper,
     command::platform_specific::wayland::layer_surface::SctkLayerSurfaceSettings,
     commands::layer_surface::destroy_layer_surface, settings::InitialSurface,
 };
-use sctk::shell::layer::{KeyboardInteractivity, Layer};
 use std::collections::HashMap;
 
 use crate::{
