@@ -1,4 +1,7 @@
-use cosmic::iced_native::window::Id as SurfaceId;
+use cosmic::{
+    iced_native::window::Id as SurfaceId,
+    iced_style::application,
+};
 use iced::{
     wayland::layer_surface::{KeyboardInteractivity, Layer},
     Application, Command, Element, Subscription,
@@ -56,6 +59,13 @@ impl Application for App {
 
     fn title(&self) -> String {
         String::from("cosmic-osd")
+    }
+
+    fn style(&self) -> <Self::Theme as application::StyleSheet>::Style {
+        <Self::Theme as application::StyleSheet>::Style::Custom(|theme| application::Appearance {
+            background_color: iced::Color::from_rgba(0.0, 0.0, 0.0, 0.0),
+            text_color: theme.cosmic().on_bg_color().into(),
+        })
     }
 
     fn update(&mut self, message: Msg) -> Command<Msg> {

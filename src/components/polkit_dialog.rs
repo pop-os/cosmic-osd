@@ -130,7 +130,7 @@ impl State {
         if !self.echo {
             password_input = password_input.password();
         }
-        widget::row![
+        widget::container::Container::new(widget::row![
             cosmic::widget::icon(self.params.icon_name.as_deref().unwrap_or(""), 64), // XXX test if name is empty
             widget::column![
                 widget::text("Authentication Required"),
@@ -145,7 +145,18 @@ impl State {
                         .on_press(Msg::Authenticate),
                 ]
             ],
-        ]
+        ])
+        .style(cosmic::theme::Container::Custom(|theme| {
+            cosmic::iced_style::container::Appearance {
+                text_color: Some(theme.cosmic().on_bg_color().into()),
+                background: Some(theme.extended_palette().background.base.color.into()),
+                border_radius: 12.0,
+                border_width: 0.0,
+                border_color: iced::Color::TRANSPARENT,
+            }
+        }))
+        .width(iced::Length::Fill)
+        .height(iced::Length::Fill)
         .into()
     }
 
