@@ -53,7 +53,7 @@ impl State {
             namespace: "osd".into(),
             layer: Layer::Overlay,
             // XXX size window to fit content?
-            size: (Some(600), Some(300)),
+            size: Some((Some(600), Some(300))),
             ..Default::default()
         });
         (

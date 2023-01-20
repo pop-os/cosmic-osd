@@ -169,7 +169,7 @@ pub fn main() -> iced::Result {
         initial_surface: InitialSurface::LayerSurface(SctkLayerSurfaceSettings {
             keyboard_interactivity: KeyboardInteractivity::None,
             namespace: "ignore".into(),
-            size: (Some(1), Some(1)),
+            size: Some((Some(1), Some(1))),
             layer: Layer::Background,
             ..Default::default()
         }),

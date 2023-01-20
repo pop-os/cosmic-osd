@@ -5,10 +5,9 @@ edition = "2021"
 license = "GPL-3.0-or-later"
 
 [dependencies]
-iced = { git = "https://github.com/pop-os/libcosmic", default-features = false, features = ["tokio"] }
+iced = { git = "https://github.com/pop-os/libcosmic", default-features = false }
 iced_sctk = { git = "https://github.com/pop-os/libcosmic" }
-libcosmic = { git = "https://github.com/pop-os/libcosmic" }
-sctk = { package = "smithay-client-toolkit", git = "https://github.com/Smithay/client-toolkit",  rev = "7334601" }
+libcosmic = { git = "https://github.com/pop-os/libcosmic", default-features = false, features = ["tokio", "wayland"] }
 serde = { version = "1.0.140", features = ["derive"] }
 tokio = { version = "1.23.0", features = ["process"] }
 tokio-stream = "0.1.11"
