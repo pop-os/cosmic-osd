@@ -131,7 +131,7 @@ impl State {
             password_input = password_input.password();
         }
         widget::container::Container::new(widget::row![
-            cosmic::widget::icon(self.params.icon_name.as_deref().unwrap_or(""), 64), // XXX test if name is empty
+            cosmic::widget::icon(self.params.icon_name.as_deref().unwrap_or("dialog-authentication"), 64),
             widget::column![
                 widget::text("Authentication Required"),
                 widget::text(&self.params.message),
