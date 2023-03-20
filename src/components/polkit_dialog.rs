@@ -1,7 +1,10 @@
 // TODO translate
 // If the way this handles surface/window is awkward, could inform design of multi-window in iced
 
-use cosmic::iced_native::window::Id as SurfaceId;
+use cosmic::iced_native::{
+    event::{wayland, PlatformSpecific},
+    window::Id as SurfaceId,
+};
 use cosmic::{theme, Renderer};
 use iced::{
     wayland::layer_surface::{KeyboardInteractivity, Layer},
@@ -29,6 +32,7 @@ pub struct Params {
 
 #[derive(Clone, Debug)]
 pub enum Msg {
+    Layer(wayland::LayerEvent),
     AgentMsg(polkit_agent_helper::Event),
     Authenticate,
     Cancel,
@@ -43,10 +47,12 @@ pub struct State {
     message: Option<String>, // TODO show
     password_label: String,  // TODO
     echo: bool,
+    text_input_id: widget::text_input::Id,
 }
 
 impl State {
-    pub fn new<T>(id: SurfaceId, params: Params) -> (Self, Command<T>) {
+    pub fn new<T: 'static>(id: SurfaceId, params: Params) -> (Self, Command<T>) {
+        let text_input_id = widget::text_input::Id::unique();
         let cmd = get_layer_surface(SctkLayerSurfaceSettings {
             id,
             keyboard_interactivity: KeyboardInteractivity::Exclusive,
@@ -65,6 +71,7 @@ impl State {
                 message: None,
                 password_label: String::new(),
                 echo: false,
+                text_input_id,
             },
             cmd,
         )
@@ -81,6 +88,14 @@ impl State {
 
     pub fn update(mut self, event: Msg) -> (Option<Self>, Command<Msg>) {
         match event {
+            // XXX which layer?
+            Msg::Layer(layer_event) => match layer_event {
+                wayland::LayerEvent::Focused => {
+                    let cmd = widget::text_input::focus(self.text_input_id.clone());
+                    return (Some(self), cmd);
+                }
+                _ => {}
+            },
             Msg::AgentMsg(agent_msg) => match agent_msg {
                 polkit_agent_helper::Event::Responder(responder) => {
                     self.responder = Some(responder);
@@ -127,6 +142,7 @@ impl State {
         // TODO Allocates on every keypress?
         let mut password_input =
             widget::text_input("", &self.password, |password| Msg::Password(password))
+                .id(self.text_input_id.clone())
                 .on_submit(Msg::Authenticate);
         if !self.echo {
             password_input = password_input.password();
@@ -168,7 +184,15 @@ impl State {
     }
 
     pub fn subscription(&self) -> Subscription<Msg> {
-        polkit_agent_helper::subscription(&self.params.pw_name, &self.params.cookie)
-            .map(Msg::AgentMsg)
+        iced::Subscription::batch([
+            cosmic::iced_native::subscription::events_with(|e, _status| match e {
+                cosmic::iced::Event::PlatformSpecific(PlatformSpecific::Wayland(
+                    wayland::Event::Layer(e, ..),
+                )) => Some(Msg::Layer(e)),
+                _ => None,
+            }),
+            polkit_agent_helper::subscription(&self.params.pw_name, &self.params.cookie)
+                .map(Msg::AgentMsg),
+        ])
     }
 }
