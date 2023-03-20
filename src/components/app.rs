@@ -172,14 +172,7 @@ pub fn main() -> iced::Result {
     App::run(iced::Settings {
         antialiasing: true,
         exit_on_close_request: false,
-        // XXX no initial surface?
-        initial_surface: InitialSurface::LayerSurface(SctkLayerSurfaceSettings {
-            keyboard_interactivity: KeyboardInteractivity::None,
-            namespace: "ignore".into(),
-            size: Some((Some(1), Some(1))),
-            layer: Layer::Background,
-            ..Default::default()
-        }),
+        initial_surface: InitialSurface::None,
         ..Default::default()
     })
 }
