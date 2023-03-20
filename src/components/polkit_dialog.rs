@@ -131,7 +131,13 @@ impl State {
             password_input = password_input.password();
         }
         widget::container::Container::new(widget::row![
-            cosmic::widget::icon(self.params.icon_name.as_deref().unwrap_or("dialog-authentication"), 64),
+            cosmic::widget::icon(
+                self.params
+                    .icon_name
+                    .as_deref()
+                    .unwrap_or("dialog-authentication"),
+                64
+            ),
             widget::column![
                 widget::text("Authentication Required"),
                 widget::text(&self.params.message),
@@ -149,7 +155,7 @@ impl State {
         .style(cosmic::theme::Container::Custom(|theme| {
             cosmic::iced_style::container::Appearance {
                 text_color: Some(theme.cosmic().on_bg_color().into()),
-                background: Some(theme.extended_palette().background.base.color.into()),
+                background: Some(iced::Color::from(theme.cosmic().background.base).into()),
                 border_radius: 12.0,
                 border_width: 0.0,
                 border_color: iced::Color::TRANSPARENT,

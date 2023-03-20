@@ -1,7 +1,4 @@
-use cosmic::{
-    iced_native::window::Id as SurfaceId,
-    iced_style::application,
-};
+use cosmic::{iced_native::window::Id as SurfaceId, iced_style::application};
 use iced::{
     wayland::layer_surface::{KeyboardInteractivity, Layer},
     Application, Command, Element, Subscription,
