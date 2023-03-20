@@ -126,7 +126,8 @@ impl State {
     pub fn view(&self) -> Element<'_, Msg, Renderer> {
         // TODO Allocates on every keypress?
         let mut password_input =
-            widget::text_input("", &self.password, |password| Msg::Password(password));
+            widget::text_input("", &self.password, |password| Msg::Password(password))
+                .on_submit(Msg::Authenticate);
         if !self.echo {
             password_input = password_input.password();
         }
