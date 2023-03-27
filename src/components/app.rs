@@ -1,5 +1,7 @@
 use cosmic::{
-    iced::{self, Application, Command, Subscription},
+    iced::{
+        self, wayland::layer_surface::destroy_layer_surface, Application, Command, Subscription,
+    },
     iced_runtime::window::Id as SurfaceId,
     iced_sctk::settings::InitialSurface,
     iced_style::application,
@@ -7,7 +9,7 @@ use cosmic::{
 use std::collections::HashMap;
 
 use crate::{
-    components::polkit_dialog,
+    components::{osd_indicator, polkit_dialog},
     subscriptions::{dbus, polkit_agent, settings_daemon},
 };
 
@@ -17,6 +19,7 @@ pub enum Msg {
     PolkitAgent(polkit_agent::Event),
     PolkitDialog((SurfaceId, polkit_dialog::Msg)),
     SettingsDaemon(settings_daemon::Event),
+    OsdIndicator(osd_indicator::Msg),
 }
 
 enum Surface {
@@ -29,6 +32,8 @@ struct App {
     connection: Option<zbus::Connection>,
     system_connection: Option<zbus::Connection>,
     surfaces: HashMap<SurfaceId, Surface>,
+    indicator: Option<(SurfaceId, osd_indicator::State)>,
+    display_brightness: Option<i32>,
 }
 
 impl Application for App {
@@ -108,9 +113,37 @@ impl Application for App {
                 }
                 Command::none()
             }
-            Msg::SettingsDaemon(event) => {
-                println!("{:?}", event);
-                Command::none()
+            Msg::OsdIndicator(msg) => {
+                if let Some((id, state)) = self.indicator.take() {
+                    let (state, cmd) = state.update(msg);
+                    if let Some(state) = state {
+                        self.indicator = Some((id, state));
+                    }
+                    cmd.map(Msg::OsdIndicator)
+                } else {
+                    Command::none()
+                }
+            }
+            Msg::SettingsDaemon(settings_daemon::Event::DisplayBrightness(brightness)) => {
+                if self.display_brightness.is_none() {
+                    self.display_brightness = Some(brightness);
+                    Command::none()
+                } else if self.display_brightness != Some(brightness) {
+                    println!("{:?}", brightness);
+                    self.display_brightness = Some(brightness);
+
+                    let id = SurfaceId::unique();
+                    let params = osd_indicator::Params::DisplayBrightness(brightness);
+                    let (state, cmd) = osd_indicator::State::new(id, params);
+                    let mut cmds = vec![cmd.map(Msg::OsdIndicator)];
+                    if let Some((id, _)) = self.indicator {
+                        cmds.push(destroy_layer_surface(id));
+                    }
+                    self.indicator = Some((id, state));
+                    Command::batch(cmds)
+                } else {
+                    Command::none()
+                }
             }
         }
     }
@@ -142,6 +175,10 @@ impl Application for App {
                     state.view().map(move |msg| Msg::PolkitDialog((id, msg)))
                 }
             };
+        } else if let Some((indicator_id, state)) = &self.indicator {
+            if id == *indicator_id {
+                return state.view().map(Msg::OsdIndicator);
+            }
         }
         iced::widget::text("").into() // XXX
     }
