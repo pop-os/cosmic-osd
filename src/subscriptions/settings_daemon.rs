@@ -7,7 +7,7 @@ use cosmic::iced::{
 
 pub fn subscription(connection: zbus::Connection) -> iced::Subscription<Event> {
     iced::subscription::run_with_id(
-        "dbus-service",
+        "settings-daemon",
         async move {
             let settings_daemon = match CosmicSettingsDaemonProxy::new(&connection).await {
                 Ok(value) => value,
