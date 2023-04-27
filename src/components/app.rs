@@ -4,7 +4,6 @@ use iced::{
     Application, Command, Element, Subscription,
 };
 use iced_sctk::{
-    application::SurfaceIdWrapper,
     command::platform_specific::wayland::layer_surface::SctkLayerSurfaceSettings,
     commands::layer_surface::destroy_layer_surface, settings::InitialSurface,
 };
@@ -21,7 +20,7 @@ pub enum Msg {
     PolkitAgent(polkit_agent::Event),
     PolkitDialog((SurfaceId, polkit_dialog::Msg)),
     SettingsDaemon(settings_daemon::Event),
-    Closed(SurfaceIdWrapper),
+    Closed(SurfaceId),
 }
 
 enum Surface {
@@ -149,21 +148,19 @@ impl Application for App {
         iced::Subscription::batch(subscriptions)
     }
 
-    fn view(&self, surface: SurfaceIdWrapper) -> Element<'_, Msg, iced::Renderer<Self::Theme>> {
-        if let SurfaceIdWrapper::LayerSurface(id) = surface {
-            if let Some(surface) = self.surfaces.get(&id) {
-                return match surface {
-                    Surface::PolkitDialog(state) => {
-                        state.view().map(move |msg| Msg::PolkitDialog((id, msg)))
-                    }
-                };
-            }
+    fn view(&self, id: SurfaceId) -> Element<'_, Msg, iced::Renderer<Self::Theme>> {
+        if let Some(surface) = self.surfaces.get(&id) {
+            return match surface {
+                Surface::PolkitDialog(state) => {
+                    state.view().map(move |msg| Msg::PolkitDialog((id, msg)))
+                }
+            };
         }
         iced::widget::text("").into() // XXX
     }
 
     // TODO: Should be Option<Msg>?
-    fn close_requested(&self, surface: SurfaceIdWrapper) -> Msg {
+    fn close_requested(&self, surface: SurfaceId) -> Msg {
         Msg::Closed(surface)
     }
 }
