@@ -1,9 +1,12 @@
 // XXX error handling?
 
-use iced::futures::{FutureExt, StreamExt};
+use cosmic::iced::{
+    self,
+    futures::{FutureExt, StreamExt},
+};
 
 pub fn subscription(connection: zbus::Connection) -> iced::Subscription<Event> {
-    iced::subscription::run(
+    iced::subscription::run_with_id(
         "dbus-service",
         async move {
             let settings_daemon = match CosmicSettingsDaemonProxy::new(&connection).await {

@@ -1,3 +1,4 @@
+use cosmic::iced::{self, futures::future};
 use std::{fmt, io, process::Stdio, sync::Arc};
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
@@ -29,12 +30,16 @@ pub fn subscription(pw_name: &str, cookie: &str) -> iced::Subscription<Event> {
                     .next()
                     .await
                     .unwrap_or_else(|err| Some(Event::Failed));
-                (msg, Some(agent_helper))
+                if let Some(msg) = msg {
+                    (msg, Some(agent_helper))
+                } else {
+                    future::pending().await
+                }
             } else {
                 let (pw_name, cookie) = args.unwrap();
                 match AgentHelper::new(&pw_name, &cookie).await {
-                    Ok((helper, responder)) => (Some(Event::Responder(responder)), Some(helper)),
-                    Err(err) => (Some(Event::Failed), None),
+                    Ok((helper, responder)) => (Event::Responder(responder), Some(helper)),
+                    Err(err) => (Event::Failed, None),
                 }
             }
         }

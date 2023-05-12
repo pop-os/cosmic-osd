@@ -1,5 +1,7 @@
 // TODO: Handle loss of connection, name?
 
+use cosmic::iced;
+
 static NAME: &str = "com.system76.CosmicOsd";
 
 #[derive(Debug)]
@@ -19,19 +21,19 @@ pub fn subscription() -> iced::Subscription<Event> {
     iced::subscription::unfold("dbus-service", State::Start, |state| async move {
         match state {
             State::Start => (
-                Some(result_to_event(
+                result_to_event(
                     connection().await,
                     "create session connection",
                     Event::Connection,
-                )),
+                ),
                 State::CreatedConnection,
             ),
             State::CreatedConnection => (
-                Some(result_to_event(
+                result_to_event(
                     system_connection().await,
                     "create system connection",
                     Event::SystemConnection,
-                )),
+                ),
                 State::CreatedSystemConnection,
             ),
             State::CreatedSystemConnection => iced::futures::future::pending().await,

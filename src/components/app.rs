@@ -1,11 +1,8 @@
-use cosmic::{iced_native::window::Id as SurfaceId, iced_style::application};
-use iced::{
-    wayland::layer_surface::{KeyboardInteractivity, Layer},
-    Application, Command, Element, Subscription,
-};
-use iced_sctk::{
-    command::platform_specific::wayland::layer_surface::SctkLayerSurfaceSettings,
-    commands::layer_surface::destroy_layer_surface, settings::InitialSurface,
+use cosmic::{
+    iced::{self, Application, Command, Subscription},
+    iced_runtime::window::Id as SurfaceId,
+    iced_sctk::settings::InitialSurface,
+    iced_style::application,
 };
 use std::collections::HashMap;
 
@@ -29,7 +26,7 @@ enum Surface {
 
 #[derive(Default)]
 struct App {
-    max_surface_id: usize,
+    max_surface_id: u128,
     connection: Option<zbus::Connection>,
     system_connection: Option<zbus::Connection>,
     surfaces: HashMap<SurfaceId, Surface>,
@@ -39,7 +36,7 @@ impl App {
     // XXX way hashing is used in iced here may not be ideal
     fn next_surface_id(&mut self) -> SurfaceId {
         self.max_surface_id += 1;
-        SurfaceId::new(self.max_surface_id)
+        SurfaceId(self.max_surface_id)
     }
 }
 
@@ -50,7 +47,7 @@ impl Application for App {
     type Flags = ();
 
     fn new(_flags: ()) -> (Self, Command<Msg>) {
-        (Self::default(), destroy_layer_surface(SurfaceId::new(0)))
+        (Self::default(), Command::none())
     }
 
     fn title(&self) -> String {
@@ -148,7 +145,7 @@ impl Application for App {
         iced::Subscription::batch(subscriptions)
     }
 
-    fn view(&self, id: SurfaceId) -> Element<'_, Msg, iced::Renderer<Self::Theme>> {
+    fn view(&self, id: SurfaceId) -> cosmic::Element<'_, Msg> {
         if let Some(surface) = self.surfaces.get(&id) {
             return match surface {
                 Surface::PolkitDialog(state) => {

@@ -1,18 +1,20 @@
 // TODO translate
 // If the way this handles surface/window is awkward, could inform design of multi-window in iced
 
-use cosmic::iced_native::{
-    event::{wayland, PlatformSpecific},
-    window::Id as SurfaceId,
-};
-use cosmic::{theme, Renderer};
-use iced::{
-    wayland::layer_surface::{KeyboardInteractivity, Layer},
-    widget, Command, Element, Subscription,
-};
-use iced_sctk::{
-    command::platform_specific::wayland::layer_surface::SctkLayerSurfaceSettings,
-    commands::layer_surface::{destroy_layer_surface, get_layer_surface},
+use cosmic::{
+    iced::{
+        self,
+        event::{wayland, PlatformSpecific},
+        widget, Command, Subscription,
+    },
+    iced_runtime::{
+        command::platform_specific::wayland::layer_surface::SctkLayerSurfaceSettings,
+        window::Id as SurfaceId,
+    },
+    iced_sctk::commands::layer_surface::{
+        destroy_layer_surface, get_layer_surface, KeyboardInteractivity, Layer,
+    },
+    theme,
 };
 use std::collections::HashMap;
 use tokio::sync::oneshot;
@@ -47,12 +49,12 @@ pub struct State {
     message: Option<String>, // TODO show
     password_label: String,  // TODO
     echo: bool,
-    text_input_id: widget::text_input::Id,
+    text_input_id: iced::id::Id,
 }
 
 impl State {
     pub fn new<T: 'static>(id: SurfaceId, params: Params) -> (Self, Command<T>) {
-        let text_input_id = widget::text_input::Id::unique();
+        let text_input_id = iced::id::Id::unique();
         let cmd = get_layer_surface(SctkLayerSurfaceSettings {
             id,
             keyboard_interactivity: KeyboardInteractivity::Exclusive,
@@ -138,12 +140,12 @@ impl State {
         (Some(self), Command::none())
     }
 
-    pub fn view(&self) -> Element<'_, Msg, Renderer> {
+    pub fn view(&self) -> cosmic::Element<'_, Msg> {
         // TODO Allocates on every keypress?
-        let mut password_input =
-            widget::text_input("", &self.password, |password| Msg::Password(password))
-                .id(self.text_input_id.clone())
-                .on_submit(Msg::Authenticate);
+        let mut password_input = widget::text_input("", &self.password)
+            .id(self.text_input_id.clone())
+            .on_input(Msg::Password)
+            .on_submit(Msg::Authenticate);
         if !self.echo {
             password_input = password_input.password();
         }
@@ -185,7 +187,7 @@ impl State {
 
     pub fn subscription(&self) -> Subscription<Msg> {
         iced::Subscription::batch([
-            cosmic::iced_native::subscription::events_with(|e, _status| match e {
+            cosmic::iced::subscription::events_with(|e, _status| match e {
                 cosmic::iced::Event::PlatformSpecific(PlatformSpecific::Wayland(
                     wayland::Event::Layer(e, ..),
                 )) => Some(Msg::Layer(e)),

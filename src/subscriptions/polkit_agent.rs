@@ -1,6 +1,6 @@
 // TODO: only open one dialog at a time?
 
-use iced::futures::FutureExt;
+use cosmic::iced::{self, futures::FutureExt};
 use std::collections::HashMap;
 use tokio::sync::{mpsc, oneshot};
 use tokio_stream::wrappers::ReceiverStream;
@@ -11,7 +11,7 @@ use crate::components::polkit_dialog;
 const OBJECT_PATH: &str = "/com/system76/CosmicOsd";
 
 pub fn subscription(system_connection: zbus::Connection) -> iced::Subscription<Event> {
-    iced::subscription::run(
+    iced::subscription::run_with_id(
         "dbus-polkit-agent",
         async move {
             let (sender, receiver) = mpsc::channel(32);
