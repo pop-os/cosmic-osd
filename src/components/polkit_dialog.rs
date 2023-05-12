@@ -169,7 +169,7 @@ impl State {
                 ]
             ],
         ])
-        .style(cosmic::theme::Container::Custom(|theme| {
+        .style(cosmic::theme::Container::custom(|theme| {
             cosmic::iced_style::container::Appearance {
                 text_color: Some(theme.cosmic().on_bg_color().into()),
                 background: Some(iced::Color::from(theme.cosmic().background.base).into()),

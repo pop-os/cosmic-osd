@@ -58,7 +58,7 @@ impl Application for App {
     }
 
     fn style(&self) -> <Self::Theme as application::StyleSheet>::Style {
-        <Self::Theme as application::StyleSheet>::Style::Custom(|theme| application::Appearance {
+        <Self::Theme as application::StyleSheet>::Style::custom(|theme| application::Appearance {
             background_color: iced::Color::from_rgba(0.0, 0.0, 0.0, 0.0),
             text_color: theme.cosmic().on_bg_color().into(),
         })
