@@ -32,6 +32,7 @@
           };
           nativeBuildInputs = with pkgs; [ pkg-config ];
           buildInputs = with pkgs; [
+            libxkbcommon
             gdk-pixbuf
             graphene
             cairo
