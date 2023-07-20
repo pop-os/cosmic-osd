@@ -175,7 +175,7 @@ impl State {
             cosmic::iced_style::container::Appearance {
                 text_color: Some(theme.cosmic().on_bg_color().into()),
                 background: Some(iced::Color::from(theme.cosmic().background.base).into()),
-                border_radius: 12.0,
+                border_radius: (12.0).into(),
                 border_width: 0.0,
                 border_color: iced::Color::TRANSPARENT,
             }

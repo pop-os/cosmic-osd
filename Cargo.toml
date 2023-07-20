@@ -5,7 +5,7 @@ edition = "2021"
 license = "GPL-3.0-or-later"
 
 [dependencies]
-libcosmic = { git = "https://github.com/pop-os/libcosmic", branch = "cosmic-advanced-text", default-features = false, features = ["tokio", "wayland"] }
+libcosmic = { git = "https://github.com/pop-os/libcosmic", default-features = false, features = ["tokio", "wayland"] }
 serde = { version = "1.0.140", features = ["derive"] }
 tokio = { version = "1.23.0", features = ["process"] }
 tokio-stream = "0.1.11"
