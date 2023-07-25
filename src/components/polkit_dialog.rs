@@ -61,7 +61,7 @@ impl State {
             namespace: "osd".into(),
             layer: Layer::Overlay,
             // XXX size window to fit content?
-            size: Some((Some(600), Some(300))),
+            size: None,
             ..Default::default()
         });
         (
@@ -149,28 +149,34 @@ impl State {
         if !self.echo {
             password_input = password_input.password();
         }
-        widget::container::Container::new(widget::row![
-            cosmic::widget::icon(
-                self.params
-                    .icon_name
-                    .as_deref()
-                    .unwrap_or("dialog-authentication"),
-                64
-            ),
-            widget::column![
-                widget::text("Authentication Required"),
-                widget::text(&self.params.message),
-                widget::row![widget::text(&self.password_label), password_input,],
-                widget::row![
-                    cosmic::widget::button(theme::Button::Secondary)
-                        .text("Cancel")
-                        .on_press(Msg::Cancel),
-                    cosmic::widget::button(theme::Button::Primary)
-                        .text("Authenticate")
-                        .on_press(Msg::Authenticate),
+        widget::container::Container::new(
+            widget::row![
+                cosmic::widget::icon(
+                    self.params
+                        .icon_name
+                        .as_deref()
+                        .unwrap_or("dialog-authentication"),
+                    64
+                ),
+                widget::column![
+                    widget::text("Authentication Required")
+                        .size(18)
+                        .font(cosmic::font::FONT_SEMIBOLD),
+                    widget::text(&self.params.message),
+                    widget::row![widget::text(&self.password_label), password_input,],
+                    widget::row![
+                        cosmic::widget::button(theme::Button::Secondary)
+                            .text("Cancel")
+                            .on_press(Msg::Cancel),
+                        cosmic::widget::button(theme::Button::Primary)
+                            .text("Authenticate")
+                            .on_press(Msg::Authenticate),
+                    ]
                 ]
-            ],
-        ])
+                .spacing(6),
+            ]
+            .spacing(6),
+        )
         .style(cosmic::theme::Container::custom(|theme| {
             cosmic::iced_style::container::Appearance {
                 text_color: Some(theme.cosmic().on_bg_color().into()),
@@ -180,8 +186,9 @@ impl State {
                 border_color: iced::Color::TRANSPARENT,
             }
         }))
-        .width(iced::Length::Fill)
-        .height(iced::Length::Fill)
+        .width(iced::Length::Fixed(500.0))
+        .height(iced::Length::Shrink)
+        .padding(24)
         .into()
     }
 
