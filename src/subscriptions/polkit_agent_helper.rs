@@ -18,10 +18,10 @@ pub enum Event {
     Complete(bool),
 }
 
-pub fn subscription(pw_name: &str, cookie: &str) -> iced::Subscription<Event> {
+pub fn subscription(pw_name: &str, cookie: &str, retry: u32) -> iced::Subscription<Event> {
     // TODO: Avoid clone?
     let mut args = Some((pw_name.to_owned(), cookie.to_owned()));
-    let name = format!("agent-helper-{}", cookie);
+    let name = format!("agent-helper-{}-{}", cookie, retry);
     iced::subscription::unfold(name, None::<AgentHelper>, move |agent_helper| {
         let args = args.take();
         async move {

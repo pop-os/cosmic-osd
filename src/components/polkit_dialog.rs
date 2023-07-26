@@ -51,6 +51,7 @@ pub struct State {
     echo: bool,
     text_input_id: iced::id::Id,
     sensitive: bool,
+    retries: u32,
 }
 
 impl State {
@@ -76,6 +77,7 @@ impl State {
                 echo: false,
                 text_input_id,
                 sensitive: true,
+                retries: 0,
             },
             cmd,
         )
@@ -119,12 +121,16 @@ impl State {
                     self.message = Some(s);
                 }
                 polkit_agent_helper::Event::Complete(success) => {
-                    let res = if success {
-                        Ok(())
+                    if success {
+                        return (None, self.respond(Ok(())));
                     } else {
-                        Err(PolkitError::Failed)
+                        self.retries += 1;
+                        self.sensitive = true;
+                        self.password.clear();
+                        let cmd = widget::text_input::focus(self.text_input_id.clone());
+                        return (Some(self), cmd);
+                        //Err(PolkitError::Failed)
                     };
-                    return (None, self.respond(res));
                 }
             },
             Msg::Authenticate => {
@@ -160,6 +166,25 @@ impl State {
             cancel_button = cancel_button.on_press(Msg::Cancel);
             authenticate_button = authenticate_button.on_press(Msg::Authenticate);
         }
+        let mut right_column: Vec<cosmic::Element<_>> = vec![
+            widget::text("Authentication Required")
+                .size(18)
+                .font(cosmic::font::FONT_SEMIBOLD)
+                .into(),
+            widget::text(&self.params.message).into(),
+            password_input.into(),
+        ];
+        if self.retries > 0 {
+            right_column.push(widget::text("Invalid password. Please try again.").into());
+        }
+        right_column.push(
+            widget::row![
+                widget::horizontal_space(iced::Length::Fill),
+                cancel_button,
+                authenticate_button,
+            ]
+            .into(),
+        );
         widget::container::Container::new(
             widget::row![
                 cosmic::widget::icon(
@@ -169,19 +194,7 @@ impl State {
                         .unwrap_or("dialog-authentication"),
                     64
                 ),
-                widget::column![
-                    widget::text("Authentication Required")
-                        .size(18)
-                        .font(cosmic::font::FONT_SEMIBOLD),
-                    widget::text(&self.params.message),
-                    password_input,
-                    widget::row![
-                        widget::horizontal_space(iced::Length::Fill),
-                        cancel_button,
-                        authenticate_button,
-                    ]
-                ]
-                .spacing(6),
+                widget::column(right_column).spacing(6),
             ]
             .spacing(6),
         )
@@ -208,8 +221,12 @@ impl State {
                 )) => Some(Msg::Layer(e)),
                 _ => None,
             }),
-            polkit_agent_helper::subscription(&self.params.pw_name, &self.params.cookie)
-                .map(Msg::AgentMsg),
+            polkit_agent_helper::subscription(
+                &self.params.pw_name,
+                &self.params.cookie,
+                self.retries,
+            )
+            .map(Msg::AgentMsg),
         ])
     }
 }
