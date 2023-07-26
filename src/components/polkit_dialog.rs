@@ -50,6 +50,7 @@ pub struct State {
     password_label: String,  // TODO
     echo: bool,
     text_input_id: iced::id::Id,
+    sensitive: bool,
 }
 
 impl State {
@@ -74,6 +75,7 @@ impl State {
                 password_label: String::new(),
                 echo: false,
                 text_input_id,
+                sensitive: true,
             },
             cmd,
         )
@@ -126,7 +128,7 @@ impl State {
                 }
             },
             Msg::Authenticate => {
-                // TODO insenstive until ready?
+                self.sensitive = false; // TODO: show spinner?
                 if let Some(responder) = self.responder.clone() {
                     let password = self.password.clone();
                     tokio::spawn(async move { responder.response(&password).await });
@@ -143,12 +145,25 @@ impl State {
     pub fn view(&self) -> cosmic::Element<'_, Msg> {
         // TODO Allocates on every keypress?
         let placeholder = self.password_label.trim_end_matches(":");
-        let mut password_input = widget::text_input(placeholder, &self.password)
-            .id(self.text_input_id.clone())
-            .on_input(Msg::Password)
-            .on_submit(Msg::Authenticate);
+        let mut password_input =
+            widget::text_input(placeholder, &self.password).id(self.text_input_id.clone());
         if !self.echo {
             password_input = password_input.password();
+        }
+        let mut cancel_button = cosmic::widget::button(theme::Button::Secondary).text("Cancel");
+        let mut authenticate_button =
+            cosmic::widget::button(theme::Button::Primary).text("Authenticate");
+        password_input = password_input
+            .on_input(Msg::Password)
+            .on_submit(Msg::Authenticate);
+        if self.sensitive {
+            /* XXX disabled support need in theme
+            password_input = password_input
+                .on_input(Msg::Password)
+                .on_submit(Msg::Authenticate);
+            */
+            cancel_button = cancel_button.on_press(Msg::Cancel);
+            authenticate_button = authenticate_button.on_press(Msg::Authenticate);
         }
         widget::container::Container::new(
             widget::row![
@@ -167,12 +182,8 @@ impl State {
                     password_input,
                     widget::row![
                         widget::horizontal_space(iced::Length::Fill),
-                        cosmic::widget::button(theme::Button::Secondary)
-                            .text("Cancel")
-                            .on_press(Msg::Cancel),
-                        cosmic::widget::button(theme::Button::Primary)
-                            .text("Authenticate")
-                            .on_press(Msg::Authenticate),
+                        cancel_button,
+                        authenticate_button,
                     ]
                 ]
                 .spacing(6),
