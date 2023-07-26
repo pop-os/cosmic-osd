@@ -142,7 +142,8 @@ impl State {
 
     pub fn view(&self) -> cosmic::Element<'_, Msg> {
         // TODO Allocates on every keypress?
-        let mut password_input = widget::text_input("", &self.password)
+        let placeholder = self.password_label.trim_end_matches(":");
+        let mut password_input = widget::text_input(placeholder, &self.password)
             .id(self.text_input_id.clone())
             .on_input(Msg::Password)
             .on_submit(Msg::Authenticate);
@@ -163,8 +164,9 @@ impl State {
                         .size(18)
                         .font(cosmic::font::FONT_SEMIBOLD),
                     widget::text(&self.params.message),
-                    widget::row![widget::text(&self.password_label), password_input,],
+                    password_input,
                     widget::row![
+                        widget::horizontal_space(iced::Length::Fill),
                         cosmic::widget::button(theme::Button::Secondary)
                             .text("Cancel")
                             .on_press(Msg::Cancel),
