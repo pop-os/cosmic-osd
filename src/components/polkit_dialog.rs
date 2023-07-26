@@ -153,15 +153,10 @@ impl State {
         let mut cancel_button = cosmic::widget::button(theme::Button::Secondary).text("Cancel");
         let mut authenticate_button =
             cosmic::widget::button(theme::Button::Primary).text("Authenticate");
-        password_input = password_input
-            .on_input(Msg::Password)
-            .on_submit(Msg::Authenticate);
         if self.sensitive {
-            /* XXX disabled support need in theme
             password_input = password_input
                 .on_input(Msg::Password)
                 .on_submit(Msg::Authenticate);
-            */
             cancel_button = cancel_button.on_press(Msg::Cancel);
             authenticate_button = authenticate_button.on_press(Msg::Authenticate);
         }
