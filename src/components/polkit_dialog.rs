@@ -175,7 +175,13 @@ impl State {
             password_input.into(),
         ];
         if self.retries > 0 {
-            right_column.push(widget::text("Invalid password. Please try again.").into());
+            right_column.push(
+                widget::text("Invalid password. Please try again.")
+                    .style(cosmic::theme::Text::Color(iced::Color::from_rgb(
+                        1.0, 0.0, 0.0,
+                    )))
+                    .into(),
+            );
         }
         right_column.push(
             widget::row![
