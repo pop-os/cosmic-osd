@@ -36,6 +36,7 @@
             graphene
             cairo
             gtk4
+            libxkbcommon
           ];
         };
 
