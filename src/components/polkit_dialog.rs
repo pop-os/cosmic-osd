@@ -1,4 +1,3 @@
-// TODO translate
 // If the way this handles surface/window is awkward, could inform design of multi-window in iced
 
 use cosmic::{
@@ -19,7 +18,10 @@ use cosmic::{
 use std::collections::HashMap;
 use tokio::sync::oneshot;
 
-use crate::subscriptions::{polkit_agent::PolkitError, polkit_agent_helper};
+use crate::{
+    fl,
+    subscriptions::{polkit_agent::PolkitError, polkit_agent_helper},
+};
 
 #[derive(Debug)]
 pub struct Params {
@@ -52,6 +54,11 @@ pub struct State {
     text_input_id: iced::id::Id,
     sensitive: bool,
     retries: u32,
+    // TODO: Better way to use fluent with iced?
+    msg_cancel: String,
+    msg_authenticate: String,
+    msg_authentication_required: String,
+    msg_invalid_password: String,
 }
 
 impl State {
@@ -78,6 +85,10 @@ impl State {
                 text_input_id,
                 sensitive: true,
                 retries: 0,
+                msg_cancel: fl!("cancel"),
+                msg_authenticate: fl!("authenticate"),
+                msg_authentication_required: fl!("authentication-required"),
+                msg_invalid_password: fl!("invalid-password"),
             },
             cmd,
         )
@@ -156,9 +167,10 @@ impl State {
         if !self.echo {
             password_input = password_input.password();
         }
-        let mut cancel_button = cosmic::widget::button(theme::Button::Secondary).text("Cancel");
+        let mut cancel_button =
+            cosmic::widget::button(theme::Button::Secondary).text(&self.msg_cancel);
         let mut authenticate_button =
-            cosmic::widget::button(theme::Button::Primary).text("Authenticate");
+            cosmic::widget::button(theme::Button::Primary).text(&self.msg_authenticate);
         if self.sensitive {
             password_input = password_input
                 .on_input(Msg::Password)
@@ -167,7 +179,7 @@ impl State {
             authenticate_button = authenticate_button.on_press(Msg::Authenticate);
         }
         let mut right_column: Vec<cosmic::Element<_>> = vec![
-            widget::text("Authentication Required")
+            widget::text(&self.msg_authentication_required)
                 .size(18)
                 .font(cosmic::font::FONT_SEMIBOLD)
                 .into(),
@@ -176,7 +188,7 @@ impl State {
         ];
         if self.retries > 0 {
             right_column.push(
-                widget::text("Invalid password. Please try again.")
+                widget::text(&self.msg_invalid_password)
                     .style(cosmic::theme::Text::Color(iced::Color::from_rgb(
                         1.0, 0.0, 0.0,
                     )))
