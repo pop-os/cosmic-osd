@@ -13,5 +13,5 @@ rust-embed = "8.0.0"
 serde = { version = "1.0.140", features = ["derive"] }
 tokio = { version = "1.23.0", features = ["process"] }
 tokio-stream = "0.1.11"
-users = "0.11.0"
+uzers = "0.11.3"
 zbus = { version = "3.6.1", default-features = false, features = ["tokio"] }

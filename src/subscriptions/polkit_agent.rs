@@ -154,11 +154,11 @@ fn select_user_from_identities(identities: &[Identity]) -> Option<(u32, String)>
     // Like Gnome Shell, try own uid, then root, then first UID in `identities`
     let uid = *uids
         .iter()
-        .find(|uid| **uid == users::get_current_uid())
+        .find(|uid| **uid == uzers::get_current_uid())
         .or(uids.iter().find(|uid| **uid == 0))
         .or_else(|| uids.first())?;
 
-    let user = users::get_user_by_uid(uid)?;
+    let user = uzers::get_user_by_uid(uid)?;
     Some((uid, user.name().to_str()?.to_string()))
 }
 
