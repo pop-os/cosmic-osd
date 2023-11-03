@@ -1,4 +1,4 @@
-// If the way this handles surface/window is awkward, could inform design of multi-window in iced
+// If the way this handes surface/window is awkward, could inform design of multi-window in iced
 
 use cosmic::{
     iced::{
@@ -167,10 +167,11 @@ impl State {
         if !self.echo {
             password_input = password_input.password();
         }
-        let mut cancel_button =
-            cosmic::widget::button(theme::Button::Secondary).text(&self.msg_cancel);
+        let mut cancel_button = cosmic::widget::button(cosmic::widget::text(&self.msg_cancel))
+            .style(theme::Button::Standard);
         let mut authenticate_button =
-            cosmic::widget::button(theme::Button::Primary).text(&self.msg_authenticate);
+            cosmic::widget::button(cosmic::widget::text(&self.msg_authenticate))
+                .style(theme::Button::Suggested);
         if self.sensitive {
             password_input = password_input
                 .on_input(Msg::Password)
@@ -205,19 +206,20 @@ impl State {
         );
         widget::container::Container::new(
             widget::row![
-                cosmic::widget::icon(
+                cosmic::widget::icon::from_name(
                     self.params
                         .icon_name
                         .as_deref()
                         .unwrap_or("dialog-authentication"),
-                    64
-                ),
+                )
+                .size(64),
                 widget::column(right_column).spacing(6),
             ]
             .spacing(6),
         )
         .style(cosmic::theme::Container::custom(|theme| {
             cosmic::iced_style::container::Appearance {
+                icon_color: Some(theme.cosmic().on_bg_color().into()),
                 text_color: Some(theme.cosmic().on_bg_color().into()),
                 background: Some(iced::Color::from(theme.cosmic().background.base).into()),
                 border_radius: (12.0).into(),

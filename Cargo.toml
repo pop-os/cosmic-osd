@@ -5,11 +5,11 @@ edition = "2021"
 license = "GPL-3.0-or-later"
 
 [dependencies]
-i18n-embed = { version = "0.13", features = ["fluent-system", "desktop-requester"] }
-i18n-embed-fl = "0.6"
+i18n-embed = { version = "0.14", features = ["fluent-system", "desktop-requester"] }
+i18n-embed-fl = "0.7"
 libcosmic = { git = "https://github.com/pop-os/libcosmic", default-features = false, features = ["tokio", "wayland"] }
 once_cell = "1.18.0"
-rust-embed = "6.8.1"
+rust-embed = "8.0.0"
 serde = { version = "1.0.140", features = ["derive"] }
 tokio = { version = "1.23.0", features = ["process"] }
 tokio-stream = "0.1.11"
