@@ -1,4 +1,5 @@
 prefix ?= /usr/local
+polkit-agent-helper-1 ?= /usr/libexec/polkit-agent-helper-1
 bindir = $(prefix)/bin
 libdir = $(prefix)/lib
 includedir = $(prefix)/include
@@ -28,7 +29,7 @@ distclean: clean
 	rm -rf .cargo vendor vendor.tar
 
 $(BIN): Cargo.toml Cargo.lock src/main.rs vendor-check
-	cargo build $(ARGS) --bin ${BIN}
+	POLKIT_AGENT_HELPER_1=$(polkit-agent-helper-1) cargo build $(ARGS) --bin ${BIN}
 
 install:
 	install -Dm0755 target/$(TARGET)/$(BIN) $(DESTDIR)$(bindir)/$(BIN)
