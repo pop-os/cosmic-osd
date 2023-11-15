@@ -6,7 +6,7 @@ use tokio::{
     sync::Mutex,
 };
 
-const HELPER_PATH: &str = "/usr/libexec/polkit-agent-helper-1";
+const HELPER_PATH: Option<&str> = option_env!("POLKIT_AGENT_HELPER_1");
 
 #[derive(Clone, Debug)]
 pub enum Event {
@@ -53,7 +53,7 @@ struct AgentHelper {
 
 impl AgentHelper {
     async fn new(pw_name: &str, cookie: &str) -> io::Result<(Self, Responder)> {
-        let mut child = Command::new(HELPER_PATH)
+        let mut child = Command::new(HELPER_PATH.unwrap_or("/usr/libexec/polkit-agent-helper-1"))
             .arg(pw_name)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
