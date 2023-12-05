@@ -235,7 +235,7 @@ impl State {
 
     pub fn subscription(&self) -> Subscription<Msg> {
         iced::Subscription::batch([
-            cosmic::iced::subscription::events_with(|e, _status| match e {
+            cosmic::iced::event::listen_with(|e, _status| match e {
                 cosmic::iced::Event::PlatformSpecific(PlatformSpecific::Wayland(
                     wayland::Event::Layer(e, ..),
                 )) => Some(Msg::Layer(e)),
