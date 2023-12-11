@@ -17,7 +17,6 @@ pub enum Msg {
     PolkitAgent(polkit_agent::Event),
     PolkitDialog((SurfaceId, polkit_dialog::Msg)),
     SettingsDaemon(settings_daemon::Event),
-    Closed(SurfaceId),
 }
 
 enum Surface {
@@ -32,14 +31,6 @@ struct App {
     surfaces: HashMap<SurfaceId, Surface>,
 }
 
-impl App {
-    // XXX way hashing is used in iced here may not be ideal
-    fn next_surface_id(&mut self) -> SurfaceId {
-        self.max_surface_id += 1;
-        SurfaceId(self.max_surface_id)
-    }
-}
-
 impl Application for App {
     type Message = Msg;
     type Theme = cosmic::Theme;
@@ -50,7 +41,7 @@ impl Application for App {
         (Self::default(), Command::none())
     }
 
-    fn title(&self) -> String {
+    fn title(&self, _: SurfaceId) -> String {
         String::from("cosmic-osd")
     }
 
@@ -79,8 +70,7 @@ impl Application for App {
             Msg::PolkitAgent(event) => match event {
                 polkit_agent::Event::CreateDialog(params) => {
                     println!("create: {}", params.cookie);
-                    // TODO open surface
-                    let id = self.next_surface_id();
+                    let id = SurfaceId::unique();
                     let (state, cmd) = polkit_dialog::State::new(id, params);
                     self.surfaces
                         .insert(id.clone(), Surface::PolkitDialog(state));
@@ -122,7 +112,6 @@ impl Application for App {
                 println!("{:?}", event);
                 Command::none()
             }
-            Msg::Closed(surface) => Command::none(),
         }
     }
 
@@ -155,11 +144,6 @@ impl Application for App {
             };
         }
         iced::widget::text("").into() // XXX
-    }
-
-    // TODO: Should be Option<Msg>?
-    fn close_requested(&self, surface: SurfaceId) -> Msg {
-        Msg::Closed(surface)
     }
 }
 
