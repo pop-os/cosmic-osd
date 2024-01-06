@@ -10,7 +10,7 @@ use std::collections::HashMap;
 
 use crate::{
     components::{osd_indicator, polkit_dialog},
-    subscriptions::{dbus, polkit_agent, settings_daemon},
+    subscriptions::{dbus, polkit_agent, pulse, settings_daemon},
 };
 
 #[derive(Debug)]
@@ -19,6 +19,7 @@ pub enum Msg {
     PolkitAgent(polkit_agent::Event),
     PolkitDialog((SurfaceId, polkit_dialog::Msg)),
     SettingsDaemon(settings_daemon::Event),
+    Pulse(pulse::Event),
     OsdIndicator(osd_indicator::Msg),
 }
 
@@ -145,6 +146,10 @@ impl Application for App {
                     Command::none()
                 }
             }
+            Msg::Pulse(pulse_event) => {
+                dbg!(pulse_event);
+                Command::none()
+            }
         }
     }
 
@@ -160,6 +165,8 @@ impl Application for App {
         if let Some(connection) = self.connection.clone() {
             subscriptions.push(settings_daemon::subscription(connection).map(Msg::SettingsDaemon));
         }
+
+        subscriptions.push(pulse::subscription().map(Msg::Pulse));
 
         subscriptions.extend(self.surfaces.iter().map(|(id, surface)| match surface {
             Surface::PolkitDialog(state) => state.subscription().with(*id).map(Msg::PolkitDialog),
