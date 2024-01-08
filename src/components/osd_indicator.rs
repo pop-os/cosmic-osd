@@ -29,6 +29,8 @@ use tokio::sync::oneshot;
 #[derive(Debug)]
 pub enum Params {
     DisplayBrightness(i32),
+    SinkMute(bool),
+    SinkVolume(u32),
 }
 
 #[derive(Debug)]
@@ -74,6 +76,8 @@ impl State {
         // TODO: show as percent
         let label = match &self.params {
             Params::DisplayBrightness(brightness) => format!("Display brightness {}", brightness),
+            Params::SinkMute(mute) => format!("Sink mute: {:?}", mute),
+            Params::SinkVolume(volume) => format!("Sink volume: {}%", volume),
         };
         widget::container::Container::new(widget::row![iced::widget::text(label)])
             .width(iced::Length::Fill)

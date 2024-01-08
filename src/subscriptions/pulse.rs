@@ -12,7 +12,7 @@ use libpulse_binding::{
         Context, FlagSet, State,
     },
     mainloop::standard::{IterateResult, Mainloop},
-    volume::Volume
+    volume::Volume,
 };
 use std::{
     cell::{Cell, RefCell},
@@ -26,14 +26,10 @@ pub enum Event {
 }
 
 pub fn subscription() -> iced::Subscription<Event> {
-    iced::subscription::channel(
-        "pulse",
-        20,
-        |sender| async {
-            std::thread::spawn(move || thread(sender));
-            iced::futures::future::pending().await
-        }
-    )
+    iced::subscription::channel("pulse", 20, |sender| async {
+        std::thread::spawn(move || thread(sender));
+        iced::futures::future::pending().await
+    })
 }
 
 struct Data {
@@ -73,7 +69,11 @@ impl Data {
             let volume = sink_info.volume.avg().0 / (Volume::NORMAL.0 / 100);
             if self.sink_mute.get() != Some(sink_info.mute) {
                 self.sink_mute.set(Some(sink_info.mute));
-                block_on(self.sender.borrow_mut().send(Event::SinkMute(sink_info.mute)));
+                block_on(
+                    self.sender
+                        .borrow_mut()
+                        .send(Event::SinkMute(sink_info.mute)),
+                );
             }
             if self.sink_volume.get() != Some(volume) {
                 self.sink_volume.set(Some(volume));
