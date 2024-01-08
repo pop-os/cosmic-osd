@@ -35,6 +35,21 @@ struct App {
     surfaces: HashMap<SurfaceId, Surface>,
     indicator: Option<(SurfaceId, osd_indicator::State)>,
     display_brightness: Option<i32>,
+    sink_volume: Option<u32>,
+    sink_mute: Option<bool>,
+}
+
+impl App {
+    fn create_indicator(&mut self, params: osd_indicator::Params) -> Command<Msg> {
+        let id = SurfaceId::unique();
+        let (state, cmd) = osd_indicator::State::new(id, params);
+        let mut cmds = vec![cmd.map(Msg::OsdIndicator)];
+        if let Some((id, _)) = self.indicator {
+            cmds.push(destroy_layer_surface(id));
+        }
+        self.indicator = Some((id, state));
+        Command::batch(cmds)
+    }
 }
 
 impl Application for App {
@@ -132,22 +147,32 @@ impl Application for App {
                 } else if self.display_brightness != Some(brightness) {
                     println!("{:?}", brightness);
                     self.display_brightness = Some(brightness);
-
-                    let id = SurfaceId::unique();
-                    let params = osd_indicator::Params::DisplayBrightness(brightness);
-                    let (state, cmd) = osd_indicator::State::new(id, params);
-                    let mut cmds = vec![cmd.map(Msg::OsdIndicator)];
-                    if let Some((id, _)) = self.indicator {
-                        cmds.push(destroy_layer_surface(id));
-                    }
-                    self.indicator = Some((id, state));
-                    Command::batch(cmds)
+                    self.create_indicator(osd_indicator::Params::DisplayBrightness(brightness))
                 } else {
                     Command::none()
                 }
             }
-            Msg::Pulse(pulse_event) => {
-                dbg!(pulse_event);
+            Msg::Pulse(evt) => {
+                dbg!(&evt);
+                match evt {
+                    pulse::Event::SinkMute(mute) => {
+                        if self.sink_mute.is_none() {
+                            self.sink_mute = Some(mute);
+                        } else if self.sink_mute != Some(mute) {
+                            self.sink_mute = Some(mute);
+                            return self.create_indicator(osd_indicator::Params::SinkMute(mute));
+                        }
+                    }
+                    pulse::Event::SinkVolume(volume) => {
+                        if self.sink_volume.is_none() {
+                            self.sink_volume = Some(volume);
+                        } else if self.sink_volume != Some(volume) {
+                            self.sink_volume = Some(volume);
+                            return self
+                                .create_indicator(osd_indicator::Params::SinkVolume(volume));
+                        }
+                    }
+                }
                 Command::none()
             }
         }
