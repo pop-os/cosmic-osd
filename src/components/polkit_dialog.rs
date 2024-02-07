@@ -4,8 +4,9 @@ use cosmic::{
     iced::{
         self,
         event::{wayland, PlatformSpecific},
-        widget, Command, Subscription,
+        widget, Border, Command, Subscription,
     },
+    iced_core::Shadow,
     iced_runtime::{
         command::platform_specific::wayland::layer_surface::SctkLayerSurfaceSettings,
         window::Id as SurfaceId,
@@ -222,9 +223,12 @@ impl State {
                 icon_color: Some(theme.cosmic().on_bg_color().into()),
                 text_color: Some(theme.cosmic().on_bg_color().into()),
                 background: Some(iced::Color::from(theme.cosmic().background.base).into()),
-                border_radius: (12.0).into(),
-                border_width: 0.0,
-                border_color: iced::Color::TRANSPARENT,
+                border: Border {
+                    radius: (12.0).into(),
+                    width: 0.0,
+                    color: iced::Color::TRANSPARENT,
+                },
+                shadow: Shadow::default(),
             }
         }))
         .width(iced::Length::Fixed(500.0))
