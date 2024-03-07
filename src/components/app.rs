@@ -10,7 +10,7 @@ use std::collections::HashMap;
 
 use crate::{
     components::{osd_indicator, polkit_dialog},
-    subscriptions::{dbus, polkit_agent, pulse, settings_daemon},
+    subscriptions::{airplane_mode, dbus, polkit_agent, pulse, settings_daemon},
 };
 
 #[derive(Debug)]
@@ -21,6 +21,7 @@ pub enum Msg {
     SettingsDaemon(settings_daemon::Event),
     Pulse(pulse::Event),
     OsdIndicator(osd_indicator::Msg),
+    AirplaneMode(bool),
 }
 
 enum Surface {
@@ -175,6 +176,7 @@ impl Application for App {
                 }
                 Command::none()
             }
+            Msg::AirplaneMode(_state) => Command::none(),
         }
     }
 
@@ -192,6 +194,8 @@ impl Application for App {
         }
 
         subscriptions.push(pulse::subscription().map(Msg::Pulse));
+
+        subscriptions.push(airplane_mode::subscription().map(Msg::AirplaneMode));
 
         subscriptions.extend(self.surfaces.iter().map(|(id, surface)| match surface {
             Surface::PolkitDialog(state) => state.subscription().with(*id).map(Msg::PolkitDialog),
