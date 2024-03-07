@@ -122,7 +122,6 @@ impl State {
                     return (None, self.respond(Err(PolkitError::Failed)));
                 }
                 polkit_agent_helper::Event::Request(s, echo) => {
-                    println!("request: {}", s);
                     self.password_label = s;
                     self.echo = echo;
                 }

@@ -30,5 +30,6 @@ fn main() {
     i18n_embed::select(&*LANG_LOADER, &Localizations, &requested_languages)
         .expect("Failed to load languages");
 
+    env_logger::init();
     components::app::main().unwrap();
 }
