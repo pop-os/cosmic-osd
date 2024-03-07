@@ -32,7 +32,7 @@ pub enum Event {
 }
 
 #[derive(Clone, Debug, zbus::DBusError)]
-#[dbus_error(prefix = "org.freedesktop.PolicyKit1.Error")]
+#[zbus(prefix = "org.freedesktop.PolicyKit1.Error")]
 pub enum PolkitError {
     Failed,
     Cancelled,
