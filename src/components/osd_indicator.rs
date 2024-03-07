@@ -99,7 +99,7 @@ impl State {
     }
 
     pub fn update(mut self, msg: Msg) -> (Option<Self>, Command<Msg>) {
-        println!("indicator msg: {:?}", msg);
+        log::trace!("indicator msg: {:?}", msg);
         match msg {
             Msg::Close => (None, destroy_layer_surface(self.id)),
         }

@@ -75,7 +75,6 @@ impl AgentHelper {
         let mut line = String::new();
         while self.stdout.read_line(&mut line).await? != 0 {
             let line = line.trim();
-            println!("{}", line);
             let (prefix, rest) = line.split_once(' ').unwrap_or((line, ""));
             return Ok(Some(match prefix {
                 "PAM_PROMPT_ECHO_OFF" => Event::Request(rest.to_string(), false),
@@ -85,7 +84,7 @@ impl AgentHelper {
                 "SUCCESS" => Event::Complete(true),
                 "FAILURE" => Event::Complete(false),
                 _ => {
-                    eprintln!("Unknown line '{}' from 'polkit-agent-helper-1'", line);
+                    log::error!("Unknown line '{}' from 'polkit-agent-helper-1'", line);
                     continue;
                 }
             }));
