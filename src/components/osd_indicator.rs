@@ -31,6 +31,7 @@ pub enum Params {
     DisplayBrightness(i32),
     SinkMute(bool),
     SinkVolume(u32),
+    AirplaneMode(bool),
 }
 
 #[derive(Debug)]
@@ -78,6 +79,7 @@ impl State {
             Params::DisplayBrightness(brightness) => format!("Display brightness {}", brightness),
             Params::SinkMute(mute) => format!("Sink mute: {:?}", mute),
             Params::SinkVolume(volume) => format!("Sink volume: {}%", volume),
+            Params::AirplaneMode(state) => format!("Airplane mode: {:?}", state),
         };
         widget::container::Container::new(widget::row![iced::widget::text(label)])
             .width(iced::Length::Fill)

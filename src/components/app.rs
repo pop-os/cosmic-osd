@@ -38,6 +38,7 @@ struct App {
     display_brightness: Option<i32>,
     sink_volume: Option<u32>,
     sink_mute: Option<bool>,
+    airplane_mode: Option<bool>,
 }
 
 impl App {
@@ -174,7 +175,15 @@ impl Application for App {
                 }
                 Command::none()
             }
-            Msg::AirplaneMode(_state) => Command::none(),
+            Msg::AirplaneMode(state) => {
+                if self.airplane_mode.is_none() {
+                    self.airplane_mode = Some(state);
+                } else if self.airplane_mode != Some(state) {
+                    self.airplane_mode = Some(state);
+                    return self.create_indicator(osd_indicator::Params::AirplaneMode(state));
+                }
+                Command::none()
+            }
         }
     }
 
