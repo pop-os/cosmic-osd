@@ -71,11 +71,10 @@ impl State {
             keyboard_interactivity: KeyboardInteractivity::None,
             namespace: "osd".into(),
             layer: Layer::Overlay,
-            // XXX size of window?
-            size: Some((Some(300), Some(100))),
+            size: None,
             anchor: Anchor::BOTTOM,
             margin: IcedMargin {
-                bottom: 10,
+                bottom: 48,
                 ..Default::default()
             },
             ..Default::default()
@@ -95,14 +94,15 @@ impl State {
         // TODO if value is None, large icon
         // TODO: show as percent
         let row = if let Some(value) = self.params.value() {
-            let slider = cosmic::widget::slider(0..=100, value, |_| Msg::Ignore);
-            widget::row![icon, iced::widget::text(format!("{}", value)), slider]
+            let slider = cosmic::widget::slider(0..=100, value, |_| Msg::Ignore).width(iced::Length::Fixed(256.0));
+            widget::row![icon, iced::widget::text(format!("{}", value)), slider].spacing(4)
         } else {
             widget::row![icon]
         };
         widget::container::Container::new(row)
-            .width(iced::Length::Fill)
-            .height(iced::Length::Fill)
+            .padding(12)
+            .width(iced::Length::Shrink)
+            .height(iced::Length::Shrink)
             .style(cosmic::theme::Container::custom(|theme| {
                 cosmic::iced_style::container::Appearance {
                     text_color: Some(theme.cosmic().on_bg_color().into()),
@@ -127,5 +127,3 @@ impl State {
         }
     }
 }
-
-// TODO: Iced sctk output handling; option to have no initial surface
