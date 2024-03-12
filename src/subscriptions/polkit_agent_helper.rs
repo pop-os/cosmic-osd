@@ -26,10 +26,10 @@ pub fn subscription(pw_name: &str, cookie: &str, retry: u32) -> iced::Subscripti
         let args = args.take();
         async move {
             if let Some(mut agent_helper) = agent_helper {
-                let msg = agent_helper
-                    .next()
-                    .await
-                    .unwrap_or_else(|err| Some(Event::Failed));
+                let msg = agent_helper.next().await.unwrap_or_else(|err| {
+                    log::error!("reading from polkit agent helper: {}", err);
+                    Some(Event::Failed)
+                });
                 if let Some(msg) = msg {
                     (msg, Some(agent_helper))
                 } else {
@@ -39,7 +39,10 @@ pub fn subscription(pw_name: &str, cookie: &str, retry: u32) -> iced::Subscripti
                 let (pw_name, cookie) = args.unwrap();
                 match AgentHelper::new(&pw_name, &cookie).await {
                     Ok((helper, responder)) => (Event::Responder(responder), Some(helper)),
-                    Err(err) => (Event::Failed, None),
+                    Err(err) => {
+                        log::error!("creating polkit agent helper: {}", err);
+                        (Event::Failed, None)
+                    }
                 }
             }
         }
@@ -101,8 +104,8 @@ pub struct Responder {
 impl Responder {
     pub async fn response(&self, resp: &str) -> io::Result<()> {
         let mut stdin = self.stdin.lock().await;
-        stdin.write(resp.as_bytes()).await?;
-        stdin.write(b"\n").await?;
+        stdin.write_all(resp.as_bytes()).await?;
+        stdin.write_all(b"\n").await?;
         Ok(())
     }
 }

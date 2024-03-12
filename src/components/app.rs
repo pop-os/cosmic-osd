@@ -1,3 +1,5 @@
+#![allow(irrefutable_let_patterns)]
+
 use cosmic::{
     iced::{
         self, wayland::layer_surface::destroy_layer_surface, Application, Command, Subscription,
@@ -30,7 +32,6 @@ enum Surface {
 
 #[derive(Default)]
 struct App {
-    max_surface_id: u128,
     connection: Option<zbus::Connection>,
     system_connection: Option<zbus::Connection>,
     surfaces: HashMap<SurfaceId, Surface>,
@@ -95,8 +96,7 @@ impl Application for App {
                     log::trace!("create polkit dialog: {}", params.cookie);
                     let id = SurfaceId::unique();
                     let (state, cmd) = polkit_dialog::State::new(id, params);
-                    self.surfaces
-                        .insert(id.clone(), Surface::PolkitDialog(state));
+                    self.surfaces.insert(id, Surface::PolkitDialog(state));
                     cmd
                 }
                 polkit_agent::Event::CancelDialog { cookie } => {
@@ -120,14 +120,12 @@ impl Application for App {
                 }
             },
             Msg::PolkitDialog((id, msg)) => {
-                if let Some(surface) = self.surfaces.remove(&id) {
-                    if let Surface::PolkitDialog(state) = surface {
-                        let (state, cmd) = state.update(msg);
-                        if let Some(state) = state {
-                            self.surfaces.insert(id, Surface::PolkitDialog(state));
-                        }
-                        return cmd.map(move |msg| Msg::PolkitDialog((id, msg)));
+                if let Some(Surface::PolkitDialog(state)) = self.surfaces.remove(&id) {
+                    let (state, cmd) = state.update(msg);
+                    if let Some(state) = state {
+                        self.surfaces.insert(id, Surface::PolkitDialog(state));
                     }
+                    return cmd.map(move |msg| Msg::PolkitDialog((id, msg)));
                 }
                 Command::none()
             }

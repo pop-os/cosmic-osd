@@ -1,17 +1,7 @@
-use futures::stream::{Stream, StreamExt};
+use futures::stream::Stream;
 use std::os::unix::fs::OpenOptionsExt;
-use std::pin::pin;
-use std::{
-    collections::HashMap,
-    fs, future,
-    io::{self, Read},
-    mem,
-    pin::Pin,
-    slice,
-    task::{Context, Poll},
-};
+use std::{collections::HashMap, fs, io, mem, slice};
 use tokio::io::unix::AsyncFd;
-use tokio::io::AsyncRead;
 
 // /usr/include/linux/rfkill.h
 // https://www.kernel.org/doc/html/latest/driver-api/rfkill.html#id5
@@ -23,7 +13,6 @@ use tokio::io::AsyncRead;
 const RFKILL_OP_ADD: u8 = 0;
 const RFKILL_OP_DEL: u8 = 1;
 const RFKILL_OP_CHANGE: u8 = 2;
-const RFKILL_OP_CHANGE_ALL: u8 = 3;
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, Default)]
@@ -49,12 +38,12 @@ pub fn rfkill_updates(
         devices: HashMap<u32, DeviceState>,
     }
 
-    let mut file = fs::File::options()
+    let file = fs::File::options()
         .read(true)
         .custom_flags(rustix::fs::OFlags::NONBLOCK.bits() as _)
         .open("/dev/rfkill")?;
 
-    let mut state = State {
+    let state = State {
         file: AsyncFd::new(file)?,
         devices: HashMap::new(),
     };

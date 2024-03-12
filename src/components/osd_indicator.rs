@@ -8,18 +8,17 @@ use cosmic::{
             actions::layer_surface::IcedMargin,
             layer_surface::{Anchor, KeyboardInteractivity, Layer},
         },
-        widget, Border, Command, Subscription,
+        widget, Border, Command,
     },
     iced_runtime::{
         command::platform_specific::wayland::layer_surface::SctkLayerSurfaceSettings,
         window::Id as SurfaceId,
     },
     iced_sctk::commands::layer_surface::{destroy_layer_surface, get_layer_surface},
-    theme, Element, Renderer,
+    Element,
 };
 
-use std::{collections::HashMap, time::Duration};
-use tokio::sync::oneshot;
+use std::time::Duration;
 
 #[derive(Debug)]
 pub enum Params {
