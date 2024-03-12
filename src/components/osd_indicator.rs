@@ -1,10 +1,5 @@
 // TODO: animation to fade in/out?
-// Don't need msg; only state and view?
-// - when to remove? timer subscription? Then need update.
-// - oh, also want to dismiss on click?
-// Never type
-
-// Don't want just a widget, because it should have logic to create/destroy surface
+// TODO: Dismiss on click?
 
 use cosmic::{
     iced::{
@@ -34,8 +29,31 @@ pub enum Params {
     AirplaneMode(bool),
 }
 
-#[derive(Debug)]
+impl Params {
+    fn icon_name(&self) -> &'static str {
+        match self {
+            Self::DisplayBrightness(_) => "display-brightness-symbolic",
+            Self::AirplaneMode(true) => "airplane-mode-symbolic",
+            Self::AirplaneMode(false) => "airplane-mode-disabled-symbolic",
+            // TODO audio-volume-low-symbolic, audio-volume-high-symbolic
+            Self::SinkVolume(_) => "audio-volume-medium-symbolic",
+            // XXX false?
+            Self::SinkMute(_) => "audio-volume-muted-symbolic",
+        }
+    }
+
+    fn value(&self) -> Option<u32> {
+        match self {
+            Self::DisplayBrightness(value) => Some(*value as u32),
+            Self::SinkVolume(value) => Some(*value),
+            Self::SinkMute(_) | Self::AirplaneMode(_) => None,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
 pub enum Msg {
+    Ignore,
     Close,
 }
 
@@ -74,14 +92,16 @@ impl State {
     }
 
     pub fn view(&self) -> Element<'_, Msg> {
+        let icon = cosmic::widget::icon::from_name(self.params.icon_name());
+        // TODO if value is None, large icon
         // TODO: show as percent
-        let label = match &self.params {
-            Params::DisplayBrightness(brightness) => format!("Display brightness {}", brightness),
-            Params::SinkMute(mute) => format!("Sink mute: {:?}", mute),
-            Params::SinkVolume(volume) => format!("Sink volume: {}%", volume),
-            Params::AirplaneMode(state) => format!("Airplane mode: {:?}", state),
+        let row = if let Some(value) = self.params.value() {
+            let slider = cosmic::widget::slider(0..=100, value, |_| Msg::Ignore);
+            widget::row![icon, iced::widget::text(format!("{}", value)), slider]
+        } else {
+            widget::row![icon]
         };
-        widget::container::Container::new(widget::row![iced::widget::text(label)])
+        widget::container::Container::new(row)
             .width(iced::Length::Fill)
             .height(iced::Length::Fill)
             .style(cosmic::theme::Container::custom(|theme| {
@@ -100,9 +120,10 @@ impl State {
             .into()
     }
 
-    pub fn update(mut self, msg: Msg) -> (Option<Self>, Command<Msg>) {
+    pub fn update(self, msg: Msg) -> (Option<Self>, Command<Msg>) {
         log::trace!("indicator msg: {:?}", msg);
         match msg {
+            Msg::Ignore => (Some(self), Command::none()),
             Msg::Close => (None, destroy_layer_surface(self.id)),
         }
     }
