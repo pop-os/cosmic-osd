@@ -1,5 +1,7 @@
 // If the way this handes surface/window is awkward, could inform design of multi-window in iced
 
+#![allow(clippy::single_match)]
+
 use cosmic::{
     iced::{
         self,
@@ -38,7 +40,7 @@ pub struct Params {
 #[derive(Clone, Debug)]
 pub enum Msg {
     Layer(wayland::LayerEvent),
-    AgentMsg(polkit_agent_helper::Event),
+    Agent(polkit_agent_helper::Event),
     Authenticate,
     Cancel,
     Password(String),
@@ -114,7 +116,7 @@ impl State {
                 }
                 _ => {}
             },
-            Msg::AgentMsg(agent_msg) => match agent_msg {
+            Msg::Agent(agent_msg) => match agent_msg {
                 polkit_agent_helper::Event::Responder(responder) => {
                     self.responder = Some(responder);
                 }
@@ -161,7 +163,7 @@ impl State {
 
     pub fn view(&self) -> cosmic::Element<'_, Msg> {
         // TODO Allocates on every keypress?
-        let placeholder = self.password_label.trim_end_matches(":");
+        let placeholder = self.password_label.trim_end_matches(':');
         let mut password_input =
             widget::text_input(placeholder, &self.password).id(self.text_input_id.clone());
         if !self.echo {
@@ -249,7 +251,7 @@ impl State {
                 &self.params.cookie,
                 self.retries,
             )
-            .map(Msg::AgentMsg),
+            .map(Msg::Agent),
         ])
     }
 }

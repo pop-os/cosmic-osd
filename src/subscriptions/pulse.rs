@@ -1,13 +1,12 @@
 // Make sure not to fail if pulse not found, and reconnect?
 // change to device shouldn't send osd?
-// mute osd?
 
 use cosmic::iced;
 use futures::{executor::block_on, SinkExt};
 use libpulse_binding::{
     callbacks::ListResult,
     context::{
-        introspect::{Introspector, ServerInfo, SinkInfo, SourceInfo},
+        introspect::{Introspector, ServerInfo, SinkInfo},
         subscribe::{Facility, InterestMaskSet, Operation},
         Context, FlagSet, State,
     },
@@ -69,7 +68,7 @@ impl Data {
             let volume = sink_info.volume.avg().0 / (Volume::NORMAL.0 / 100);
             if self.sink_mute.get() != Some(sink_info.mute) {
                 self.sink_mute.set(Some(sink_info.mute));
-                block_on(
+                let _ = block_on(
                     self.sender
                         .borrow_mut()
                         .send(Event::SinkMute(sink_info.mute)),
@@ -77,7 +76,7 @@ impl Data {
             }
             if self.sink_volume.get() != Some(volume) {
                 self.sink_volume.set(Some(volume));
-                block_on(self.sender.borrow_mut().send(Event::SinkVolume(volume)));
+                let _ = block_on(self.sender.borrow_mut().send(Event::SinkVolume(volume)));
             }
         }
     }
@@ -117,9 +116,15 @@ impl Data {
 }
 
 fn thread(sender: futures::channel::mpsc::Sender<Event>) {
-    'outer: loop {
-        let mut main_loop = Mainloop::new().unwrap();
-        let mut context = Context::new(&main_loop, "cosmic-osd").unwrap();
+    loop {
+        let Some(mut main_loop) = Mainloop::new() else {
+            log::error!("Failed to create PA main loop");
+            return;
+        };
+        let Some(mut context) = Context::new(&main_loop, "cosmic-osd") else {
+            log::error!("Failed to create PA context");
+            return;
+        };
 
         let data = Rc::new(Data {
             introspector: context.introspect(),
@@ -134,7 +139,7 @@ fn thread(sender: futures::channel::mpsc::Sender<Event>) {
             data_clone.subscribe_cb(facility.unwrap(), operation, index);
         })));
 
-        context.connect(None, FlagSet::NOFAIL, None);
+        let _ = context.connect(None, FlagSet::NOFAIL, None);
 
         loop {
             if sender.is_closed() {
@@ -144,10 +149,10 @@ fn thread(sender: futures::channel::mpsc::Sender<Event>) {
             match main_loop.iterate(false) {
                 IterateResult::Success(_) => {}
                 IterateResult::Err(_e) => {
-                    break 'outer;
+                    return;
                 }
                 IterateResult::Quit(_e) => {
-                    break 'outer;
+                    return;
                 }
             }
 
@@ -159,6 +164,8 @@ fn thread(sender: futures::channel::mpsc::Sender<Event>) {
         data.get_server_info();
         context.subscribe(InterestMaskSet::SERVER | InterestMaskSet::SINK, |_| {});
 
-        main_loop.run();
+        if let Err((err, retval)) = main_loop.run() {
+            log::error!("PA main loop returned {:?}, error {}", retval, err);
+        }
     }
 }

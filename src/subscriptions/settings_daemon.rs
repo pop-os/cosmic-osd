@@ -27,12 +27,12 @@ pub enum Event {
     DisplayBrightness(i32),
 }
 
-#[zbus::dbus_proxy(
+#[zbus::proxy(
     default_service = "com.system76.CosmicSettingsDaemon",
     interface = "com.system76.CosmicSettingsDaemon",
     default_path = "/com/system76/CosmicSettingsDaemon"
 )]
 trait CosmicSettingsDaemon {
-    #[dbus_proxy(property)]
+    #[zbus(property)]
     fn display_brightness(&self) -> zbus::Result<i32>;
 }

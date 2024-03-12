@@ -31,6 +31,7 @@ pub enum Event {
     CancelDialog { cookie: String },
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Debug, zbus::DBusError)]
 #[zbus(prefix = "org.freedesktop.PolicyKit1.Error")]
 pub enum PolkitError {
@@ -65,17 +66,17 @@ impl<'a> zvariant::Type for Identity<'a> {
     }
 }
 
-#[zbus::dbus_proxy(
+#[zbus::proxy(
     default_service = "org.freedesktop.login1",
     interface = "org.freedesktop.login1.Session",
     default_path = "/org/freedesktop/login1/session/auto"
 )]
 trait LogindSession {
-    #[dbus_proxy(property)]
+    #[zbus(property)]
     fn id(&self) -> zbus::Result<String>;
 }
 
-#[zbus::dbus_proxy(
+#[zbus::proxy(
     default_service = "org.freedesktop.PolicyKit1",
     interface = "org.freedesktop.PolicyKit1.Authority",
     default_path = "/org/freedesktop/PolicyKit1/Authority"
@@ -98,7 +99,7 @@ struct PolkitAgent {
     sender: mpsc::Sender<Event>,
 }
 
-#[zbus::dbus_interface(name = "org.freedesktop.PolicyKit1.AuthenticationAgent")]
+#[zbus::interface(name = "org.freedesktop.PolicyKit1.AuthenticationAgent")]
 impl PolkitAgent {
     async fn begin_authentication(
         &self,
