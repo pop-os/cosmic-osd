@@ -72,7 +72,6 @@ impl State {
             keyboard_interactivity: KeyboardInteractivity::Exclusive,
             namespace: "osd".into(),
             layer: Layer::Overlay,
-            // XXX size window to fit content?
             size: None,
             ..Default::default()
         });
