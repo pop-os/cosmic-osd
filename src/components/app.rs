@@ -37,6 +37,7 @@ struct App {
     surfaces: HashMap<SurfaceId, Surface>,
     indicator: Option<(SurfaceId, osd_indicator::State)>,
     display_brightness: Option<i32>,
+    keyboard_brightness: Option<i32>,
     sink_volume: Option<u32>,
     sink_mute: Option<bool>,
     airplane_mode: Option<bool>,
@@ -147,6 +148,17 @@ impl Application for App {
                 } else if self.display_brightness != Some(brightness) {
                     self.display_brightness = Some(brightness);
                     self.create_indicator(osd_indicator::Params::DisplayBrightness(brightness))
+                } else {
+                    Command::none()
+                }
+            }
+            Msg::SettingsDaemon(settings_daemon::Event::KeyboardBrightness(brightness)) => {
+                if self.keyboard_brightness.is_none() {
+                    self.keyboard_brightness = Some(brightness);
+                    Command::none()
+                } else if self.keyboard_brightness != Some(brightness) {
+                    self.keyboard_brightness = Some(brightness);
+                    self.create_indicator(osd_indicator::Params::KeyboardBrightness(brightness))
                 } else {
                     Command::none()
                 }
