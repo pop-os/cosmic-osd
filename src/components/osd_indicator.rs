@@ -23,6 +23,7 @@ use std::time::Duration;
 #[derive(Debug)]
 pub enum Params {
     DisplayBrightness(i32),
+    KeyboardBrightness(i32),
     SinkMute(bool),
     SinkVolume(u32),
     AirplaneMode(bool),
@@ -32,6 +33,7 @@ impl Params {
     fn icon_name(&self) -> &'static str {
         match self {
             Self::DisplayBrightness(_) => "display-brightness-symbolic",
+            Self::KeyboardBrightness(_) => "keyboard-brightness-symbolic",
             Self::AirplaneMode(true) => "airplane-mode-symbolic",
             Self::AirplaneMode(false) => "airplane-mode-disabled-symbolic",
             // TODO audio-volume-low-symbolic, audio-volume-high-symbolic
@@ -44,6 +46,7 @@ impl Params {
     fn value(&self) -> Option<u32> {
         match self {
             Self::DisplayBrightness(value) => Some(*value as u32),
+            Self::KeyboardBrightness(value) => Some(*value as u32),
             Self::SinkVolume(value) => Some(*value),
             Self::SinkMute(_) | Self::AirplaneMode(_) => None,
         }
@@ -94,7 +97,8 @@ impl State {
         // TODO if value is None, large icon
         // TODO: show as percent
         let row = if let Some(value) = self.params.value() {
-            let slider = cosmic::widget::slider(0..=100, value, |_| Msg::Ignore).width(iced::Length::Fixed(256.0));
+            let slider = cosmic::widget::slider(0..=100, value, |_| Msg::Ignore)
+                .width(iced::Length::Fixed(256.0));
             widget::row![icon, iced::widget::text(format!("{}", value)), slider].spacing(4)
         } else {
             widget::row![icon]
