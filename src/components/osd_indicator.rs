@@ -88,6 +88,7 @@ impl State {
         let mut cmds = vec![];
         cmds.push(get_layer_surface(SctkLayerSurfaceSettings {
             id,
+            pointer_interactivity: false,
             keyboard_interactivity: KeyboardInteractivity::None,
             namespace: "osd".into(),
             layer: Layer::Overlay,
