@@ -17,6 +17,7 @@ use cosmic::{
     iced_sctk::commands::layer_surface::{destroy_layer_surface, get_layer_surface},
     Element,
 };
+use futures::future::{abortable, AbortHandle, Aborted};
 
 use std::time::Duration;
 
@@ -63,6 +64,22 @@ pub enum Msg {
 pub struct State {
     id: SurfaceId,
     params: Params,
+    timer_abort: AbortHandle,
+}
+
+fn close_timer() -> (Command<Msg>, AbortHandle) {
+    let (future, timer_abort) = abortable(async {
+        let duration = Duration::from_secs(5);
+        tokio::time::sleep(duration).await;
+    });
+    let command = Command::perform(future, |res| {
+        if res == Err(Aborted) {
+            Msg::Ignore
+        } else {
+            Msg::Close
+        }
+    });
+    (command, timer_abort)
 }
 
 impl State {
@@ -82,14 +99,27 @@ impl State {
             },
             ..Default::default()
         }));
-        cmds.push(Command::perform(
-            async {
-                let duration = Duration::from_secs(5);
-                tokio::time::sleep(duration).await;
+        let (cmd, timer_abort) = close_timer();
+        cmds.push(cmd);
+        (
+            Self {
+                id,
+                params,
+                timer_abort,
             },
-            |_| Msg::Close,
-        ));
-        (Self { id, params }, Command::batch(cmds))
+            Command::batch(cmds),
+        )
+    }
+
+    // Re-use OSD surface to show a different OSD
+    // Resets close timer
+    pub fn replace_params(&mut self, params: Params) -> Command<Msg> {
+        self.params = params;
+        // Reset timer
+        self.timer_abort.abort();
+        let (cmd, timer_abort) = close_timer();
+        self.timer_abort = timer_abort;
+        cmd
     }
 
     pub fn view(&self) -> Element<'_, Msg> {
