@@ -1,9 +1,7 @@
 #![allow(irrefutable_let_patterns)]
 
 use cosmic::{
-    iced::{
-        self, wayland::layer_surface::destroy_layer_surface, Application, Command, Subscription,
-    },
+    iced::{self, Application, Command, Subscription},
     iced_runtime::window::Id as SurfaceId,
     iced_sctk::settings::InitialSurface,
     iced_style::application,
@@ -45,14 +43,15 @@ struct App {
 
 impl App {
     fn create_indicator(&mut self, params: osd_indicator::Params) -> Command<Msg> {
-        let id = SurfaceId::unique();
-        let (state, cmd) = osd_indicator::State::new(id, params);
-        let mut cmds = vec![cmd.map(Msg::OsdIndicator)];
-        if let Some((id, _)) = self.indicator {
-            cmds.push(destroy_layer_surface(id));
+        if let Some((_id, ref mut state)) = &mut self.indicator {
+            state.replace_params(params)
+        } else {
+            let id = SurfaceId::unique();
+            let (state, cmd) = osd_indicator::State::new(id, params);
+            self.indicator = Some((id, state));
+            cmd
         }
-        self.indicator = Some((id, state));
-        Command::batch(cmds)
+        .map(Msg::OsdIndicator)
     }
 }
 
