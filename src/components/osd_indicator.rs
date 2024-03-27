@@ -25,7 +25,7 @@ use std::time::Duration;
 pub enum Params {
     DisplayBrightness(i32),
     KeyboardBrightness(i32),
-    SinkMute(bool),
+    SinkMute,
     SinkVolume(u32),
     AirplaneMode(bool),
 }
@@ -37,10 +37,18 @@ impl Params {
             Self::KeyboardBrightness(_) => "keyboard-brightness-symbolic",
             Self::AirplaneMode(true) => "airplane-mode-symbolic",
             Self::AirplaneMode(false) => "airplane-mode-disabled-symbolic",
-            // TODO audio-volume-low-symbolic, audio-volume-high-symbolic
-            Self::SinkVolume(_) => "audio-volume-medium-symbolic",
-            // XXX false?
-            Self::SinkMute(_) => "audio-volume-muted-symbolic",
+            Self::SinkVolume(volume) => {
+                if *volume < 25 {
+                    "audio-volume-low-symbolic"
+                } else if *volume < 50 {
+                    "audio-volume-medium-symbolic"
+                } else if *volume < 75 {
+                    "audio-volume-high-symbolic"
+                } else {
+                    "audio-volume-overamplified-symbolic"
+                }
+            }
+            Self::SinkMute => "audio-volume-muted-symbolic",
         }
     }
 
@@ -49,7 +57,8 @@ impl Params {
             Self::DisplayBrightness(value) => Some(*value as u32),
             Self::KeyboardBrightness(value) => Some(*value as u32),
             Self::SinkVolume(value) => Some(*value),
-            Self::SinkMute(_) | Self::AirplaneMode(_) => None,
+            Self::SinkMute => Some(0),
+            Self::AirplaneMode(_) => None,
         }
     }
 }
