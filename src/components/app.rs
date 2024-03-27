@@ -169,7 +169,13 @@ impl Application for App {
                             self.sink_mute = Some(mute);
                         } else if self.sink_mute != Some(mute) {
                             self.sink_mute = Some(mute);
-                            return self.create_indicator(osd_indicator::Params::SinkMute(mute));
+                            if mute {
+                                return self.create_indicator(osd_indicator::Params::SinkMute);
+                            } else if let Some(sink_volume) = self.sink_volume {
+                                return self.create_indicator(osd_indicator::Params::SinkVolume(
+                                    sink_volume,
+                                ));
+                            }
                         }
                     }
                     pulse::Event::SinkVolume(volume) => {
