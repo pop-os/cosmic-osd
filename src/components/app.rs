@@ -38,6 +38,8 @@ struct App {
     keyboard_brightness: Option<i32>,
     sink_volume: Option<u32>,
     sink_mute: Option<bool>,
+    source_volume: Option<u32>,
+    source_mute: Option<bool>,
     airplane_mode: Option<bool>,
 }
 
@@ -185,6 +187,29 @@ impl Application for App {
                             self.sink_volume = Some(volume);
                             return self
                                 .create_indicator(osd_indicator::Params::SinkVolume(volume));
+                        }
+                    }
+                    pulse::Event::SourceMute(mute) => {
+                        if self.source_mute.is_none() {
+                            self.source_mute = Some(mute);
+                        } else if self.source_mute != Some(mute) {
+                            self.source_mute = Some(mute);
+                            if mute {
+                                return self.create_indicator(osd_indicator::Params::SourceMute);
+                            } else if let Some(source_volume) = self.source_volume {
+                                return self.create_indicator(osd_indicator::Params::SourceVolume(
+                                    source_volume,
+                                ));
+                            }
+                        }
+                    }
+                    pulse::Event::SourceVolume(volume) => {
+                        if self.source_volume.is_none() {
+                            self.source_volume = Some(volume);
+                        } else if self.source_volume != Some(volume) {
+                            self.source_volume = Some(volume);
+                            return self
+                                .create_indicator(osd_indicator::Params::SourceVolume(volume));
                         }
                     }
                 }
