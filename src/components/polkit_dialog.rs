@@ -6,9 +6,8 @@ use cosmic::{
     iced::{
         self,
         event::{wayland, PlatformSpecific},
-        widget, Border, Command, Subscription,
+        widget, Command, Subscription,
     },
-    iced_core::Shadow,
     iced_runtime::{
         command::platform_specific::wayland::layer_surface::SctkLayerSurfaceSettings,
         window::Id as SurfaceId,
@@ -181,10 +180,6 @@ impl State {
             authenticate_button = authenticate_button.on_press(Msg::Authenticate);
         }
         let mut right_column: Vec<cosmic::Element<_>> = vec![
-            widget::text(&self.msg_authentication_required)
-                .size(18)
-                .font(cosmic::font::FONT_SEMIBOLD)
-                .into(),
             widget::text(&self.params.message).into(),
             password_input.into(),
         ];
@@ -197,44 +192,19 @@ impl State {
                     .into(),
             );
         }
-        right_column.push(
-            widget::row![
-                widget::horizontal_space(iced::Length::Fill),
-                cancel_button,
-                authenticate_button,
-            ]
-            .into(),
-        );
-        widget::container::Container::new(
-            widget::row![
-                cosmic::widget::icon::from_name(
-                    self.params
-                        .icon_name
-                        .as_deref()
-                        .unwrap_or("dialog-authentication"),
-                )
-                .size(64),
-                widget::column(right_column).spacing(6),
-            ]
-            .spacing(6),
+        let icon = cosmic::widget::icon::from_name(
+            self.params
+                .icon_name
+                .as_deref()
+                .unwrap_or("dialog-authentication"),
         )
-        .style(cosmic::theme::Container::custom(|theme| {
-            cosmic::iced_style::container::Appearance {
-                icon_color: Some(theme.cosmic().on_bg_color().into()),
-                text_color: Some(theme.cosmic().on_bg_color().into()),
-                background: Some(iced::Color::from(theme.cosmic().background.base).into()),
-                border: Border {
-                    radius: (12.0).into(),
-                    width: 0.0,
-                    color: iced::Color::TRANSPARENT,
-                },
-                shadow: Shadow::default(),
-            }
-        }))
-        .width(iced::Length::Fixed(500.0))
-        .height(iced::Length::Shrink)
-        .padding(24)
-        .into()
+        .size(64);
+        cosmic::widget::dialog::dialog(&self.msg_authentication_required)
+            .control(widget::column(right_column).spacing(6))
+            .icon(icon)
+            .primary_action(authenticate_button)
+            .secondary_action(cancel_button)
+            .into()
     }
 
     pub fn subscription(&self) -> Subscription<Msg> {
