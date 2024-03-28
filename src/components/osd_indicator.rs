@@ -27,6 +27,8 @@ pub enum Params {
     KeyboardBrightness(i32),
     SinkMute,
     SinkVolume(u32),
+    SourceMute,
+    SourceVolume(u32),
     AirplaneMode(bool),
 }
 
@@ -49,6 +51,16 @@ impl Params {
                 }
             }
             Self::SinkMute => "audio-volume-muted-symbolic",
+            Self::SourceVolume(volume) => {
+                if *volume < 33 {
+                    "microphone-sensitivity-low-symbolic"
+                } else if *volume < 66 {
+                    "microphone-sensitivity-medium-symbolic"
+                } else {
+                    "microphone-sensitivity-high-symbolic"
+                }
+            }
+            Self::SourceMute => "microphone-sensitivity-muted-symbolic",
         }
     }
 
@@ -57,7 +69,8 @@ impl Params {
             Self::DisplayBrightness(value) => Some(*value as u32),
             Self::KeyboardBrightness(value) => Some(*value as u32),
             Self::SinkVolume(value) => Some(*value),
-            Self::SinkMute => Some(0),
+            Self::SourceVolume(value) => Some(*value),
+            Self::SinkMute | Self::SourceMute => Some(0),
             Self::AirplaneMode(_) => None,
         }
     }
