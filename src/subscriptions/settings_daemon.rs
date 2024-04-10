@@ -31,7 +31,7 @@ pub fn subscription(connection: zbus::Connection) -> iced::Subscription<Event> {
     )
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Event {
     DisplayBrightness(i32),
     KeyboardBrightness(i32),

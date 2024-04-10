@@ -18,7 +18,7 @@ use std::{
     rc::Rc,
 };
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Event {
     SinkVolume(u32),
     SinkMute(bool),

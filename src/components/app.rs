@@ -1,10 +1,8 @@
 #![allow(irrefutable_let_patterns)]
 
 use cosmic::{
-    iced::{self, Application, Command, Subscription},
+    iced::{self, Command, Subscription},
     iced_runtime::window::Id as SurfaceId,
-    iced_sctk::settings::InitialSurface,
-    iced_style::application,
 };
 use std::{
     collections::HashMap,
@@ -16,7 +14,7 @@ use crate::{
     subscriptions::{airplane_mode, dbus, polkit_agent, pulse, settings_daemon},
 };
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Msg {
     DBus(dbus::Event),
     PolkitAgent(polkit_agent::Event),
@@ -32,6 +30,7 @@ enum Surface {
 }
 
 struct App {
+    core: cosmic::app::Core,
     connection: Option<zbus::Connection>,
     system_connection: Option<zbus::Connection>,
     surfaces: HashMap<SurfaceId, Surface>,
@@ -46,27 +45,8 @@ struct App {
     airplane_mode: Option<bool>,
 }
 
-impl Default for App {
-    fn default() -> Self {
-        Self {
-            connection: None,
-            system_connection: None,
-            surfaces: HashMap::new(),
-            indicator: None,
-            display_brightness: None,
-            keyboard_brightness: None,
-            sink_last_playback: Instant::now(),
-            sink_mute: None,
-            sink_volume: None,
-            source_mute: None,
-            source_volume: None,
-            airplane_mode: None,
-        }
-    }
-}
-
 impl App {
-    fn create_indicator(&mut self, params: osd_indicator::Params) -> Command<Msg> {
+    fn create_indicator(&mut self, params: osd_indicator::Params) -> cosmic::app::Command<Msg> {
         if let Some((_id, ref mut state)) = &mut self.indicator {
             state.replace_params(params)
         } else {
@@ -75,33 +55,46 @@ impl App {
             self.indicator = Some((id, state));
             cmd
         }
-        .map(Msg::OsdIndicator)
+        .map(|x| cosmic::app::Message::App(Msg::OsdIndicator(x)))
     }
 }
 
-impl Application for App {
+impl cosmic::Application for App {
     type Message = Msg;
-    type Theme = cosmic::Theme;
     type Executor = iced::executor::Default;
     type Flags = ();
+    const APP_ID: &'static str = "com.system76.CosmicWorkspaces";
 
-    fn new(_flags: ()) -> (Self, Command<Msg>) {
-        (Self::default(), Command::none())
+    fn init(core: cosmic::app::Core, _flags: ()) -> (Self, cosmic::app::Command<Msg>) {
+        (
+            Self {
+                core,
+                connection: None,
+                system_connection: None,
+                surfaces: HashMap::new(),
+                indicator: None,
+                display_brightness: None,
+                keyboard_brightness: None,
+                sink_last_playback: Instant::now(),
+                sink_mute: None,
+                sink_volume: None,
+                source_mute: None,
+                source_volume: None,
+                airplane_mode: None,
+            },
+            Command::none(),
+        )
     }
 
-    fn title(&self, _: SurfaceId) -> String {
-        String::from("cosmic-osd")
+    fn core(&self) -> &cosmic::app::Core {
+        &self.core
     }
 
-    fn style(&self) -> <Self::Theme as application::StyleSheet>::Style {
-        <Self::Theme as application::StyleSheet>::Style::custom(|theme| application::Appearance {
-            background_color: iced::Color::from_rgba(0.0, 0.0, 0.0, 0.0),
-            icon_color: theme.cosmic().on_bg_color().into(),
-            text_color: theme.cosmic().on_bg_color().into(),
-        })
+    fn core_mut(&mut self) -> &mut cosmic::app::Core {
+        &mut self.core
     }
 
-    fn update(&mut self, message: Msg) -> Command<Msg> {
+    fn update(&mut self, message: Msg) -> cosmic::app::Command<Msg> {
         match message {
             Msg::DBus(event) => {
                 match event {
@@ -149,7 +142,8 @@ impl Application for App {
                     if let Some(state) = state {
                         self.surfaces.insert(id, Surface::PolkitDialog(state));
                     }
-                    return cmd.map(move |msg| Msg::PolkitDialog((id, msg)));
+                    return cmd
+                        .map(move |msg| cosmic::app::Message::App(Msg::PolkitDialog((id, msg))));
                 }
                 Command::none()
             }
@@ -159,7 +153,7 @@ impl Application for App {
                     if let Some(state) = state {
                         self.indicator = Some((id, state));
                     }
-                    cmd.map(Msg::OsdIndicator)
+                    cmd.map(|x| cosmic::app::Message::App(Msg::OsdIndicator(x)))
                 } else {
                     Command::none()
                 }
@@ -280,7 +274,11 @@ impl Application for App {
         iced::Subscription::batch(subscriptions)
     }
 
-    fn view(&self, id: SurfaceId) -> cosmic::Element<'_, Msg> {
+    fn view(&self) -> cosmic::prelude::Element<Self::Message> {
+        unreachable!()
+    }
+
+    fn view_window(&self, id: SurfaceId) -> cosmic::Element<'_, Msg> {
         if let Some(surface) = self.surfaces.get(&id) {
             return match surface {
                 Surface::PolkitDialog(state) => {
@@ -297,12 +295,12 @@ impl Application for App {
 }
 
 pub fn main() -> iced::Result {
-    App::run(iced::Settings {
-        antialiasing: true,
-        exit_on_close_request: false,
-        initial_surface: InitialSurface::None,
-        ..Default::default()
-    })
+    cosmic::app::run::<App>(
+        cosmic::app::Settings::default()
+            .no_main_window(true)
+            .exit_on_close(false),
+        (),
+    )
 }
 
 mod pipewire {
