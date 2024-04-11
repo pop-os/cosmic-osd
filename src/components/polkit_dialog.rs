@@ -17,7 +17,10 @@ use cosmic::{
     },
     theme,
 };
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 use tokio::sync::oneshot;
 
 use crate::{
@@ -25,7 +28,7 @@ use crate::{
     subscriptions::{polkit_agent::PolkitError, polkit_agent_helper},
 };
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Params {
     pub pw_name: String,
     pub action_id: String,
@@ -33,7 +36,8 @@ pub struct Params {
     pub icon_name: Option<String>,
     pub details: HashMap<String, String>,
     pub cookie: String,
-    pub response_sender: oneshot::Sender<Result<(), PolkitError>>,
+    // XXX `Clone` bound is awkward here
+    pub response_sender: Arc<Mutex<Option<oneshot::Sender<Result<(), PolkitError>>>>>,
 }
 
 #[derive(Clone, Debug)]
@@ -100,7 +104,8 @@ impl State {
     }
 
     fn respond<T>(self, res: Result<(), PolkitError>) -> Command<T> {
-        let _ = self.params.response_sender.send(res);
+        let sender = self.params.response_sender.lock().unwrap().take().unwrap();
+        let _ = sender.send(res);
         destroy_layer_surface(self.id)
     }
 

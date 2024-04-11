@@ -1,7 +1,10 @@
 // TODO: only open one dialog at a time?
 
 use cosmic::iced::{self, futures::FutureExt};
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 use tokio::sync::{mpsc, oneshot};
 use tokio_stream::wrappers::ReceiverStream;
 use zbus::zvariant;
@@ -25,7 +28,7 @@ pub fn subscription(system_connection: zbus::Connection) -> iced::Subscription<E
     )
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Event {
     CreateDialog(polkit_dialog::Params),
     CancelDialog { cookie: String },
@@ -126,7 +129,7 @@ impl PolkitAgent {
                     icon_name,
                     details,
                     cookie,
-                    response_sender,
+                    response_sender: Arc::new(Mutex::new(Some(response_sender))),
                 }))
                 .await;
             response_receiver.await.unwrap()
