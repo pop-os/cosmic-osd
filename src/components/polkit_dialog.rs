@@ -166,17 +166,15 @@ impl State {
 
     pub fn view(&self) -> cosmic::Element<'_, Msg> {
         // TODO Allocates on every keypress?
+
         let placeholder = self.password_label.trim_end_matches(':');
         let mut password_input =
-            widget::text_input(placeholder, &self.password).id(self.text_input_id.clone());
+            cosmic::widget::text_input(placeholder, &self.password).id(self.text_input_id.clone());
         if !self.echo {
             password_input = password_input.password();
         }
-        let mut cancel_button = cosmic::widget::button(cosmic::widget::text(&self.msg_cancel))
-            .style(theme::Button::Standard);
-        let mut authenticate_button =
-            cosmic::widget::button(cosmic::widget::text(&self.msg_authenticate))
-                .style(theme::Button::Suggested);
+        let mut cancel_button = cosmic::widget::button::standard(&self.msg_cancel);
+        let mut authenticate_button = cosmic::widget::button::suggested(&self.msg_authenticate);
         if self.sensitive {
             password_input = password_input
                 .on_input(Msg::Password)
