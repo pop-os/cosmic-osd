@@ -40,11 +40,13 @@ impl Params {
             Self::AirplaneMode(true) => "airplane-mode-symbolic",
             Self::AirplaneMode(false) => "airplane-mode-disabled-symbolic",
             Self::SinkVolume(volume) => {
-                if *volume < 25 {
+                if *volume == 0 {
+                    "audio-volume-muted-symbolic"
+                } else if *volume < 33 {
                     "audio-volume-low-symbolic"
-                } else if *volume < 50 {
+                } else if *volume < 66 {
                     "audio-volume-medium-symbolic"
-                } else if *volume < 75 {
+                } else if *volume <= 100 {
                     "audio-volume-high-symbolic"
                 } else {
                     "audio-volume-overamplified-symbolic"
@@ -52,7 +54,9 @@ impl Params {
             }
             Self::SinkMute => "audio-volume-muted-symbolic",
             Self::SourceVolume(volume) => {
-                if *volume < 33 {
+                if *volume == 0 {
+                    "microphone-sensitivity-muted-symbolic"
+                } else if *volume < 33 {
                     "microphone-sensitivity-low-symbolic"
                 } else if *volume < 66 {
                     "microphone-sensitivity-medium-symbolic"
