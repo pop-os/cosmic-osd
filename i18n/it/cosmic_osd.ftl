@@ -1,4 +1,4 @@
-invalid-password = Password sbagliato. Per favore, provi di nuovo.
+invalid-password = Password non valida, riprova.
 authentication-required = Autenticazione necessaria
-cancel = Annulli
-authenticate = Autentichi
+cancel = Annulla
+authenticate = Esegui autenticazione

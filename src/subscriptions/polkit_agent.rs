@@ -1,7 +1,10 @@
 // TODO: only open one dialog at a time?
 
 use cosmic::iced::{self, futures::FutureExt};
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 use tokio::sync::{mpsc, oneshot};
 use tokio_stream::wrappers::ReceiverStream;
 use zbus::zvariant;
@@ -25,14 +28,15 @@ pub fn subscription(system_connection: zbus::Connection) -> iced::Subscription<E
     )
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Event {
     CreateDialog(polkit_dialog::Params),
     CancelDialog { cookie: String },
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Debug, zbus::DBusError)]
-#[dbus_error(prefix = "org.freedesktop.PolicyKit1.Error")]
+#[zbus(prefix = "org.freedesktop.PolicyKit1.Error")]
 pub enum PolkitError {
     Failed,
     Cancelled,
@@ -65,17 +69,17 @@ impl<'a> zvariant::Type for Identity<'a> {
     }
 }
 
-#[zbus::dbus_proxy(
+#[zbus::proxy(
     default_service = "org.freedesktop.login1",
     interface = "org.freedesktop.login1.Session",
     default_path = "/org/freedesktop/login1/session/auto"
 )]
 trait LogindSession {
-    #[dbus_proxy(property)]
+    #[zbus(property)]
     fn id(&self) -> zbus::Result<String>;
 }
 
-#[zbus::dbus_proxy(
+#[zbus::proxy(
     default_service = "org.freedesktop.PolicyKit1",
     interface = "org.freedesktop.PolicyKit1.Authority",
     default_path = "/org/freedesktop/PolicyKit1/Authority"
@@ -98,7 +102,7 @@ struct PolkitAgent {
     sender: mpsc::Sender<Event>,
 }
 
-#[zbus::dbus_interface(name = "org.freedesktop.PolicyKit1.AuthenticationAgent")]
+#[zbus::interface(name = "org.freedesktop.PolicyKit1.AuthenticationAgent")]
 impl PolkitAgent {
     async fn begin_authentication(
         &self,
@@ -125,7 +129,7 @@ impl PolkitAgent {
                     icon_name,
                     details,
                     cookie,
-                    response_sender,
+                    response_sender: Arc::new(Mutex::new(Some(response_sender))),
                 }))
                 .await;
             response_receiver.await.unwrap()

@@ -1,12 +1,13 @@
 // If the way this handes surface/window is awkward, could inform design of multi-window in iced
 
+#![allow(clippy::single_match)]
+
 use cosmic::{
     iced::{
         self,
         event::{wayland, PlatformSpecific},
-        widget, Border, Command, Subscription,
+        widget, Command, Subscription,
     },
-    iced_core::Shadow,
     iced_runtime::{
         command::platform_specific::wayland::layer_surface::SctkLayerSurfaceSettings,
         window::Id as SurfaceId,
@@ -16,7 +17,10 @@ use cosmic::{
     },
     theme,
 };
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    sync::{Arc, Mutex},
+};
 use tokio::sync::oneshot;
 
 use crate::{
@@ -24,7 +28,7 @@ use crate::{
     subscriptions::{polkit_agent::PolkitError, polkit_agent_helper},
 };
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Params {
     pub pw_name: String,
     pub action_id: String,
@@ -32,13 +36,14 @@ pub struct Params {
     pub icon_name: Option<String>,
     pub details: HashMap<String, String>,
     pub cookie: String,
-    pub response_sender: oneshot::Sender<Result<(), PolkitError>>,
+    // XXX `Clone` bound is awkward here
+    pub response_sender: Arc<Mutex<Option<oneshot::Sender<Result<(), PolkitError>>>>>,
 }
 
 #[derive(Clone, Debug)]
 pub enum Msg {
     Layer(wayland::LayerEvent),
-    AgentMsg(polkit_agent_helper::Event),
+    Agent(polkit_agent_helper::Event),
     Authenticate,
     Cancel,
     Password(String),
@@ -70,7 +75,6 @@ impl State {
             keyboard_interactivity: KeyboardInteractivity::Exclusive,
             namespace: "osd".into(),
             layer: Layer::Overlay,
-            // XXX size window to fit content?
             size: None,
             ..Default::default()
         });
@@ -100,7 +104,8 @@ impl State {
     }
 
     fn respond<T>(self, res: Result<(), PolkitError>) -> Command<T> {
-        let _ = self.params.response_sender.send(res);
+        let sender = self.params.response_sender.lock().unwrap().take().unwrap();
+        let _ = sender.send(res);
         destroy_layer_surface(self.id)
     }
 
@@ -114,7 +119,7 @@ impl State {
                 }
                 _ => {}
             },
-            Msg::AgentMsg(agent_msg) => match agent_msg {
+            Msg::Agent(agent_msg) => match agent_msg {
                 polkit_agent_helper::Event::Responder(responder) => {
                     self.responder = Some(responder);
                 }
@@ -122,7 +127,6 @@ impl State {
                     return (None, self.respond(Err(PolkitError::Failed)));
                 }
                 polkit_agent_helper::Event::Request(s, echo) => {
-                    println!("request: {}", s);
                     self.password_label = s;
                     self.echo = echo;
                 }
@@ -162,7 +166,7 @@ impl State {
 
     pub fn view(&self) -> cosmic::Element<'_, Msg> {
         // TODO Allocates on every keypress?
-        let placeholder = self.password_label.trim_end_matches(":");
+        let placeholder = self.password_label.trim_end_matches(':');
         let mut password_input =
             widget::text_input(placeholder, &self.password).id(self.text_input_id.clone());
         if !self.echo {
@@ -181,10 +185,6 @@ impl State {
             authenticate_button = authenticate_button.on_press(Msg::Authenticate);
         }
         let mut right_column: Vec<cosmic::Element<_>> = vec![
-            widget::text(&self.msg_authentication_required)
-                .size(18)
-                .font(cosmic::font::FONT_SEMIBOLD)
-                .into(),
             widget::text(&self.params.message).into(),
             password_input.into(),
         ];
@@ -197,44 +197,19 @@ impl State {
                     .into(),
             );
         }
-        right_column.push(
-            widget::row![
-                widget::horizontal_space(iced::Length::Fill),
-                cancel_button,
-                authenticate_button,
-            ]
-            .into(),
-        );
-        widget::container::Container::new(
-            widget::row![
-                cosmic::widget::icon::from_name(
-                    self.params
-                        .icon_name
-                        .as_deref()
-                        .unwrap_or("dialog-authentication"),
-                )
-                .size(64),
-                widget::column(right_column).spacing(6),
-            ]
-            .spacing(6),
+        let icon = cosmic::widget::icon::from_name(
+            self.params
+                .icon_name
+                .as_deref()
+                .unwrap_or("dialog-authentication"),
         )
-        .style(cosmic::theme::Container::custom(|theme| {
-            cosmic::iced_style::container::Appearance {
-                icon_color: Some(theme.cosmic().on_bg_color().into()),
-                text_color: Some(theme.cosmic().on_bg_color().into()),
-                background: Some(iced::Color::from(theme.cosmic().background.base).into()),
-                border: Border {
-                    radius: (12.0).into(),
-                    width: 0.0,
-                    color: iced::Color::TRANSPARENT,
-                },
-                shadow: Shadow::default(),
-            }
-        }))
-        .width(iced::Length::Fixed(500.0))
-        .height(iced::Length::Shrink)
-        .padding(24)
-        .into()
+        .size(64);
+        cosmic::widget::dialog::dialog(&self.msg_authentication_required)
+            .control(widget::column(right_column).spacing(6))
+            .icon(icon)
+            .primary_action(authenticate_button)
+            .secondary_action(cancel_button)
+            .into()
     }
 
     pub fn subscription(&self) -> Subscription<Msg> {
@@ -250,7 +225,7 @@ impl State {
                 &self.params.cookie,
                 self.retries,
             )
-            .map(Msg::AgentMsg),
+            .map(Msg::Agent),
         ])
     }
 }

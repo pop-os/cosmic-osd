@@ -4,7 +4,7 @@ use cosmic::iced;
 
 static NAME: &str = "com.system76.CosmicOsd";
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum Event {
     Connection(zbus::Connection),
     SystemConnection(zbus::Connection),
