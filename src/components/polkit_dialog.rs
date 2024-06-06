@@ -15,7 +15,6 @@ use cosmic::{
     iced_sctk::commands::layer_surface::{
         destroy_layer_surface, get_layer_surface, KeyboardInteractivity, Layer,
     },
-    theme,
 };
 use std::{
     collections::HashMap,
@@ -172,11 +171,8 @@ impl State {
         if !self.echo {
             password_input = password_input.password();
         }
-        let mut cancel_button = cosmic::widget::button(cosmic::widget::text(&self.msg_cancel))
-            .style(theme::Button::Standard);
-        let mut authenticate_button =
-            cosmic::widget::button(cosmic::widget::text(&self.msg_authenticate))
-                .style(theme::Button::Suggested);
+        let mut cancel_button = cosmic::widget::button::standard(&self.msg_cancel);
+        let mut authenticate_button = cosmic::widget::button::suggested(&self.msg_authenticate);
         if self.sensitive {
             password_input = password_input
                 .on_input(Msg::Password)
