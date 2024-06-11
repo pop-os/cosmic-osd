@@ -95,7 +95,7 @@ pub struct State {
 
 fn close_timer() -> (Command<Msg>, AbortHandle) {
     let (future, timer_abort) = abortable(async {
-        let duration = Duration::from_secs(5);
+        let duration = Duration::from_secs(3);
         tokio::time::sleep(duration).await;
     });
     let command = Command::perform(future, |res| {
