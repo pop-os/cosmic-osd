@@ -2,7 +2,7 @@
 
 use cosmic::iced::{
     self,
-    futures::{self, FutureExt, StreamExt},
+    futures::{FutureExt, StreamExt},
 };
 
 pub fn subscription(connection: zbus::Connection) -> iced::Subscription<Event> {
@@ -13,19 +13,13 @@ pub fn subscription(connection: zbus::Connection) -> iced::Subscription<Event> {
                 Ok(value) => value,
                 Err(_err) => iced::futures::future::pending().await,
             };
-            let kb_stream = settings_daemon
-                .receive_keyboard_brightness_changed()
-                .await
-                .filter_map(
-                    |evt| async move { Some(Event::KeyboardBrightness(evt.get().await.ok()?)) },
-                );
             let disp_stream = settings_daemon
                 .receive_display_brightness_changed()
                 .await
                 .filter_map(
                     |evt| async move { Some(Event::DisplayBrightness(evt.get().await.ok()?)) },
                 );
-            futures::stream::select(kb_stream, disp_stream)
+            disp_stream
         }
         .flatten_stream(),
     )
@@ -34,7 +28,6 @@ pub fn subscription(connection: zbus::Connection) -> iced::Subscription<Event> {
 #[derive(Clone, Debug)]
 pub enum Event {
     DisplayBrightness(i32),
-    KeyboardBrightness(i32),
 }
 
 #[zbus::proxy(
