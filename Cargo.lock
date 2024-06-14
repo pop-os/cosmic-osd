@@ -975,7 +975,7 @@ dependencies = [
 [[package]]
 name = "cosmic-settings-subscriptions"
 version = "0.1.0"
-source = "git+https://github.com/pop-os/cosmic-settings-subscriptions#a223eb4d32773e7b1170696f8b2d2d7ab54fa2e1"
+source = "git+https://github.com/pop-os/cosmic-settings-subscriptions#29b8d3feba2832d1ad9c2c6972c86047df07feaa"
 dependencies = [
  "futures",
  "iced_futures",
@@ -983,6 +983,7 @@ dependencies = [
  "log",
  "rustix 0.38.34",
  "tokio",
+ "tokio-stream",
  "upower_dbus",
  "zbus 4.2.2",
 ]
@@ -2969,9 +2970,9 @@ dependencies = [
 
 [[package]]
 name = "memchr"
-version = "2.7.3"
+version = "2.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d0d8b92cd8358e8d229c11df9358decae64d137c5be540952c5ca7b25aea768"
+checksum = "78ca9ab1a0babb1e7d5695e3530886289c18cf2f87ec19a575a0abdce112e3a3"
 
 [[package]]
 name = "memmap2"

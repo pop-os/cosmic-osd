@@ -13,7 +13,10 @@ use crate::{
     components::{osd_indicator, polkit_dialog},
     subscriptions::{dbus, polkit_agent, settings_daemon},
 };
-use cosmic_settings_subscriptions::{airplane_mode, pulse};
+use cosmic_settings_subscriptions::{
+    airplane_mode, pulse,
+    upower::kbdbacklight::{kbd_backlight_subscription, KeyboardBacklightUpdate},
+};
 
 #[derive(Clone, Debug)]
 pub enum Msg {
@@ -24,6 +27,7 @@ pub enum Msg {
     Pulse(pulse::Event),
     OsdIndicator(osd_indicator::Msg),
     AirplaneMode(bool),
+    KeyboardBacklight(KeyboardBacklightUpdate),
 }
 
 enum Surface {
@@ -37,7 +41,7 @@ struct App {
     surfaces: HashMap<SurfaceId, Surface>,
     indicator: Option<(SurfaceId, osd_indicator::State)>,
     display_brightness: Option<i32>,
-    keyboard_brightness: Option<i32>,
+    keyboard_brightness: Option<f64>,
     sink_last_playback: Instant,
     sink_mute: Option<bool>,
     sink_volume: Option<u32>,
@@ -170,17 +174,6 @@ impl cosmic::Application for App {
                     Command::none()
                 }
             }
-            Msg::SettingsDaemon(settings_daemon::Event::KeyboardBrightness(brightness)) => {
-                if self.keyboard_brightness.is_none() {
-                    self.keyboard_brightness = Some(brightness);
-                    Command::none()
-                } else if self.keyboard_brightness != Some(brightness) {
-                    self.keyboard_brightness = Some(brightness);
-                    self.create_indicator(osd_indicator::Params::KeyboardBrightness(brightness))
-                } else {
-                    Command::none()
-                }
-            }
             Msg::Pulse(evt) => {
                 match evt {
                     pulse::Event::SinkMute(mute) => {
@@ -248,6 +241,26 @@ impl cosmic::Application for App {
                 }
                 Command::none()
             }
+            Msg::KeyboardBacklight(update) => match update {
+                KeyboardBacklightUpdate::Sender(_) => Command::none(),
+                KeyboardBacklightUpdate::Brightness(brightness) => {
+                    if self.keyboard_brightness.is_none() {
+                        self.keyboard_brightness = brightness;
+                        Command::none()
+                    } else if self.keyboard_brightness != brightness {
+                        self.keyboard_brightness = brightness;
+                        if let Some(brightness) = brightness {
+                            self.create_indicator(osd_indicator::Params::KeyboardBrightness(
+                                brightness,
+                            ))
+                        } else {
+                            Command::none()
+                        }
+                    } else {
+                        Command::none()
+                    }
+                }
+            },
         }
     }
 
@@ -267,6 +280,8 @@ impl cosmic::Application for App {
         subscriptions.push(pulse::subscription().map(Msg::Pulse));
 
         subscriptions.push(airplane_mode::subscription().map(Msg::AirplaneMode));
+
+        subscriptions.push(kbd_backlight_subscription("kbd-backlight").map(Msg::KeyboardBacklight));
 
         subscriptions.extend(self.surfaces.iter().map(|(id, surface)| match surface {
             Surface::PolkitDialog(state) => state.subscription().with(*id).map(Msg::PolkitDialog),

@@ -24,7 +24,7 @@ use std::time::Duration;
 #[derive(Debug)]
 pub enum Params {
     DisplayBrightness(i32),
-    KeyboardBrightness(i32),
+    KeyboardBrightness(f64),
     SinkMute,
     SinkVolume(u32),
     SourceMute,
@@ -71,7 +71,7 @@ impl Params {
     fn value(&self) -> Option<u32> {
         match self {
             Self::DisplayBrightness(value) => Some(*value as u32),
-            Self::KeyboardBrightness(value) => Some(*value as u32),
+            Self::KeyboardBrightness(value) => Some((*value * 100.) as u32),
             Self::SinkVolume(value) => Some(*value),
             Self::SourceVolume(value) => Some(*value),
             Self::SinkMute | Self::SourceMute => Some(0),
