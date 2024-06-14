@@ -11,8 +11,9 @@ use std::{
 
 use crate::{
     components::{osd_indicator, polkit_dialog},
-    subscriptions::{airplane_mode, dbus, polkit_agent, pulse, settings_daemon},
+    subscriptions::{dbus, polkit_agent, settings_daemon},
 };
+use cosmic_settings_subscriptions::{airplane_mode, pulse};
 
 #[derive(Clone, Debug)]
 pub enum Msg {
