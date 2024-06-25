@@ -11,10 +11,10 @@ use std::{
 
 use crate::{
     components::{osd_indicator, polkit_dialog},
-    subscriptions::{dbus, polkit_agent, settings_daemon},
+    subscriptions::{dbus, polkit_agent},
 };
 use cosmic_settings_subscriptions::{
-    airplane_mode, pulse,
+    airplane_mode, pulse, settings_daemon,
     upower::kbdbacklight::{kbd_backlight_subscription, KeyboardBacklightUpdate},
 };
 
