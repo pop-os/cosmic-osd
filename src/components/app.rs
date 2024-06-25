@@ -40,6 +40,7 @@ struct App {
     system_connection: Option<zbus::Connection>,
     surfaces: HashMap<SurfaceId, Surface>,
     indicator: Option<(SurfaceId, osd_indicator::State)>,
+    max_display_brightness: Option<i32>,
     display_brightness: Option<i32>,
     keyboard_brightness: Option<f64>,
     sink_last_playback: Instant,
@@ -79,6 +80,7 @@ impl cosmic::Application for App {
                 surfaces: HashMap::new(),
                 indicator: None,
                 display_brightness: None,
+                max_display_brightness: None,
                 keyboard_brightness: None,
                 sink_last_playback: Instant::now(),
                 sink_mute: None,
@@ -163,13 +165,19 @@ impl cosmic::Application for App {
                     Command::none()
                 }
             }
+            Msg::SettingsDaemon(settings_daemon::Event::MaxDisplayBrightness(max_brightness)) => {
+                self.max_display_brightness = Some(max_brightness);
+                Command::none()
+            }
             Msg::SettingsDaemon(settings_daemon::Event::DisplayBrightness(brightness)) => {
                 if self.display_brightness.is_none() {
                     self.display_brightness = Some(brightness);
                     Command::none()
                 } else if self.display_brightness != Some(brightness) {
                     self.display_brightness = Some(brightness);
-                    self.create_indicator(osd_indicator::Params::DisplayBrightness(brightness))
+                    self.create_indicator(osd_indicator::Params::DisplayBrightness(
+                        brightness as f64 / self.max_display_brightness.unwrap_or(100) as f64,
+                    ))
                 } else {
                     Command::none()
                 }
