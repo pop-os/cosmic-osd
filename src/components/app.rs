@@ -42,7 +42,8 @@ struct App {
     indicator: Option<(SurfaceId, osd_indicator::State)>,
     max_display_brightness: Option<i32>,
     display_brightness: Option<i32>,
-    keyboard_brightness: Option<f64>,
+    max_keyboard_brightness: Option<i32>,
+    keyboard_brightness: Option<i32>,
     sink_last_playback: Instant,
     sink_mute: Option<bool>,
     sink_volume: Option<u32>,
@@ -82,6 +83,7 @@ impl cosmic::Application for App {
                 display_brightness: None,
                 max_display_brightness: None,
                 keyboard_brightness: None,
+                max_keyboard_brightness: None,
                 sink_last_playback: Instant::now(),
                 sink_mute: None,
                 sink_volume: None,
@@ -165,6 +167,7 @@ impl cosmic::Application for App {
                     Command::none()
                 }
             }
+            Msg::SettingsDaemon(settings_daemon::Event::Sender(_)) => Command::none(),
             Msg::SettingsDaemon(settings_daemon::Event::MaxDisplayBrightness(max_brightness)) => {
                 self.max_display_brightness = Some(max_brightness);
                 Command::none()
@@ -251,15 +254,19 @@ impl cosmic::Application for App {
             }
             Msg::KeyboardBacklight(update) => match update {
                 KeyboardBacklightUpdate::Sender(_) => Command::none(),
+                KeyboardBacklightUpdate::MaxBrightness(max_brightness) => {
+                    self.max_keyboard_brightness = Some(max_brightness);
+                    Command::none()
+                }
                 KeyboardBacklightUpdate::Brightness(brightness) => {
                     if self.keyboard_brightness.is_none() {
-                        self.keyboard_brightness = brightness;
+                        self.keyboard_brightness = Some(brightness);
                         Command::none()
-                    } else if self.keyboard_brightness != brightness {
-                        self.keyboard_brightness = brightness;
-                        if let Some(brightness) = brightness {
+                    } else if self.keyboard_brightness != Some(brightness) {
+                        self.keyboard_brightness = Some(brightness);
+                        if let Some(max_brightness) = self.max_keyboard_brightness {
                             self.create_indicator(osd_indicator::Params::KeyboardBrightness(
-                                brightness,
+                                brightness as f64 / max_brightness as f64,
                             ))
                         } else {
                             Command::none()
