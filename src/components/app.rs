@@ -192,11 +192,10 @@ impl cosmic::Application for App {
                             self.sink_mute = Some(mute);
                         } else if self.sink_mute != Some(mute) {
                             self.sink_mute = Some(mute);
-                            if mute {
-                                return self.create_indicator(osd_indicator::Params::SinkMute);
-                            } else if let Some(sink_volume) = self.sink_volume {
+                            if let Some(sink_volume) = self.sink_volume {
                                 return self.create_indicator(osd_indicator::Params::SinkVolume(
                                     sink_volume,
+                                    mute,
                                 ));
                             }
                         }
@@ -213,8 +212,11 @@ impl cosmic::Application for App {
                             self.sink_volume = Some(volume);
                         } else if self.sink_volume != Some(volume) {
                             self.sink_volume = Some(volume);
-                            return self
-                                .create_indicator(osd_indicator::Params::SinkVolume(volume));
+                            if let Some(mute) = self.sink_mute {
+                                return self.create_indicator(osd_indicator::Params::SinkVolume(
+                                    volume, mute,
+                                ));
+                            }
                         }
                     }
                     pulse::Event::SourceMute(mute) => {
@@ -222,11 +224,10 @@ impl cosmic::Application for App {
                             self.source_mute = Some(mute);
                         } else if self.source_mute != Some(mute) {
                             self.source_mute = Some(mute);
-                            if mute {
-                                return self.create_indicator(osd_indicator::Params::SourceMute);
-                            } else if let Some(source_volume) = self.source_volume {
+                            if let Some(source_volume) = self.source_volume {
                                 return self.create_indicator(osd_indicator::Params::SourceVolume(
                                     source_volume,
+                                    mute,
                                 ));
                             }
                         }
@@ -236,8 +237,11 @@ impl cosmic::Application for App {
                             self.source_volume = Some(volume);
                         } else if self.source_volume != Some(volume) {
                             self.source_volume = Some(volume);
-                            return self
-                                .create_indicator(osd_indicator::Params::SourceVolume(volume));
+                            if let Some(mute) = self.source_mute {
+                                return self.create_indicator(osd_indicator::Params::SourceVolume(
+                                    volume, mute,
+                                ));
+                            }
                         }
                     }
                 }

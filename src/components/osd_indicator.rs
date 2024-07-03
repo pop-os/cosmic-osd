@@ -25,10 +25,8 @@ use std::time::Duration;
 pub enum Params {
     DisplayBrightness(f64),
     KeyboardBrightness(f64),
-    SinkMute,
-    SinkVolume(u32),
-    SourceMute,
-    SourceVolume(u32),
+    SinkVolume(u32, bool),
+    SourceVolume(u32, bool),
     AirplaneMode(bool),
 }
 
@@ -39,8 +37,8 @@ impl Params {
             Self::KeyboardBrightness(_) => "keyboard-brightness-symbolic",
             Self::AirplaneMode(true) => "airplane-mode-symbolic",
             Self::AirplaneMode(false) => "airplane-mode-disabled-symbolic",
-            Self::SinkVolume(volume) => {
-                if *volume == 0 {
+            Self::SinkVolume(volume, muted) => {
+                if *volume == 0 || *muted {
                     "audio-volume-muted-symbolic"
                 } else if *volume < 33 {
                     "audio-volume-low-symbolic"
@@ -52,9 +50,8 @@ impl Params {
                     "audio-volume-overamplified-symbolic"
                 }
             }
-            Self::SinkMute => "audio-volume-muted-symbolic",
-            Self::SourceVolume(volume) => {
-                if *volume == 0 {
+            Self::SourceVolume(volume, muted) => {
+                if *volume == 0 || *muted {
                     "microphone-sensitivity-muted-symbolic"
                 } else if *volume < 33 {
                     "microphone-sensitivity-low-symbolic"
@@ -64,7 +61,6 @@ impl Params {
                     "microphone-sensitivity-high-symbolic"
                 }
             }
-            Self::SourceMute => "microphone-sensitivity-muted-symbolic",
         }
     }
 
@@ -72,9 +68,10 @@ impl Params {
         match self {
             Self::DisplayBrightness(value) => Some((*value * 100.) as u32),
             Self::KeyboardBrightness(value) => Some((*value * 100.) as u32),
-            Self::SinkVolume(value) => Some(*value),
-            Self::SourceVolume(value) => Some(*value),
-            Self::SinkMute | Self::SourceMute => Some(0),
+            Self::SinkVolume(_, true) => Some(0),
+            Self::SourceVolume(_, true) => Some(0),
+            Self::SinkVolume(value, false) => Some(*value),
+            Self::SourceVolume(value, false) => Some(*value),
             Self::AirplaneMode(_) => None,
         }
     }
