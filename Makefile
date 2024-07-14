@@ -6,6 +6,7 @@ includedir = $(prefix)/include
 datarootdir = $(prefix)/share
 datadir = $(datarootdir)
 
+CARGO_TARGET_DIR ?= target
 TARGET = debug
 DEBUG ?= 0
 ifeq ($(DEBUG),0)
@@ -32,7 +33,7 @@ $(BIN): Cargo.toml Cargo.lock src/main.rs vendor-check
 	POLKIT_AGENT_HELPER_1=$(polkit-agent-helper-1) cargo build $(ARGS) --bin ${BIN}
 
 install:
-	install -Dm0755 target/$(TARGET)/$(BIN) $(DESTDIR)$(bindir)/$(BIN)
+	install -Dm0755 $(CARGO_TARGET_DIR)/$(TARGET)/$(BIN) $(DESTDIR)$(bindir)/$(BIN)
 
 ## Cargo Vendoring
 
