@@ -166,15 +166,28 @@ impl State {
 
     pub fn view(&self) -> cosmic::Element<'_, Msg> {
         // TODO Allocates on every keypress?
-
+        let active_theme = cosmic::theme::active();
+        let cosmic_theme = active_theme.cosmic();
         let placeholder = self.password_label.trim_end_matches(':');
         let mut password_input =
             cosmic::widget::text_input(placeholder, &self.password).id(self.text_input_id.clone());
         if !self.echo {
             password_input = password_input.password();
         }
-        let mut cancel_button = cosmic::widget::button::standard(&self.msg_cancel);
-        let mut authenticate_button = cosmic::widget::button::suggested(&self.msg_authenticate);
+        let mut cancel_button = cosmic::widget::button(min_width_and_height(
+            cosmic::widget::text(&self.msg_cancel).size(14).into(),
+            142.0,
+            32.0,
+        ))
+        .padding([0, cosmic_theme.space_s()])
+        .style(cosmic::theme::Button::Standard);
+        let mut authenticate_button = cosmic::widget::button(min_width_and_height(
+            cosmic::widget::text(&self.msg_authenticate).size(14).into(),
+            142.0,
+            32.0,
+        ))
+        .padding([0, cosmic_theme.space_s()])
+        .style(cosmic::theme::Button::Suggested);
         if self.sensitive {
             password_input = password_input
                 .on_input(Msg::Password)
@@ -226,4 +239,18 @@ impl State {
             .map(Msg::Agent),
         ])
     }
+}
+
+fn min_width_and_height<'a>(
+    e: cosmic::Element<'a, Msg>,
+    width: impl Into<iced::Length>,
+    height: impl Into<iced::Length>,
+) -> cosmic::widget::Column<'a, Msg> {
+    cosmic::widget::column::with_children(vec![
+        cosmic::widget::row::with_children(vec![e, cosmic::widget::vertical_space(height).into()])
+            .align_items(iced::Alignment::Center)
+            .into(),
+        cosmic::widget::horizontal_space(width).into(),
+    ])
+    .align_items(iced::Alignment::Center)
 }
