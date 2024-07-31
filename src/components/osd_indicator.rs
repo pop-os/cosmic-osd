@@ -147,18 +147,29 @@ impl State {
     }
 
     pub fn view(&self) -> Element<'_, Msg> {
-        let icon = cosmic::widget::icon::from_name(self.params.icon_name());
-        // TODO if value is None, large icon
-        // TODO: show as percent
+        let icon = cosmic::widget::icon::from_name(self.params.icon_name()).size(24);
+
         let row = if let Some(value) = self.params.value() {
-            let slider = cosmic::widget::slider(0..=100, value, |_| Msg::Ignore)
-                .width(iced::Length::Fixed(256.0));
-            widget::row![icon, iced::widget::text(format!("{}", value)), slider].spacing(4)
+            widget::row![
+                cosmic::widget::Container::new(icon)
+                    .width(iced::Length::FillPortion(1))
+                    .align_x(iced::alignment::Horizontal::Center),
+                cosmic::widget::progress_bar(0. ..=100., value as f32)
+                    .height(8)
+                    .width(iced::Length::FillPortion(5)),
+                iced::widget::text(format!("{}%", value))
+                    .size(16)
+                    .width(iced::Length::FillPortion(1))
+                    .horizontal_alignment(iced::alignment::Horizontal::Right)
+            ]
+            .spacing(8)
+            .align_items(iced::Alignment::Center)
+            .width(340)
         } else {
-            widget::row![icon]
+            widget::row![icon.size(48)]
         };
         widget::container::Container::new(row)
-            .padding(12)
+            .padding(16)
             .width(iced::Length::Shrink)
             .height(iced::Length::Shrink)
             .style(cosmic::theme::Container::custom(|theme| {
@@ -166,9 +177,9 @@ impl State {
                     text_color: Some(theme.cosmic().on_bg_color().into()),
                     background: Some(iced::Color::from(theme.cosmic().background.base).into()),
                     border: Border {
-                        radius: (12.0).into(),
-                        width: 0.0,
-                        color: iced::Color::TRANSPARENT,
+                        radius: theme.cosmic().radius_m().into(),
+                        width: 1.0,
+                        color: theme.cosmic().bg_divider().into(),
                     },
                     shadow: Default::default(),
                     icon_color: Some(theme.cosmic().on_bg_color().into()),
