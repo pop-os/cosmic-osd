@@ -148,32 +148,63 @@ impl State {
 
     pub fn view(&self) -> Element<'_, Msg> {
         let icon = cosmic::widget::icon::from_name(self.params.icon_name());
-        // TODO if value is None, large icon
-        // TODO: show as percent
-        let row = if let Some(value) = self.params.value() {
-            let slider = cosmic::widget::slider(0..=100, value, |_| Msg::Ignore)
-                .width(iced::Length::Fixed(256.0));
-            widget::row![icon, iced::widget::text(format!("{}", value)), slider].spacing(4)
+
+        // Use large radius on value-OSD to enforce pill-shape with "Round" system style
+        let radius;
+
+        let osd_contents = if let Some(value) = self.params.value() {
+            radius = cosmic::theme::active().cosmic().radius_l();
+            const OSD_WIDTH: f32 = 392.0;
+            const OSD_HEIGHT: f32 = 52.0;
+            const FLANK_WIDTH: f32 = 36.0;
+            const SPACING: f32 = 12.0;
+            const BAR_WIDTH: f32 = OSD_WIDTH - 2.0 * FLANK_WIDTH - 1.15 * OSD_HEIGHT;
+            cosmic::widget::container(
+                widget::row![
+                    cosmic::widget::container(icon.size(20))
+                        .width(FLANK_WIDTH)
+                        .align_x(iced::alignment::Horizontal::Center),
+                    cosmic::widget::horizontal_space(SPACING),
+                    cosmic::widget::progress_bar(0. ..=100., value as f32)
+                        .height(4)
+                        .width(BAR_WIDTH),
+                    cosmic::widget::text(format!("{}%", value))
+                        .size(16)
+                        .width(FLANK_WIDTH + SPACING)
+                        .horizontal_alignment(iced::alignment::Horizontal::Right),
+                ]
+                .align_items(iced::Alignment::Center),
+            )
+            .width(OSD_WIDTH)
+            .height(OSD_HEIGHT)
         } else {
-            widget::row![icon]
+            radius = cosmic::theme::active().cosmic().radius_m();
+            const ICON_SIZE: u16 = 112;
+            cosmic::widget::container(icon.size(ICON_SIZE))
+                .width(ICON_SIZE + 2 * cosmic::theme::active().cosmic().space_l())
+                .height(ICON_SIZE + 2 * cosmic::theme::active().cosmic().space_s())
         };
-        widget::container::Container::new(row)
-            .padding(12)
-            .width(iced::Length::Shrink)
-            .height(iced::Length::Shrink)
-            .style(cosmic::theme::Container::custom(|theme| {
-                cosmic::iced_style::container::Appearance {
-                    text_color: Some(theme.cosmic().on_bg_color().into()),
-                    background: Some(iced::Color::from(theme.cosmic().background.base).into()),
-                    border: Border {
-                        radius: (12.0).into(),
-                        width: 0.0,
-                        color: iced::Color::TRANSPARENT,
-                    },
-                    shadow: Default::default(),
-                    icon_color: Some(theme.cosmic().on_bg_color().into()),
-                }
-            }))
+
+        // Define overall style of OSD container
+        let container_style = cosmic::theme::Container::custom(move |theme| {
+            cosmic::iced_style::container::Appearance {
+                text_color: Some(theme.cosmic().on_bg_color().into()),
+                background: Some(iced::Color::from(theme.cosmic().bg_color()).into()),
+                border: Border {
+                    radius: radius.into(),
+                    width: 1.0,
+                    color: theme.cosmic().bg_divider().into(),
+                },
+                shadow: Default::default(),
+                icon_color: Some(theme.cosmic().on_bg_color().into()),
+            }
+        });
+
+        // Apply style and center contents
+        osd_contents
+            .style(container_style)
+            .align_x(iced::alignment::Horizontal::Center)
+            .align_y(iced::alignment::Vertical::Center)
             .into()
     }
 
