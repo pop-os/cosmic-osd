@@ -155,25 +155,25 @@ impl State {
         let osd_contents = if let Some(value) = self.params.value() {
             radius = cosmic::theme::active().cosmic().radius_l();
             const OSD_WIDTH: f32 = 392.0;
-            const OSD_HEIGHT: f32 = 64.0;
-            const FLANK_WIDTH: f32 = 40.0;
+            const OSD_HEIGHT: f32 = 52.0;
+            const FLANK_WIDTH: f32 = 36.0;
             const SPACING: f32 = 12.0;
-            const BAR_WIDTH: f32 = OSD_WIDTH - 2.0 * FLANK_WIDTH - 6.0 * SPACING;
+            const BAR_WIDTH: f32 = OSD_WIDTH - 2.0 * FLANK_WIDTH - 1.15 * OSD_HEIGHT;
             cosmic::widget::container(
                 widget::row![
                     cosmic::widget::container(icon.size(20))
                         .width(FLANK_WIDTH)
                         .align_x(iced::alignment::Horizontal::Center),
+                    cosmic::widget::horizontal_space(SPACING),
                     cosmic::widget::progress_bar(0. ..=100., value as f32)
-                        .height(8)
+                        .height(4)
                         .width(BAR_WIDTH),
                     cosmic::widget::text(format!("{}%", value))
                         .size(16)
-                        .width(FLANK_WIDTH)
+                        .width(FLANK_WIDTH + SPACING)
                         .horizontal_alignment(iced::alignment::Horizontal::Right),
                 ]
-                .align_items(iced::Alignment::Center)
-                .spacing(SPACING),
+                .align_items(iced::Alignment::Center),
             )
             .width(OSD_WIDTH)
             .height(OSD_HEIGHT)
