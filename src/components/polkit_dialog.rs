@@ -15,7 +15,6 @@ use cosmic::{
     iced_sctk::commands::layer_surface::{
         destroy_layer_surface, get_layer_surface, KeyboardInteractivity, Layer,
     },
-    theme,
 };
 use std::{
     collections::HashMap,

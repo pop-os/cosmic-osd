@@ -27,7 +27,7 @@ pub fn subscription(pw_name: &str, cookie: &str, retry: u32) -> iced::Subscripti
         async move {
             if let Some(mut agent_helper) = agent_helper {
                 let msg = agent_helper.next().await.unwrap_or_else(|err| {
-                    log::error!("reading from polkit agent helper: {}", err);
+                    error!("reading from polkit agent helper: {}", err);
                     Some(Event::Failed)
                 });
                 if let Some(msg) = msg {
@@ -40,7 +40,7 @@ pub fn subscription(pw_name: &str, cookie: &str, retry: u32) -> iced::Subscripti
                 match AgentHelper::new(&pw_name, &cookie).await {
                     Ok((helper, responder)) => (Event::Responder(responder), Some(helper)),
                     Err(err) => {
-                        log::error!("creating polkit agent helper: {}", err);
+                        error!("creating polkit agent helper: {}", err);
                         (Event::Failed, None)
                     }
                 }
@@ -87,7 +87,7 @@ impl AgentHelper {
                 "SUCCESS" => Event::Complete(true),
                 "FAILURE" => Event::Complete(false),
                 _ => {
-                    log::error!("Unknown line '{}' from 'polkit-agent-helper-1'", line);
+                    error!("Unknown line '{}' from 'polkit-agent-helper-1'", line);
                     continue;
                 }
             }));

@@ -1,35 +1,36 @@
-use i18n_embed::{
-    fluent::{fluent_language_loader, FluentLanguageLoader},
-    DesktopLanguageRequester,
-};
-use once_cell::sync::Lazy;
-use rust_embed::RustEmbed;
+#[macro_use]
+extern crate tracing;
 
 mod components;
+mod localize;
 mod subscriptions;
 
-pub static LANG_LOADER: Lazy<FluentLanguageLoader> = Lazy::new(|| fluent_language_loader!());
+fn setup_logs() {
+    use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
-#[derive(RustEmbed)]
-#[folder = "i18n"]
-struct Localizations;
+    let fmt_layer = fmt::layer().with_target(false);
+    let filter_layer = EnvFilter::try_from_default_env().unwrap_or(EnvFilter::new(format!(
+        "warn,{}=warn",
+        env!("CARGO_CRATE_NAME")
+    )));
 
-#[macro_export]
-macro_rules! fl {
-    ($message_id:literal) => {{
-        i18n_embed_fl::fl!($crate::LANG_LOADER, $message_id)
-    }};
-
-    ($message_id:literal, $($args:expr),*) => {{
-        i18n_embed_fl::fl!($crate::LANG_LOADER, $message_id, $($args), *)
-    }};
+    if let Ok(journal_layer) = tracing_journald::layer() {
+        tracing_subscriber::registry()
+            .with(filter_layer)
+            .with(fmt_layer)
+            .with(journal_layer)
+            .init();
+    } else {
+        tracing_subscriber::registry()
+            .with(filter_layer)
+            .with(fmt_layer)
+            .init();
+    }
 }
 
 fn main() {
-    let requested_languages = DesktopLanguageRequester::requested_languages();
-    i18n_embed::select(&*LANG_LOADER, &Localizations, &requested_languages)
-        .expect("Failed to load languages");
+    setup_logs();
+    localize::localize();
 
-    env_logger::init();
     components::app::main().unwrap();
 }

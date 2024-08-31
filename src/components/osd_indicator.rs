@@ -178,7 +178,7 @@ impl State {
     }
 
     pub fn update(self, msg: Msg) -> (Option<Self>, Command<Msg>) {
-        log::trace!("indicator msg: {:?}", msg);
+        trace!("indicator msg: {:?}", msg);
         match msg {
             Msg::Ignore => (Some(self), Command::none()),
             Msg::Close => (None, destroy_layer_surface(self.id)),

@@ -112,21 +112,21 @@ impl cosmic::Application for App {
                         self.system_connection = Some(connection)
                     }
                     dbus::Event::Error(context, err) => {
-                        log::error!("Failed to {}: {}", context, err);
+                        error!("Failed to {}: {}", context, err);
                     }
                 }
                 iced::Command::none()
             }
             Msg::PolkitAgent(event) => match event {
                 polkit_agent::Event::CreateDialog(params) => {
-                    log::trace!("create polkit dialog: {}", params.cookie);
+                    trace!("create polkit dialog: {}", params.cookie);
                     let id = SurfaceId::unique();
                     let (state, cmd) = polkit_dialog::State::new(id, params);
                     self.surfaces.insert(id, Surface::PolkitDialog(state));
                     cmd
                 }
                 polkit_agent::Event::CancelDialog { cookie } => {
-                    log::trace!("cancel polkit dialog: {}", cookie);
+                    trace!("cancel polkit dialog: {}", cookie);
                     if let Some((id, _)) = self.surfaces.iter().find(|(_id, surface)| {
                         if let Surface::PolkitDialog(state) = surface {
                             state.params.cookie == cookie
