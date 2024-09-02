@@ -11,7 +11,7 @@ use std::{
 
 use crate::{
     components::{osd_indicator, polkit_dialog},
-    subscriptions::{dbus, polkit_agent},
+    subscriptions::{dbus, keyboard, polkit_agent},
 };
 use cosmic_settings_subscriptions::{
     airplane_mode, pulse, settings_daemon,
@@ -28,6 +28,7 @@ pub enum Msg {
     OsdIndicator(osd_indicator::Msg),
     AirplaneMode(bool),
     KeyboardBacklight(KeyboardBacklightUpdate),
+    Keyboard(keyboard::Msg),
 }
 
 enum Surface {
@@ -192,12 +193,6 @@ impl cosmic::Application for App {
                             self.sink_mute = Some(mute);
                         } else if self.sink_mute != Some(mute) {
                             self.sink_mute = Some(mute);
-                            if let Some(sink_volume) = self.sink_volume {
-                                return self.create_indicator(osd_indicator::Params::SinkVolume(
-                                    sink_volume,
-                                    mute,
-                                ));
-                            }
                         }
                     }
                     pulse::Event::SinkVolume(volume) => {
@@ -212,11 +207,6 @@ impl cosmic::Application for App {
                             self.sink_volume = Some(volume);
                         } else if self.sink_volume != Some(volume) {
                             self.sink_volume = Some(volume);
-                            if let Some(mute) = self.sink_mute {
-                                return self.create_indicator(osd_indicator::Params::SinkVolume(
-                                    volume, mute,
-                                ));
-                            }
                         }
                     }
                     pulse::Event::SourceMute(mute) => {
@@ -224,12 +214,6 @@ impl cosmic::Application for App {
                             self.source_mute = Some(mute);
                         } else if self.source_mute != Some(mute) {
                             self.source_mute = Some(mute);
-                            if let Some(source_volume) = self.source_volume {
-                                return self.create_indicator(osd_indicator::Params::SourceVolume(
-                                    source_volume,
-                                    mute,
-                                ));
-                            }
                         }
                     }
                     pulse::Event::SourceVolume(volume) => {
@@ -237,11 +221,6 @@ impl cosmic::Application for App {
                             self.source_volume = Some(volume);
                         } else if self.source_volume != Some(volume) {
                             self.source_volume = Some(volume);
-                            if let Some(mute) = self.source_mute {
-                                return self.create_indicator(osd_indicator::Params::SourceVolume(
-                                    volume, mute,
-                                ));
-                            }
                         }
                     }
                 }
@@ -280,6 +259,24 @@ impl cosmic::Application for App {
                     }
                 }
             },
+            Msg::Keyboard(msg) => {
+                match msg {
+                    keyboard::Msg::BrightnessDown | keyboard::Msg::BrightnessUp => {
+                        // todo ?
+                    }
+                    keyboard::Msg::AudioVolumeDown
+                    | keyboard::Msg::AudioVolumeUp
+                    | keyboard::Msg::AudioVolumeMute => {
+                        if let (Some(volume), Some(mute)) = (self.source_volume, self.source_mute) {
+                            return self.create_indicator(osd_indicator::Params::SourceVolume(
+                                volume, mute,
+                            ));
+                        }
+                    }
+                }
+
+                Command::none()
+            }
         }
     }
 
@@ -305,6 +302,8 @@ impl cosmic::Application for App {
         subscriptions.extend(self.surfaces.iter().map(|(id, surface)| match surface {
             Surface::PolkitDialog(state) => state.subscription().with(*id).map(Msg::PolkitDialog),
         }));
+
+        subscriptions.push(keyboard::subscription().map(Msg::Keyboard));
 
         iced::Subscription::batch(subscriptions)
     }
