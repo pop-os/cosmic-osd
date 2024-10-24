@@ -1,6 +1,7 @@
 // TODO: Handle loss of connection, name?
 
 use cosmic::iced;
+use futures::stream;
 
 static NAME: &str = "com.system76.CosmicOsd";
 
@@ -18,27 +19,30 @@ enum State {
 }
 
 pub fn subscription() -> iced::Subscription<Event> {
-    iced::subscription::unfold("dbus-service", State::Start, |state| async move {
-        match state {
-            State::Start => (
-                result_to_event(
-                    connection().await,
-                    "create session connection",
-                    Event::Connection,
-                ),
-                State::CreatedConnection,
-            ),
-            State::CreatedConnection => (
-                result_to_event(
-                    system_connection().await,
-                    "create system connection",
-                    Event::SystemConnection,
-                ),
-                State::CreatedSystemConnection,
-            ),
-            State::CreatedSystemConnection => iced::futures::future::pending().await,
-        }
-    })
+    iced::Subscription::run_with_id(
+        "dbus-service",
+        stream::unfold(State::Start, |state| async move {
+            match state {
+                State::Start => Some((
+                    result_to_event(
+                        connection().await,
+                        "create session connection",
+                        Event::Connection,
+                    ),
+                    State::CreatedConnection,
+                )),
+                State::CreatedConnection => Some((
+                    result_to_event(
+                        system_connection().await,
+                        "create system connection",
+                        Event::SystemConnection,
+                    ),
+                    State::CreatedSystemConnection,
+                )),
+                State::CreatedSystemConnection => iced::futures::future::pending().await,
+            }
+        }),
+    )
 }
 
 async fn connection() -> zbus::Result<zbus::Connection> {

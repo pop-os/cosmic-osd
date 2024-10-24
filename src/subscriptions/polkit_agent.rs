@@ -14,7 +14,7 @@ use crate::components::polkit_dialog;
 const OBJECT_PATH: &str = "/com/system76/CosmicOsd";
 
 pub fn subscription(system_connection: zbus::Connection) -> iced::Subscription<Event> {
-    iced::subscription::run_with_id(
+    iced::Subscription::run_with_id(
         "dbus-polkit-agent",
         async move {
             let (sender, receiver) = mpsc::channel(32);

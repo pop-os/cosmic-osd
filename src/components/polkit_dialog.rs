@@ -2,31 +2,32 @@
 
 #![allow(clippy::single_match)]
 
+use crate::{
+    fl,
+    subscriptions::{polkit_agent::PolkitError, polkit_agent_helper},
+};
 use cosmic::{
     iced::{
         self,
         event::{wayland, PlatformSpecific},
-        widget, Command, Subscription,
-    },
-    iced_runtime::{
-        command::platform_specific::wayland::layer_surface::SctkLayerSurfaceSettings,
         window::Id as SurfaceId,
+        Subscription, Task,
     },
-    iced_sctk::commands::layer_surface::{
+    iced_runtime::platform_specific::wayland::layer_surface::SctkLayerSurfaceSettings,
+    iced_winit::wayland::commands::layer_surface::{
         destroy_layer_surface, get_layer_surface, KeyboardInteractivity, Layer,
     },
-    theme,
+    widget,
 };
+use once_cell::sync::Lazy;
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
 };
 use tokio::sync::oneshot;
 
-use crate::{
-    fl,
-    subscriptions::{polkit_agent::PolkitError, polkit_agent_helper},
-};
+pub static POLKIT_DIALOG_ID: Lazy<widget::Id> =
+    Lazy::new(|| widget::Id::new("polkit-dialog".to_string()));
 
 #[derive(Clone, Debug)]
 pub struct Params {
@@ -68,7 +69,7 @@ pub struct State {
 }
 
 impl State {
-    pub fn new<T: 'static>(id: SurfaceId, params: Params) -> (Self, Command<T>) {
+    pub fn new<T: 'static>(id: SurfaceId, params: Params) -> (Self, Task<T>) {
         let text_input_id = iced::id::Id::unique();
         let cmd = get_layer_surface(SctkLayerSurfaceSettings {
             id,
@@ -99,17 +100,17 @@ impl State {
         )
     }
 
-    pub fn cancel<T>(self) -> Command<T> {
+    pub fn cancel<T>(self) -> Task<T> {
         self.respond(Err(PolkitError::Cancelled))
     }
 
-    fn respond<T>(self, res: Result<(), PolkitError>) -> Command<T> {
+    fn respond<T>(self, res: Result<(), PolkitError>) -> Task<T> {
         let sender = self.params.response_sender.lock().unwrap().take().unwrap();
         let _ = sender.send(res);
         destroy_layer_surface(self.id)
     }
 
-    pub fn update(mut self, event: Msg) -> (Option<Self>, Command<Msg>) {
+    pub fn update(mut self, event: Msg) -> (Option<Self>, Task<Msg>) {
         match event {
             // XXX which layer?
             Msg::Layer(layer_event) => match layer_event {
@@ -161,7 +162,7 @@ impl State {
                 self.password = password;
             }
         }
-        (Some(self), Command::none())
+        (Some(self), Task::none())
     }
 
     pub fn view(&self) -> cosmic::Element<'_, Msg> {
@@ -169,12 +170,12 @@ impl State {
 
         let placeholder = self.password_label.trim_end_matches(':');
         let mut password_input =
-            cosmic::widget::text_input(placeholder, &self.password).id(self.text_input_id.clone());
+            widget::text_input(placeholder, &self.password).id(self.text_input_id.clone());
         if !self.echo {
             password_input = password_input.password();
         }
-        let mut cancel_button = cosmic::widget::button::standard(&self.msg_cancel);
-        let mut authenticate_button = cosmic::widget::button::suggested(&self.msg_authenticate);
+        let mut cancel_button = widget::button::standard(&self.msg_cancel);
+        let mut authenticate_button = widget::button::suggested(&self.msg_authenticate);
         if self.sensitive {
             password_input = password_input
                 .on_input(Msg::Password)
@@ -189,31 +190,37 @@ impl State {
         if self.retries > 0 {
             right_column.push(
                 widget::text(&self.msg_invalid_password)
-                    .style(cosmic::theme::Text::Color(iced::Color::from_rgb(
+                    .class(cosmic::theme::Text::Color(iced::Color::from_rgb(
                         1.0, 0.0, 0.0,
                     )))
                     .into(),
             );
         }
-        let icon = cosmic::widget::icon::from_name(
+        let icon = widget::icon::from_name(
             self.params
                 .icon_name
                 .as_deref()
                 .unwrap_or("dialog-authentication"),
         )
         .size(64);
-        cosmic::widget::dialog::dialog(&self.msg_authentication_required)
-            .control(widget::column(right_column).spacing(6))
-            .icon(icon)
-            .primary_action(authenticate_button)
-            .secondary_action(cancel_button)
-            .into()
+        widget::autosize::autosize(
+            widget::dialog::dialog()
+                .title(&self.msg_authentication_required)
+                .control(widget::column::with_children(right_column).spacing(6))
+                .icon(icon)
+                .primary_action(authenticate_button)
+                .secondary_action(cancel_button),
+            POLKIT_DIALOG_ID.clone(),
+        )
+        .min_width(1.)
+        .min_height(1.)
+        .into()
     }
 
     pub fn subscription(&self) -> Subscription<Msg> {
         iced::Subscription::batch([
-            cosmic::iced::event::listen_with(|e, _status| match e {
-                cosmic::iced::Event::PlatformSpecific(PlatformSpecific::Wayland(
+            iced::event::listen_with(|e, _status, _id| match e {
+                iced::Event::PlatformSpecific(PlatformSpecific::Wayland(
                     wayland::Event::Layer(e, ..),
                 )) => Some(Msg::Layer(e)),
                 _ => None,

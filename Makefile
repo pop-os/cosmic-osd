@@ -1,4 +1,4 @@
-prefix ?= /usr/local
+prefix ?= /usr
 polkit-agent-helper-1 ?= /usr/libexec/polkit-agent-helper-1
 bindir = $(prefix)/bin
 libdir = $(prefix)/lib
