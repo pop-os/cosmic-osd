@@ -1,9 +1,6 @@
 #![allow(irrefutable_let_patterns)]
 
-use cosmic::{
-    iced::{self, Command, Subscription},
-    iced_runtime::window::Id as SurfaceId,
-};
+use cosmic::iced::{self, window::Id as SurfaceId, Subscription, Task};
 use std::{
     collections::HashMap,
     time::{Duration, Instant},
@@ -53,7 +50,7 @@ struct App {
 }
 
 impl App {
-    fn create_indicator(&mut self, params: osd_indicator::Params) -> cosmic::app::Command<Msg> {
+    fn create_indicator(&mut self, params: osd_indicator::Params) -> cosmic::app::Task<Msg> {
         if let Some((_id, ref mut state)) = &mut self.indicator {
             state.replace_params(params)
         } else {
@@ -72,7 +69,7 @@ impl cosmic::Application for App {
     type Flags = ();
     const APP_ID: &'static str = "com.system76.CosmicWorkspaces";
 
-    fn init(core: cosmic::app::Core, _flags: ()) -> (Self, cosmic::app::Command<Msg>) {
+    fn init(core: cosmic::app::Core, _flags: ()) -> (Self, cosmic::app::Task<Msg>) {
         (
             Self {
                 core,
@@ -91,7 +88,7 @@ impl cosmic::Application for App {
                 source_volume: None,
                 airplane_mode: None,
             },
-            Command::none(),
+            Task::none(),
         )
     }
 
@@ -103,7 +100,7 @@ impl cosmic::Application for App {
         &mut self.core
     }
 
-    fn update(&mut self, message: Msg) -> cosmic::app::Command<Msg> {
+    fn update(&mut self, message: Msg) -> cosmic::app::Task<Msg> {
         match message {
             Msg::DBus(event) => {
                 match event {
@@ -115,7 +112,7 @@ impl cosmic::Application for App {
                         log::error!("Failed to {}: {}", context, err);
                     }
                 }
-                iced::Command::none()
+                iced::Task::none()
             }
             Msg::PolkitAgent(event) => match event {
                 polkit_agent::Event::CreateDialog(params) => {
@@ -141,7 +138,7 @@ impl cosmic::Application for App {
                             unreachable!()
                         }
                     } else {
-                        Command::none()
+                        Task::none()
                     }
                 }
             },
@@ -154,7 +151,7 @@ impl cosmic::Application for App {
                     return cmd
                         .map(move |msg| cosmic::app::Message::App(Msg::PolkitDialog((id, msg))));
                 }
-                Command::none()
+                Task::none()
             }
             Msg::OsdIndicator(msg) => {
                 if let Some((id, state)) = self.indicator.take() {
@@ -164,25 +161,25 @@ impl cosmic::Application for App {
                     }
                     cmd.map(|x| cosmic::app::Message::App(Msg::OsdIndicator(x)))
                 } else {
-                    Command::none()
+                    Task::none()
                 }
             }
-            Msg::SettingsDaemon(settings_daemon::Event::Sender(_)) => Command::none(),
+            Msg::SettingsDaemon(settings_daemon::Event::Sender(_)) => Task::none(),
             Msg::SettingsDaemon(settings_daemon::Event::MaxDisplayBrightness(max_brightness)) => {
                 self.max_display_brightness = Some(max_brightness);
-                Command::none()
+                Task::none()
             }
             Msg::SettingsDaemon(settings_daemon::Event::DisplayBrightness(brightness)) => {
                 if self.display_brightness.is_none() {
                     self.display_brightness = Some(brightness);
-                    Command::none()
+                    Task::none()
                 } else if self.display_brightness != Some(brightness) {
                     self.display_brightness = Some(brightness);
                     self.create_indicator(osd_indicator::Params::DisplayBrightness(
                         brightness as f64 / self.max_display_brightness.unwrap_or(100) as f64,
                     ))
                 } else {
-                    Command::none()
+                    Task::none()
                 }
             }
             Msg::Pulse(evt) => {
@@ -244,8 +241,11 @@ impl cosmic::Application for App {
                             }
                         }
                     }
+                    pulse::Event::CardInfo(_) => {}
+                    pulse::Event::DefaultSink(_) => {}
+                    pulse::Event::DefaultSource(_) => {}
                 }
-                Command::none()
+                Task::none()
             }
             Msg::AirplaneMode(state) => {
                 if self.airplane_mode.is_none() {
@@ -254,18 +254,18 @@ impl cosmic::Application for App {
                     self.airplane_mode = Some(state);
                     return self.create_indicator(osd_indicator::Params::AirplaneMode(state));
                 }
-                Command::none()
+                Task::none()
             }
             Msg::KeyboardBacklight(update) => match update {
-                KeyboardBacklightUpdate::Sender(_) => Command::none(),
+                KeyboardBacklightUpdate::Sender(_) => Task::none(),
                 KeyboardBacklightUpdate::MaxBrightness(max_brightness) => {
                     self.max_keyboard_brightness = Some(max_brightness);
-                    Command::none()
+                    Task::none()
                 }
                 KeyboardBacklightUpdate::Brightness(brightness) => {
                     if self.keyboard_brightness.is_none() {
                         self.keyboard_brightness = Some(brightness);
-                        Command::none()
+                        Task::none()
                     } else if self.keyboard_brightness != Some(brightness) {
                         self.keyboard_brightness = Some(brightness);
                         if let Some(max_brightness) = self.max_keyboard_brightness {
@@ -273,10 +273,10 @@ impl cosmic::Application for App {
                                 brightness as f64 / max_brightness as f64,
                             ))
                         } else {
-                            Command::none()
+                            Task::none()
                         }
                     } else {
-                        Command::none()
+                        Task::none()
                     }
                 }
             },

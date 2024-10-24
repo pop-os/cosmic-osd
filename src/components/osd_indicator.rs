@@ -2,24 +2,21 @@
 // TODO: Dismiss on click?
 
 use cosmic::{
-    iced::{
-        self,
-        wayland::{
-            actions::layer_surface::IcedMargin,
-            layer_surface::{Anchor, KeyboardInteractivity, Layer},
-        },
-        widget, Border, Command,
+    iced::{self, window::Id as SurfaceId, Alignment, Border, Length},
+    iced_runtime::platform_specific::wayland::layer_surface::{
+        IcedMargin, SctkLayerSurfaceSettings,
     },
-    iced_runtime::{
-        command::platform_specific::wayland::layer_surface::SctkLayerSurfaceSettings,
-        window::Id as SurfaceId,
+    iced_winit::commands::layer_surface::{
+        destroy_layer_surface, get_layer_surface, Anchor, KeyboardInteractivity, Layer,
     },
-    iced_sctk::commands::layer_surface::{destroy_layer_surface, get_layer_surface},
-    Element,
+    widget, Element, Task,
 };
 use futures::future::{abortable, AbortHandle, Aborted};
-
+use once_cell::sync::Lazy;
 use std::time::Duration;
+
+pub static OSD_INDICATOR_ID: Lazy<widget::Id> =
+    Lazy::new(|| widget::Id::new("osd-indicator".to_string()));
 
 #[derive(Debug)]
 pub enum Params {
@@ -90,12 +87,12 @@ pub struct State {
     timer_abort: AbortHandle,
 }
 
-fn close_timer() -> (Command<Msg>, AbortHandle) {
+fn close_timer() -> (Task<Msg>, AbortHandle) {
     let (future, timer_abort) = abortable(async {
         let duration = Duration::from_secs(3);
         tokio::time::sleep(duration).await;
     });
-    let command = Command::perform(future, |res| {
+    let command = Task::perform(future, |res| {
         if res == Err(Aborted) {
             Msg::Ignore
         } else {
@@ -106,7 +103,7 @@ fn close_timer() -> (Command<Msg>, AbortHandle) {
 }
 
 impl State {
-    pub fn new(id: SurfaceId, params: Params) -> (Self, Command<Msg>) {
+    pub fn new(id: SurfaceId, params: Params) -> (Self, Task<Msg>) {
         // Anchor to bottom right, with margin?
         let mut cmds = vec![];
         cmds.push(get_layer_surface(SctkLayerSurfaceSettings {
@@ -131,13 +128,13 @@ impl State {
                 params,
                 timer_abort,
             },
-            Command::batch(cmds),
+            Task::batch(cmds),
         )
     }
 
     // Re-use OSD surface to show a different OSD
     // Resets close timer
-    pub fn replace_params(&mut self, params: Params) -> Command<Msg> {
+    pub fn replace_params(&mut self, params: Params) -> Task<Msg> {
         self.params = params;
         // Reset timer
         self.timer_abort.abort();
@@ -147,47 +144,41 @@ impl State {
     }
 
     pub fn view(&self) -> Element<'_, Msg> {
-        let icon = cosmic::widget::icon::from_name(self.params.icon_name());
+        let icon = widget::icon::from_name(self.params.icon_name());
 
         // Use large radius on value-OSD to enforce pill-shape with "Round" system style
         let radius;
 
         let osd_contents = if let Some(value) = self.params.value() {
             radius = cosmic::theme::active().cosmic().radius_l();
-            const OSD_WIDTH: f32 = 392.0;
-            const OSD_HEIGHT: f32 = 52.0;
-            const FLANK_WIDTH: f32 = 36.0;
-            const SPACING: f32 = 12.0;
-            const BAR_WIDTH: f32 = OSD_WIDTH - 2.0 * FLANK_WIDTH - 1.15 * OSD_HEIGHT;
-            cosmic::widget::container(
-                widget::row![
-                    cosmic::widget::container(icon.size(20))
-                        .width(FLANK_WIDTH)
-                        .align_x(iced::alignment::Horizontal::Center),
-                    cosmic::widget::horizontal_space(SPACING),
-                    cosmic::widget::progress_bar(0. ..=100., value as f32)
+            widget::container(
+                iced::widget::row![
+                    widget::container(icon.size(20))
+                        .width(Length::Fixed(32.0))
+                        .align_x(Alignment::Center),
+                    widget::text::body(format!("{}%", value))
+                        .width(Length::Fixed(32.0))
+                        .align_x(Alignment::Center),
+                    widget::horizontal_space().width(Length::Fixed(8.0)),
+                    widget::progress_bar(0. ..=100., value as f32)
                         .height(4)
-                        .width(BAR_WIDTH),
-                    cosmic::widget::text(format!("{}%", value))
-                        .size(16)
-                        .width(FLANK_WIDTH + SPACING)
-                        .horizontal_alignment(iced::alignment::Horizontal::Right),
+                        .width(Length::Fixed(266.0)),
                 ]
-                .align_items(iced::Alignment::Center),
+                .align_y(Alignment::Center),
             )
-            .width(OSD_WIDTH)
-            .height(OSD_HEIGHT)
+            .width(Length::Fixed(392.0))
+            .height(Length::Fixed(52.0))
         } else {
             radius = cosmic::theme::active().cosmic().radius_m();
             const ICON_SIZE: u16 = 112;
-            cosmic::widget::container(icon.size(ICON_SIZE))
+            widget::container(icon.size(ICON_SIZE))
                 .width(ICON_SIZE + 2 * cosmic::theme::active().cosmic().space_l())
                 .height(ICON_SIZE + 2 * cosmic::theme::active().cosmic().space_s())
         };
 
         // Define overall style of OSD container
-        let container_style = cosmic::theme::Container::custom(move |theme| {
-            cosmic::iced_style::container::Appearance {
+        let container_style =
+            cosmic::theme::Container::custom(move |theme| widget::container::Style {
                 text_color: Some(theme.cosmic().on_bg_color().into()),
                 background: Some(iced::Color::from(theme.cosmic().bg_color()).into()),
                 border: Border {
@@ -197,21 +188,24 @@ impl State {
                 },
                 shadow: Default::default(),
                 icon_color: Some(theme.cosmic().on_bg_color().into()),
-            }
-        });
+            });
 
-        // Apply style and center contents
-        osd_contents
-            .style(container_style)
-            .align_x(iced::alignment::Horizontal::Center)
-            .align_y(iced::alignment::Vertical::Center)
-            .into()
+        widget::autosize::autosize(
+            osd_contents
+                .class(container_style)
+                .align_x(Alignment::Center)
+                .align_y(Alignment::Center),
+            OSD_INDICATOR_ID.clone(),
+        )
+        .min_width(1.)
+        .min_height(1.)
+        .into()
     }
 
-    pub fn update(self, msg: Msg) -> (Option<Self>, Command<Msg>) {
+    pub fn update(self, msg: Msg) -> (Option<Self>, Task<Msg>) {
         log::trace!("indicator msg: {:?}", msg);
         match msg {
-            Msg::Ignore => (Some(self), Command::none()),
+            Msg::Ignore => (Some(self), Task::none()),
             Msg::Close => (None, destroy_layer_surface(self.id)),
         }
     }

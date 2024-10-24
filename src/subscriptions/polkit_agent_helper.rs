@@ -1,4 +1,5 @@
 use cosmic::iced::{self, futures::future};
+use futures::stream;
 use std::{fmt, io, process::Stdio, sync::Arc};
 use tokio::{
     io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
@@ -22,31 +23,36 @@ pub fn subscription(pw_name: &str, cookie: &str, retry: u32) -> iced::Subscripti
     // TODO: Avoid clone?
     let mut args = Some((pw_name.to_owned(), cookie.to_owned()));
     let name = format!("agent-helper-{}-{}", cookie, retry);
-    iced::subscription::unfold(name, None::<AgentHelper>, move |agent_helper| {
-        let args = args.take();
-        async move {
-            if let Some(mut agent_helper) = agent_helper {
-                let msg = agent_helper.next().await.unwrap_or_else(|err| {
-                    log::error!("reading from polkit agent helper: {}", err);
-                    Some(Event::Failed)
-                });
-                if let Some(msg) = msg {
-                    (msg, Some(agent_helper))
+    iced::Subscription::run_with_id(
+        name,
+        stream::unfold(None::<AgentHelper>, move |agent_helper| {
+            let args = args.take();
+            async move {
+                if let Some(mut agent_helper) = agent_helper {
+                    let msg = agent_helper.next().await.unwrap_or_else(|err| {
+                        log::error!("reading from polkit agent helper: {}", err);
+                        Some(Event::Failed)
+                    });
+                    if let Some(msg) = msg {
+                        Some((msg, Some(agent_helper)))
+                    } else {
+                        future::pending().await
+                    }
                 } else {
-                    future::pending().await
-                }
-            } else {
-                let (pw_name, cookie) = args.unwrap();
-                match AgentHelper::new(&pw_name, &cookie).await {
-                    Ok((helper, responder)) => (Event::Responder(responder), Some(helper)),
-                    Err(err) => {
-                        log::error!("creating polkit agent helper: {}", err);
-                        (Event::Failed, None)
+                    let (pw_name, cookie) = args.unwrap();
+                    match AgentHelper::new(&pw_name, &cookie).await {
+                        Ok((helper, responder)) => {
+                            Some((Event::Responder(responder), Some(helper)))
+                        }
+                        Err(err) => {
+                            log::error!("creating polkit agent helper: {}", err);
+                            Some((Event::Failed, None))
+                        }
                     }
                 }
             }
-        }
-    })
+        }),
+    )
 }
 
 struct AgentHelper {
