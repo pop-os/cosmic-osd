@@ -3,13 +3,15 @@
 
 use cosmic::{
     iced::{self, window::Id as SurfaceId, Alignment, Border, Length},
-    iced_runtime::platform_specific::wayland::layer_surface::{
-        IcedMargin, SctkLayerSurfaceSettings,
+    iced_runtime::platform_specific::wayland::layer_surface::SctkLayerSurfaceSettings,
+    iced_winit::commands::{
+        layer_surface::{
+            destroy_layer_surface, get_layer_surface, Anchor, KeyboardInteractivity, Layer,
+        },
+        overlap_notify::overlap_notify,
     },
-    iced_winit::commands::layer_surface::{
-        destroy_layer_surface, get_layer_surface, Anchor, KeyboardInteractivity, Layer,
-    },
-    widget, Element, Task,
+    widget::{self, horizontal_space, vertical_space},
+    Element, Task,
 };
 use futures::future::{abortable, AbortHandle, Aborted};
 use once_cell::sync::Lazy;
@@ -85,6 +87,7 @@ pub struct State {
     id: SurfaceId,
     params: Params,
     timer_abort: AbortHandle,
+    pub margin: (i32, i32, i32, i32),
 }
 
 fn close_timer() -> (Task<Msg>, AbortHandle) {
@@ -114,12 +117,9 @@ impl State {
             layer: Layer::Overlay,
             size: None,
             anchor: Anchor::BOTTOM,
-            margin: IcedMargin {
-                bottom: 48,
-                ..Default::default()
-            },
             ..Default::default()
         }));
+        cmds.push(overlap_notify(id, true));
         let (cmd, timer_abort) = close_timer();
         cmds.push(cmd);
         (
@@ -127,6 +127,7 @@ impl State {
                 id,
                 params,
                 timer_abort,
+                margin: (0, 0, 48, 0),
             },
             Task::batch(cmds),
         )
@@ -174,11 +175,11 @@ impl State {
             widget::container(icon.size(ICON_SIZE))
                 .width(ICON_SIZE + 2 * cosmic::theme::active().cosmic().space_l())
                 .height(ICON_SIZE + 2 * cosmic::theme::active().cosmic().space_s())
-        };
-
-        // Define overall style of OSD container
-        let container_style =
-            cosmic::theme::Container::custom(move |theme| widget::container::Style {
+        }
+        .align_x(Alignment::Center)
+        .align_y(Alignment::Center)
+        .class(cosmic::theme::Container::custom(move |theme| {
+            widget::container::Style {
                 text_color: Some(theme.cosmic().on_bg_color().into()),
                 background: Some(iced::Color::from(theme.cosmic().bg_color()).into()),
                 border: Border {
@@ -188,13 +189,32 @@ impl State {
                 },
                 shadow: Default::default(),
                 icon_color: Some(theme.cosmic().on_bg_color().into()),
-            });
+            }
+        }));
 
+        let osd_contents = if self.margin.0 != 0 || self.margin.2 != 0 {
+            Element::from(widget::column::with_children(vec![
+                vertical_space().height(self.margin.0 as f32).into(),
+                osd_contents.into(),
+                vertical_space().height(self.margin.2 as f32).into(),
+            ]))
+        } else {
+            osd_contents.into()
+        };
+        let osd_contents = if self.margin.1 != 0 || self.margin.3 != 0 {
+            Element::from(widget::row::with_children(vec![
+                horizontal_space().width(self.margin.1 as f32).into(),
+                osd_contents.into(),
+                horizontal_space().width(self.margin.3 as f32).into(),
+            ]))
+        } else {
+            osd_contents.into()
+        };
         widget::autosize::autosize(
-            osd_contents
-                .class(container_style)
+            widget::container(osd_contents)
                 .align_x(Alignment::Center)
-                .align_y(Alignment::Center),
+                .width(Length::Shrink)
+                .align_bottom(Length::Shrink),
             OSD_INDICATOR_ID.clone(),
         )
         .min_width(1.)
