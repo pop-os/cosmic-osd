@@ -1,6 +1,11 @@
 #![allow(irrefutable_let_patterns)]
 
-use cosmic::iced::{self, window::Id as SurfaceId, Subscription, Task};
+use cosmic::iced::{
+    self,
+    event::{self, listen_with, wayland::OverlapNotifyEvent},
+    window::Id as SurfaceId,
+    Point, Rectangle, Size, Subscription, Task,
+};
 use std::{
     collections::HashMap,
     time::{Duration, Instant},
@@ -25,6 +30,8 @@ pub enum Msg {
     OsdIndicator(osd_indicator::Msg),
     AirplaneMode(bool),
     KeyboardBacklight(KeyboardBacklightUpdate),
+    Overlap(OverlapNotifyEvent),
+    Size(Size),
 }
 
 enum Surface {
@@ -47,6 +54,9 @@ struct App {
     source_mute: Option<bool>,
     source_volume: Option<u32>,
     airplane_mode: Option<bool>,
+    overlap_dock: Option<(String, Rectangle)>,
+    overlap_panel: Option<(String, Rectangle)>,
+    size: Option<Size>,
 }
 
 impl App {
@@ -60,6 +70,52 @@ impl App {
             cmd
         }
         .map(|x| cosmic::app::Message::App(Msg::OsdIndicator(x)))
+    }
+
+    fn handle_overlap(&mut self) {
+        let Some((_, state)) = self.indicator.as_mut() else {
+            return;
+        };
+        let Some((bl, br, tl, tr)) = self.size.as_ref().map(|s| {
+            (
+                Rectangle::new(
+                    Point::new(0., s.height / 2.),
+                    Size::new(s.width / 2., s.height / 2.),
+                ),
+                Rectangle::new(
+                    Point::new(s.width / 2., s.height / 2.),
+                    Size::new(s.width / 2., s.height / 2.),
+                ),
+                Rectangle::new(Point::new(0., 0.), Size::new(s.width / 2., s.height / 2.)),
+                Rectangle::new(
+                    Point::new(s.width / 2., 0.),
+                    Size::new(s.width / 2., s.height / 2.),
+                ),
+            )
+        }) else {
+            return;
+        };
+
+        let (mut top, mut left, mut bottom, mut right) = (0, 0, 48, 0);
+        for (_, overlap) in self.overlap_dock.iter().chain(self.overlap_panel.iter()) {
+            let tl = tl.intersects(overlap);
+            let tr = tr.intersects(overlap);
+            let bl = bl.intersects(overlap);
+            let br = br.intersects(overlap);
+            if tl && tr {
+                top += overlap.height as i32;
+            }
+            if tl && bl {
+                left += overlap.width as i32;
+            }
+            if bl && br {
+                bottom += overlap.height as i32;
+            }
+            if tr && br {
+                right += overlap.width as i32;
+            }
+        }
+        state.margin = (top, right, bottom, left);
     }
 }
 
@@ -87,6 +143,9 @@ impl cosmic::Application for App {
                 source_mute: None,
                 source_volume: None,
                 airplane_mode: None,
+                overlap_dock: Default::default(),
+                overlap_panel: Default::default(),
+                size: None,
             },
             Task::none(),
         )
@@ -280,6 +339,48 @@ impl cosmic::Application for App {
                     }
                 }
             },
+            Msg::Overlap(overlap_notify_event) => {
+                match overlap_notify_event {
+                    OverlapNotifyEvent::OverlapLayerAdd {
+                        identifier,
+                        namespace,
+                        logical_rect,
+                        ..
+                    } => {
+                        if namespace == "Dock" {
+                            self.overlap_dock = Some((identifier, logical_rect));
+                            self.handle_overlap();
+                        } else if namespace == "Panel" {
+                            self.overlap_panel = Some((identifier, logical_rect));
+                            self.handle_overlap();
+                        }
+                    }
+                    OverlapNotifyEvent::OverlapLayerRemove { identifier } => {
+                        if self
+                            .overlap_dock
+                            .as_ref()
+                            .is_some_and(|(id, _)| *id == identifier)
+                        {
+                            self.overlap_dock = None;
+                        }
+                        if self
+                            .overlap_panel
+                            .as_ref()
+                            .is_some_and(|(id, _)| *id == identifier)
+                        {
+                            self.overlap_panel = None;
+                        }
+                        self.handle_overlap();
+                    }
+                    _ => {}
+                }
+                Task::none()
+            }
+            Msg::Size(size) => {
+                self.size = Some(size);
+                self.handle_overlap();
+                Task::none()
+            }
         }
     }
 
@@ -301,6 +402,20 @@ impl cosmic::Application for App {
         subscriptions.push(airplane_mode::subscription().map(Msg::AirplaneMode));
 
         subscriptions.push(kbd_backlight_subscription("kbd-backlight").map(Msg::KeyboardBacklight));
+
+        subscriptions.push(listen_with(|event, _, _id| match event {
+            event::Event::Window(iced::window::Event::Opened { position: _, size }) => {
+                Some(Msg::Size(size))
+            }
+            event::Event::Window(iced::window::Event::Resized(s)) => Some(Msg::Size(s)),
+            event::Event::PlatformSpecific(event::PlatformSpecific::Wayland(wayland_event)) => {
+                match wayland_event {
+                    event::wayland::Event::OverlapNotify(event) => Some(Msg::Overlap(event)),
+                    _ => None,
+                }
+            }
+            _ => None,
+        }));
 
         subscriptions.extend(self.surfaces.iter().map(|(id, surface)| match surface {
             Surface::PolkitDialog(state) => state.subscription().with(*id).map(Msg::PolkitDialog),
