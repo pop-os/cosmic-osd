@@ -48,6 +48,7 @@ pub enum Msg {
     Authenticate,
     Cancel,
     Password(String),
+    TogglePasswordVisibility,
 }
 
 pub struct State {
@@ -55,6 +56,7 @@ pub struct State {
     pub params: Params,
     responder: Option<polkit_agent_helper::Responder>,
     password: String,
+    password_visible: bool,
     message: Option<String>, // TODO show
     password_label: String,  // TODO
     echo: bool,
@@ -85,6 +87,7 @@ impl State {
                 params,
                 responder: None,
                 password: String::new(),
+                password_visible: false,
                 message: None,
                 password_label: String::new(),
                 echo: false,
@@ -161,6 +164,9 @@ impl State {
             Msg::Password(password) => {
                 self.password = password;
             }
+            Msg::TogglePasswordVisibility => {
+                self.password_visible = !self.password_visible;
+            }
         }
         (Some(self), Task::none())
     }
@@ -169,11 +175,17 @@ impl State {
         // TODO Allocates on every keypress?
 
         let placeholder = self.password_label.trim_end_matches(':');
-        let mut password_input =
-            widget::text_input(placeholder, &self.password).id(self.text_input_id.clone());
-        if !self.echo {
-            password_input = password_input.password();
-        }
+        let mut password_input = if !self.echo {
+            widget::secure_input(
+                placeholder,
+                &self.password,
+                Some(Msg::TogglePasswordVisibility),
+                !self.password_visible,
+            )
+            .id(self.text_input_id.clone())
+        } else {
+            widget::text_input(placeholder, &self.password).id(self.text_input_id.clone())
+        };
         let mut cancel_button = widget::button::standard(&self.msg_cancel);
         let mut authenticate_button = widget::button::suggested(&self.msg_authenticate);
         if self.sensitive {
@@ -183,18 +195,17 @@ impl State {
             cancel_button = cancel_button.on_press(Msg::Cancel);
             authenticate_button = authenticate_button.on_press(Msg::Authenticate);
         }
-        let mut right_column: Vec<cosmic::Element<_>> = vec![
-            widget::text(&self.params.message).into(),
-            password_input.into(),
-        ];
+        let mut right_column: Vec<cosmic::Element<_>> = vec![password_input.into()];
         if self.retries > 0 {
             right_column.push(
-                widget::text(&self.msg_invalid_password)
+                widget::text::body(&self.msg_invalid_password)
                     .class(cosmic::theme::Text::Color(iced::Color::from_rgb(
                         1.0, 0.0, 0.0,
                     )))
                     .into(),
             );
+        } else {
+            right_column.push(widget::text::body("").into())
         }
         let icon = widget::icon::from_name(
             self.params
@@ -206,7 +217,8 @@ impl State {
         widget::autosize::autosize(
             widget::dialog::dialog()
                 .title(&self.msg_authentication_required)
-                .control(widget::column::with_children(right_column).spacing(6))
+                .body(&self.params.message)
+                .control(widget::column::with_children(right_column).spacing(4))
                 .icon(icon)
                 .primary_action(authenticate_button)
                 .secondary_action(cancel_button),
