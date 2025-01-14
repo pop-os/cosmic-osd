@@ -1,4 +1,4 @@
 invalid-password = Contraseña inválida. Por favor, vuelva a introducirla.
-authentication-required = Autentificaión necesaria
+authentication-required = Autentificación necesaria
 cancel = Cancelar
 authenticate = Autenticar
