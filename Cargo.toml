@@ -30,3 +30,14 @@ tokio-stream = "0.1.11"
 uzers = "0.11.3"
 zbus = { version = "4.2.2", default-features = false, features = ["tokio"] }
 cosmic-settings-subscriptions = { git = "https://github.com/pop-os/cosmic-settings-subscriptions" }
+#[patch.'https://github.com/pop-os/libcosmic']
+#libcosmic = { path = "../../pop/libcosmic" }
+#cosmic-config = { path = "../../pop/libcosmic/cosmic-config" }
+#cosmic-theme = { path = "../../pop/libcosmic/cosmic-theme" }
+#iced_futures = { path = "../../pop/libcosmic/iced/futures" }
+
+[profile.release]
+codegen-units = 1
+lto = "thin"
+opt-level = "z"
+panic = "abort"
