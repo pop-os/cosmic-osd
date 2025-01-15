@@ -688,8 +688,6 @@ impl cosmic::Application for App {
                 let Ok(cmd) = OsdTask::from_str(&action) else {
                     return Task::none();
                 };
-                // Ask for user confirmation of non-destructive actions only
-
                 let id = SurfaceId::unique();
                 self.action_to_confirm = Some((id, cmd, COUNTDOWN_LENGTH));
                 return get_layer_surface(SctkLayerSurfaceSettings {
