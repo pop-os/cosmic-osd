@@ -1,27 +1,140 @@
 #![allow(irrefutable_let_patterns)]
 
-use cosmic::iced::{
-    self,
-    event::{self, listen_with, wayland::OverlapNotifyEvent},
-    window::Id as SurfaceId,
-    Point, Rectangle, Size, Subscription, Task,
-};
-use std::{
-    collections::HashMap,
-    time::{Duration, Instant},
-};
-
 use crate::{
     components::{osd_indicator, polkit_dialog},
+    fl,
     subscriptions::{dbus, polkit_agent},
+};
+use crate::{cosmic_session::CosmicSessionProxy, session_manager::SessionManagerProxy};
+use clap::Parser;
+use cosmic::{
+    app::{self, CosmicFlags, DbusActivationDetails},
+    iced::{
+        self,
+        event::{
+            self, listen_with,
+            wayland::{self, LayerEvent, OverlapNotifyEvent},
+        },
+        keyboard::{key::Named, Key},
+        time,
+        window::Id as SurfaceId,
+        Alignment, Length, Limits, Point, Rectangle, Size, Subscription, Task,
+    },
+    iced_runtime::platform_specific::wayland::layer_surface::SctkLayerSurfaceSettings,
+    iced_winit::commands::layer_surface::{
+        destroy_layer_surface, get_layer_surface, Anchor, KeyboardInteractivity,
+    },
+    theme,
+    widget::{autosize::autosize, button, container, icon, text, Column},
+    Element,
 };
 use cosmic_settings_subscriptions::{
     airplane_mode, pulse, settings_daemon,
     upower::kbdbacklight::{kbd_backlight_subscription, KeyboardBacklightUpdate},
 };
+use logind_zbus::manager::ManagerProxy;
+use serde::{Deserialize, Serialize};
+use std::{
+    collections::HashMap,
+    fmt::Display,
+    str::FromStr,
+    sync::LazyLock,
+    time::{Duration, Instant},
+};
+use zbus::Connection;
+
+const COUNTDOWN_LENGTH: u8 = 60;
+static CONFIRM_ID: LazyLock<iced::id::Id> = LazyLock::new(|| iced::id::Id::new("confirm-id"));
+static AUTOSIZE_DIALOG_ID: LazyLock<iced::id::Id> =
+    LazyLock::new(|| iced::id::Id::new("autosize-id"));
+
+#[derive(Parser, Debug, Serialize, Deserialize, Clone, Copy)]
+#[command(author, version, about, long_about = None)]
+#[command(propagate_version = true)]
+pub struct Args {
+    #[clap(subcommand)]
+    pub subcommand: Option<OsdTask>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, Copy, clap::Subcommand)]
+pub enum OsdTask {
+    #[clap(about = "Toggle the on screen display and start the log out timer")]
+    LogOut,
+    #[clap(about = "Toggle the on screen display and start the restart timer")]
+    Restart,
+    #[clap(about = "Toggle the on screen display and start the shutdown timer")]
+    Shutdown,
+}
+
+impl OsdTask {
+    fn perform(self) -> iced::Task<cosmic::app::Message<Msg>> {
+        let msg = |m| cosmic::app::message::app(Msg::Zbus(m));
+        match self {
+            OsdTask::LogOut => iced::Task::perform(log_out(), msg),
+            OsdTask::Restart => iced::Task::perform(restart(), msg),
+            OsdTask::Shutdown => iced::Task::perform(shutdown(), msg),
+        }
+    }
+}
+
+async fn restart() -> zbus::Result<()> {
+    let connection = Connection::system().await?;
+    let manager_proxy = ManagerProxy::new(&connection).await?;
+    manager_proxy.reboot(true).await
+}
+
+async fn shutdown() -> zbus::Result<()> {
+    let connection = Connection::system().await?;
+    let manager_proxy = ManagerProxy::new(&connection).await?;
+    manager_proxy.power_off(true).await
+}
+
+async fn log_out() -> zbus::Result<()> {
+    let session_type = std::env::var("XDG_CURRENT_DESKTOP").ok();
+    let connection = Connection::session().await?;
+    match session_type.as_ref().map(|s| s.trim()) {
+        Some("pop:GNOME") => {
+            let manager_proxy = SessionManagerProxy::new(&connection).await?;
+            manager_proxy.logout(0).await?;
+        }
+        // By default assume COSMIC
+        _ => {
+            let cosmic_session = CosmicSessionProxy::new(&connection).await?;
+            cosmic_session.exit().await?;
+        }
+    }
+    Ok(())
+}
+
+impl Display for OsdTask {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", serde_json::ser::to_string(self).unwrap())
+    }
+}
+
+impl FromStr for OsdTask {
+    type Err = serde_json::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        serde_json::de::from_str(s)
+    }
+}
+
+impl CosmicFlags for Args {
+    type SubCommand = OsdTask;
+    type Args = Vec<String>;
+
+    fn action(&self) -> Option<&OsdTask> {
+        self.subcommand.as_ref()
+    }
+}
 
 #[derive(Clone, Debug)]
 pub enum Msg {
+    Action(OsdTask),
+    Confirm,
+    Cancel,
+    Countdown,
     DBus(dbus::Event),
     PolkitAgent(polkit_agent::Event),
     PolkitDialog((SurfaceId, polkit_dialog::Msg)),
@@ -32,6 +145,7 @@ pub enum Msg {
     KeyboardBacklight(KeyboardBacklightUpdate),
     Overlap(OverlapNotifyEvent),
     Size(Size),
+    Zbus(Result<(), zbus::Error>),
 }
 
 enum Surface {
@@ -56,6 +170,7 @@ struct App {
     airplane_mode: Option<bool>,
     overlap: HashMap<String, Rectangle>,
     size: Option<Size>,
+    action_to_confirm: Option<(SurfaceId, OsdTask, u8)>,
 }
 
 impl App {
@@ -126,10 +241,10 @@ impl App {
 impl cosmic::Application for App {
     type Message = Msg;
     type Executor = iced::executor::Default;
-    type Flags = ();
-    const APP_ID: &'static str = "com.system76.CosmicWorkspaces";
+    type Flags = Args;
+    const APP_ID: &'static str = "com.system76.CosmicOnScreenDisplay";
 
-    fn init(core: cosmic::app::Core, _flags: ()) -> (Self, cosmic::app::Task<Msg>) {
+    fn init(core: cosmic::app::Core, _flags: Args) -> (Self, cosmic::app::Task<Msg>) {
         (
             Self {
                 core,
@@ -149,6 +264,7 @@ impl cosmic::Application for App {
                 airplane_mode: None,
                 overlap: HashMap::new(),
                 size: None,
+                action_to_confirm: None,
             },
             Task::none(),
         )
@@ -164,6 +280,52 @@ impl cosmic::Application for App {
 
     fn update(&mut self, message: Msg) -> cosmic::app::Task<Msg> {
         match message {
+            Msg::Action(action) => {
+                // Ask for user confirmation of non-destructive actions only
+                if matches!(action, OsdTask::Restart)
+                    && matches!(self.action_to_confirm, Some((_, OsdTask::Shutdown, _)))
+                {
+                    action.perform()
+                } else {
+                    let id = SurfaceId::unique();
+                    self.action_to_confirm = Some((id, action, COUNTDOWN_LENGTH));
+                    get_layer_surface(SctkLayerSurfaceSettings {
+                        id,
+                        keyboard_interactivity: KeyboardInteractivity::Exclusive,
+                        anchor: Anchor::empty(),
+                        namespace: "dialog".into(),
+                        size: None,
+                        size_limits: Limits::NONE.min_width(1.0).min_height(1.0),
+                        ..Default::default()
+                    })
+                }
+            }
+            Msg::Confirm => {
+                if let Some((id, a, _)) = self.action_to_confirm.take() {
+                    app::Task::batch(vec![destroy_layer_surface(id), a.perform()])
+                } else {
+                    Task::none()
+                }
+            }
+            Msg::Cancel => {
+                if let Some((id, _, _)) = self.action_to_confirm.take() {
+                    return destroy_layer_surface(id);
+                }
+                Task::none()
+            }
+            Msg::Countdown => {
+                if let Some((surface_id, a, countdown)) = self.action_to_confirm.as_mut() {
+                    *countdown -= 1;
+                    if *countdown == 0 {
+                        let id = *surface_id;
+                        let a = *a;
+
+                        self.action_to_confirm = None;
+                        return app::Task::batch(vec![destroy_layer_surface(id), a.perform()]);
+                    }
+                }
+                Task::none()
+            }
             Msg::DBus(event) => {
                 match event {
                     dbus::Event::Connection(connection) => self.connection = Some(connection),
@@ -370,6 +532,12 @@ impl cosmic::Application for App {
                 self.handle_overlap();
                 Task::none()
             }
+            Msg::Zbus(result) => {
+                if let Err(e) = result {
+                    eprintln!("cosmic-osd ERROR: '{}'", e);
+                }
+                Task::none()
+            }
         }
     }
 
@@ -400,15 +568,28 @@ impl cosmic::Application for App {
             event::Event::PlatformSpecific(event::PlatformSpecific::Wayland(wayland_event)) => {
                 match wayland_event {
                     event::wayland::Event::OverlapNotify(event) => Some(Msg::Overlap(event)),
+                    wayland::Event::Layer(LayerEvent::Unfocused, ..) => Some(Msg::Cancel),
                     _ => None,
                 }
             }
+            cosmic::iced::Event::Keyboard(iced::keyboard::Event::KeyPressed {
+                key,
+                text: _,
+                modifiers: _,
+                ..
+            }) => match key {
+                Key::Named(Named::Escape) => Some(Msg::Cancel),
+                _ => None,
+            },
             _ => None,
         }));
 
         subscriptions.extend(self.surfaces.iter().map(|(id, surface)| match surface {
             Surface::PolkitDialog(state) => state.subscription().with(*id).map(Msg::PolkitDialog),
         }));
+        if self.action_to_confirm.is_some() {
+            subscriptions.push(time::every(Duration::from_millis(1000)).map(|_| Msg::Countdown));
+        }
 
         iced::Subscription::batch(subscriptions)
     }
@@ -428,17 +609,113 @@ impl cosmic::Application for App {
             if id == *indicator_id {
                 return state.view().map(Msg::OsdIndicator);
             }
+        } else if matches!(self.action_to_confirm, Some((c_id, _, _)) if c_id == id) {
+            let cosmic_theme = self.core.system_theme().cosmic();
+            let (_, power_action, countdown) = self.action_to_confirm.as_ref().unwrap();
+            let action = match *power_action {
+                OsdTask::LogOut => "log-out",
+                OsdTask::Restart => "restart",
+                OsdTask::Shutdown => "shutdown",
+            };
+
+            let title = fl!(
+                "confirm-title",
+                HashMap::from_iter(vec![("action", action)])
+            );
+            let countdown = &countdown.to_string();
+            let mut dialog = cosmic::widget::dialog()
+                .title(title)
+                .body(fl!(
+                    "confirm-body",
+                    HashMap::from_iter(vec![("action", action), ("countdown", countdown)])
+                ))
+                .primary_action(
+                    button::custom(min_width_and_height(
+                        text::body(fl!("confirm", HashMap::from_iter(vec![("action", action)])))
+                            .into(),
+                        142.0,
+                        32.0,
+                    ))
+                    .padding([0, cosmic_theme.space_s()])
+                    .id(CONFIRM_ID.clone())
+                    .class(theme::Button::Suggested)
+                    .on_press(Msg::Confirm),
+                )
+                .secondary_action(
+                    button::custom(min_width_and_height(
+                        text::body(fl!("cancel")).into(),
+                        142.0,
+                        32.0,
+                    ))
+                    .padding([0, cosmic_theme.space_s()])
+                    .class(theme::Button::Standard)
+                    .on_press(Msg::Cancel),
+                )
+                .icon(text_icon(
+                    match power_action {
+                        OsdTask::LogOut => "system-log-out-symbolic",
+                        OsdTask::Restart => "system-restart-symbolic",
+                        OsdTask::Shutdown => "system-shutdown-symbolic",
+                    },
+                    60,
+                ));
+
+            if matches!(power_action, OsdTask::Shutdown) {
+                dialog = dialog.tertiary_action(
+                    button::text(fl!("restart")).on_press(Msg::Action(OsdTask::Restart)),
+                );
+            }
+            return Element::from(
+                autosize(Element::from(container(dialog)), AUTOSIZE_DIALOG_ID.clone()).limits(
+                    Limits::NONE
+                        .min_width(1.)
+                        .min_height(1.)
+                        .max_width(900.)
+                        .max_height(900.),
+                ),
+            );
         }
         iced::widget::text("").into() // XXX
+    }
+
+    fn dbus_activation(
+        &mut self,
+        msg: cosmic::app::DbusActivationMessage,
+    ) -> iced::Task<cosmic::app::Message<Self::Message>> {
+        match msg.msg {
+            DbusActivationDetails::Activate => {}
+            DbusActivationDetails::ActivateAction { action, .. } => {
+                let Ok(cmd) = OsdTask::from_str(&action) else {
+                    return Task::none();
+                };
+                // Ask for user confirmation of non-destructive actions only
+
+                let id = SurfaceId::unique();
+                self.action_to_confirm = Some((id, cmd, COUNTDOWN_LENGTH));
+                return get_layer_surface(SctkLayerSurfaceSettings {
+                    id,
+                    keyboard_interactivity: KeyboardInteractivity::Exclusive,
+                    anchor: Anchor::empty(),
+                    namespace: "dialog".into(),
+                    size: None,
+                    size_limits: Limits::NONE.min_width(1.0).min_height(1.0),
+                    ..Default::default()
+                });
+            }
+            DbusActivationDetails::Open { .. } => {}
+        }
+        Task::none()
     }
 }
 
 pub fn main() -> iced::Result {
-    cosmic::app::run::<App>(
+    let args = Args::parse();
+
+    cosmic::app::run_single_instance::<App>(
         cosmic::app::Settings::default()
             .no_main_window(true)
             .exit_on_close(false),
-        (),
+        args,
     )
 }
 
@@ -464,4 +741,21 @@ mod pipewire {
             "/usr/share/sounds/freedesktop/stereo/audio-volume-change.oga",
         ));
     }
+}
+
+fn min_width_and_height<'a>(
+    e: Element<'a, Msg>,
+    width: impl Into<Length>,
+    height: impl Into<Length>,
+) -> Column<'a, Msg> {
+    use iced::widget::{column, horizontal_space, row, vertical_space};
+    column![
+        row![e, vertical_space().height(height)].align_y(Alignment::Center),
+        horizontal_space().width(width)
+    ]
+    .align_x(Alignment::Center)
+}
+
+fn text_icon(name: &str, size: u16) -> cosmic::widget::Icon {
+    icon::from_name(name).size(size).symbolic(true).icon()
 }

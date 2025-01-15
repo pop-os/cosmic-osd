@@ -835,6 +835,46 @@ dependencies = [
 ]
 
 [[package]]
+name = "clap"
+version = "4.5.26"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a8eb5e908ef3a6efbe1ed62520fb7287959888c88485abe072543190ecc66783"
+dependencies = [
+ "clap_builder",
+ "clap_derive",
+]
+
+[[package]]
+name = "clap_builder"
+version = "4.5.26"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "96b01801b5fc6a0a232407abc821660c9c6d25a1cafc0d4f85f29fb8d9afc121"
+dependencies = [
+ "anstream",
+ "anstyle",
+ "clap_lex",
+ "strsim 0.11.1",
+]
+
+[[package]]
+name = "clap_derive"
+version = "4.5.24"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "54b755194d6389280185988721fffba69495eed5ee9feeee9a599b53db80318c"
+dependencies = [
+ "heck 0.5.0",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.96",
+]
+
+[[package]]
+name = "clap_lex"
+version = "0.7.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f46ad14479a25103f283c0f10005961cf086d8dc42205bb44c46ac563475dca6"
+
+[[package]]
 name = "clipboard-win"
 version = "5.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1033,7 +1073,9 @@ source = "git+https://github.com/pop-os/libcosmic#bd8347f7fcb8acad3bfd90cb0bc089
 dependencies = [
  "atomicwrites",
  "cosmic-config-derive",
+ "cosmic-settings-daemon",
  "dirs",
+ "futures-util",
  "iced_futures",
  "known-folders",
  "notify",
@@ -1043,6 +1085,7 @@ dependencies = [
  "tokio",
  "tracing",
  "xdg",
+ "zbus 4.4.0",
 ]
 
 [[package]]
@@ -1085,6 +1128,7 @@ dependencies = [
 name = "cosmic-osd"
 version = "0.1.0"
 dependencies = [
+ "clap",
  "cosmic-settings-subscriptions",
  "env_logger",
  "futures",
@@ -1093,10 +1137,12 @@ dependencies = [
  "libcosmic",
  "libpulse-binding",
  "log",
+ "logind-zbus",
  "once_cell",
  "rust-embed",
  "rustix 0.38.43",
  "serde",
+ "serde_json",
  "tokio",
  "tokio-stream",
  "uzers",
@@ -1115,6 +1161,14 @@ dependencies = [
  "wayland-protocols-wlr",
  "wayland-scanner",
  "wayland-server",
+]
+
+[[package]]
+name = "cosmic-settings-daemon"
+version = "0.1.0"
+source = "git+https://github.com/pop-os/dbus-settings-bindings#0eee63a96c8b1f6555ca797b5c12545c372b1a1b"
+dependencies = [
+ "zbus 4.4.0",
 ]
 
 [[package]]
@@ -2252,6 +2306,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "95505c38b4572b2d910cecb0281560f54b440a19336cbbcb27bf6ce6adc6f5a8"
 
 [[package]]
+name = "heck"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
+
+[[package]]
 name = "hermit-abi"
 version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3031,6 +3091,7 @@ dependencies = [
  "cosmic-client-toolkit",
  "cosmic-config",
  "cosmic-freedesktop-icons",
+ "cosmic-settings-daemon",
  "cosmic-theme",
  "css-color",
  "derive_setters",
@@ -3045,6 +3106,7 @@ dependencies = [
  "lazy_static",
  "palette",
  "rfd",
+ "ron",
  "serde",
  "slotmap",
  "taffy",
@@ -3168,6 +3230,16 @@ name = "log"
 version = "0.4.25"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "04cbf5b083de1c7e0222a7a51dbfdba1cbe1c6ab0b15e29fff3f6c077fd9cd9f"
+
+[[package]]
+name = "logind-zbus"
+version = "4.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a85a07c35bc3d71bd5ce956b6e89420fbce7e221da18ce2c685c0c784e64fa01"
+dependencies = [
+ "serde",
+ "zbus 4.4.0",
+]
 
 [[package]]
 name = "lru"
@@ -3791,7 +3863,7 @@ version = "0.18.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3c7028bdd3d43083f6d8d4d5187680d0d3560d54df4cc9d752005268b41e64d0"
 dependencies = [
- "heck",
+ "heck 0.4.1",
  "proc-macro2",
  "proc-macro2-diagnostics",
  "quote",
