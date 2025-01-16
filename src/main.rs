@@ -6,6 +6,8 @@ use once_cell::sync::Lazy;
 use rust_embed::RustEmbed;
 
 mod components;
+pub mod cosmic_session;
+pub mod session_manager;
 mod subscriptions;
 
 pub static LANG_LOADER: Lazy<FluentLanguageLoader> = Lazy::new(|| fluent_language_loader!());
