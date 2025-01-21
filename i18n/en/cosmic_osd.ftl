@@ -4,6 +4,7 @@ cancel = Cancel
 authenticate = Authenticate
 log-out = Log Out
 restart = Restart
+enter-bios = Enter BIOS
 shutdown = Shutdown
 confirm = Confirm
 confirm-button = {
@@ -12,6 +13,7 @@ confirm-button = {
         [suspend] { suspend}
         [shutdown] Power off
         [log-out] { log-out }
+        [enter-bios] {enter-bios}
         *[other] { confirm}
 }
 confirm-title = 
@@ -19,6 +21,7 @@ confirm-title =
         [restart] { restart }
         [suspend] { suspend }
         [shutdown] { shutdown }
+        [enter-bios] {enter-bios}
         [log-out] Quit all applications and log out
         *[other] Apply the selected action
     } now?
@@ -29,6 +32,7 @@ confirm-body =
         [shutdown] power off
         [lock-screen] lock the screen
         [log-out] log out
+        [enter-bios] restart into BIOS
         *[other] apply the selected action
     } automatically in { $countdown } seconds.
 

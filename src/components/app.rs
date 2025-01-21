@@ -64,22 +64,28 @@ pub enum OsdTask {
     Restart,
     #[clap(about = "Toggle the on screen display and start the shutdown timer")]
     Shutdown,
+    #[clap(about = "Toggle the on screen display and start the restart to bios timer")]
+    EnterBios,
 }
 
 impl OsdTask {
     fn perform(self) -> iced::Task<cosmic::app::Message<Msg>> {
         let msg = |m| cosmic::app::message::app(Msg::Zbus(m));
         match self {
+            OsdTask::EnterBios => iced::Task::perform(restart(true), msg),
             OsdTask::LogOut => iced::Task::perform(log_out(), msg),
-            OsdTask::Restart => iced::Task::perform(restart(), msg),
+            OsdTask::Restart => iced::Task::perform(restart(false), msg),
             OsdTask::Shutdown => iced::Task::perform(shutdown(), msg),
         }
     }
 }
 
-async fn restart() -> zbus::Result<()> {
+async fn restart(reboot_to_firmware_setup: bool) -> zbus::Result<()> {
     let connection = Connection::system().await?;
     let manager_proxy = ManagerProxy::new(&connection).await?;
+    _ = manager_proxy
+        .set_reboot_to_firmware_setup(reboot_to_firmware_setup)
+        .await;
     manager_proxy.reboot(true).await
 }
 
@@ -613,6 +619,7 @@ impl cosmic::Application for App {
             let cosmic_theme = self.core.system_theme().cosmic();
             let (_, power_action, countdown) = self.action_to_confirm.as_ref().unwrap();
             let action = match *power_action {
+                OsdTask::EnterBios => "enter-bios",
                 OsdTask::LogOut => "log-out",
                 OsdTask::Restart => "restart",
                 OsdTask::Shutdown => "shutdown",
@@ -654,7 +661,7 @@ impl cosmic::Application for App {
                 .icon(text_icon(
                     match power_action {
                         OsdTask::LogOut => "system-log-out-symbolic",
-                        OsdTask::Restart => "system-restart-symbolic",
+                        OsdTask::Restart | OsdTask::EnterBios => "system-restart-symbolic",
                         OsdTask::Shutdown => "system-shutdown-symbolic",
                     },
                     60,
