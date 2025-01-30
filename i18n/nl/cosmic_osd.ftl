@@ -1,19 +1,37 @@
-invalid-password = Ongeldig wachtwoord. Probeer het opnieuw
-authentication-required = Authenticatie Vereist
+invalid-password = Invalid password. Please try again.
+authentication-required = Authenticatie vereist
 cancel = Annuleren
 authenticate = Authenticeren
-log-out = Uit loggen
-restart = Herstarten
+log-out = Afmelden
+restart = Opnieuw opstrarten
+enter-bios = Ga naar BIOS
 shutdown = Afsluiten
 confirm = Bevestigen
-cancel = Annuleren
+confirm-button = {
+    $action -> 
+        [restart] Opnieuw opstarten
+        [suspend] Slaapstand
+        [shutdown] Afsluiten
+        [log-out] Afmelden
+        [enter-bios] Ga naar BIOS
+        *[other] Bevestigen
+}
+confirm-title = 
+    Nu { $action -> 
+        [restart] opnieuw opstarten?
+        [suspend] in slaapstand gaan?
+        [shutdown] afsluiten?
+        [enter-bios] de BIOS openen?
+        [log-out] alle applicaties sluiten en afmelden?
+        *[other] de geselecteerde actie uitvoeren?
+    } 
 confirm-body = 
     { $action ->
-        [restart] { restart }
-        [suspend] { suspend }
-        [shutdown] { shutdown }
-        [lock-screen] Het scherm vergrendelen
-        [log-out] Uit aan het loggen
-        *[other] de geselecteerde actie
-    } gaat verder in { $countdown } seconden.
-
+        [restart] De computer start na { $countdown } seconden automatisch opnieuw op.
+        [suspend] De computer gaat na { $countdown } seconden automatisch in slaapstand.
+        [shutdown] De computer wordt na { $countdown } seconden automatisch afgesloten.
+        [lock-screen] De schermvergrendeling wordt na { $countdown } seconden automatisch actief.
+        [log-out] De gebruiker wordt na { $countdown } seconden automatisch afgemeld.
+        [enter-bios] De computer start na { $countdown } seconden automatisch opnieuw op in de BIOS.
+        *[other] De geselecteerde actie wordt na { $countdown } seconden automatisch uitgevoerd.
+    } 
