@@ -1,38 +1,38 @@
-invalid-password = Ogiltigt lösenord. Var god försök igen.
+invalid-password = Felaktigt lösenord. Försök igen.
 authentication-required = Autentisering krävs
 cancel = Avbryt
 authenticate = Autentisera
-log-out = Вийти
-restart = Перезавантажити
-shutdown = Вимкнути
-confirm = Підтвердити
-cancel = Скасувати
+log-out = Logga ut
+suspend = Försätt i viloläge
+restart = Starta om
+enter-bios = Gå in i BIOS
+shutdown = Stäng av
+confirm = Bekräfta
 confirm-button = {
     $action -> 
         [restart] { restart }
-        [suspend] { suspend}
-        [shutdown] Вимкнути
+        [suspend] { suspend }
+        [shutdown] { shutdown }
         [log-out] { log-out }
-        *[other] { confirm}
+        [enter-bios] { enter-bios }
+        *[other] { confirm }
 }
 confirm-title = 
     { $action -> 
         [restart] { restart }
         [suspend] { suspend }
         [shutdown] { shutdown }
-        [log-out] Закрити всі застосунки та вийти
-        *[other] Виконати вибрану дію
-    } зараз?
+        [enter-bios] { Starta om till BIOS }
+        [log-out] Avsluta alla applikationer och logga ut
+        *[other] Tillämpa vald åtgärd
+    } nu?
 confirm-body = 
-    Система { $action ->
-        [restart] перезавантажиться
-        [suspend] призупиниться
-        [shutdown] вимкнеться
-        [lock-screen] заблокує екран
-        [log-out] виконає вихід
-        *[other] Виконати вибрану дію
-    } автоматично за { $countdown } { $countdown ->
-        [one] секунду
-        [few] секунди
-        *[other] секунд
-    }.
+    Systemet kommer att { $action ->
+        [restart] starta om
+        [suspend] försättas i viloläge
+        [shutdown] stängas av
+        [lock-screen] låsa skärmen
+        [log-out] logga ut
+        [enter-bios] starta om till BIOS
+        *[other] tillämpa vald åtgärd
+    } automatiskt om { $countdown } sekunder.
