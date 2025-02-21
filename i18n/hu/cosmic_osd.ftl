@@ -1,35 +1,37 @@
-invalid-password = Helytelen jelszó. Kérlek próbáld újra.
-authentication-required = Azonosítás szükséges
+invalid-password = Érvénytelen jelszó. Kérlek próbáld újra.
+authentication-required = Hitelesítés szükséges
 cancel = Mégse
-authenticate = Azonosítás
+authenticate = Hitelesítés
 log-out = Kijelentkezés
 restart = Újraindítás
+enter-bios = BIOS-ba lépés
 shutdown = Leállítás
-confirm = Megerősít
-cancel = Mégse
+confirm = Megerősítés
 confirm-button = {
     $action -> 
-        [restart] { restart }
-        [suspend] { suspend}
+        [restart] Újraindítás
+        [suspend] Felfüggesztés
         [shutdown] Leállítás
-        [log-out] { log-out }
-        *[other] { confirm}
+        [log-out] Kijelentkezés
+        [enter-bios] BIOS-ba lépés
+        *[other] Megerősítés
 }
 confirm-title = 
     { $action -> 
-        [restart] { restart }
-        [suspend] { suspend }
-        [shutdown] { shutdown }
-        [log-out] Összes alkalmazásból kilépés és kijelentkezés
+        [restart] Újraindítás
+        [suspend] Felfüggesztés
+        [shutdown] Leállítás
+        [enter-bios] Belép a BIOS-ba
+        [log-out] Minden alkalmazás bezárása és kijelentkezés
         *[other] Alkalmazza a kiválasztott műveletet
     } most?
 confirm-body = 
     A rendszer { $action ->
         [restart] újra fog indulni
-        [suspend] fel fogja függeszteni magát
+        [suspend] felfüggesztésre kerül
         [shutdown] le fog állni
         [lock-screen] le fogja zárni a képernyőt
         [log-out] ki fog jelentkezni
+        [enter-bios] újraindul a BIOS-ba
         *[other] alkalmazni fogja a kiválasztott műveletet
     } automatikusan { $countdown } másodpercen belül.
-
