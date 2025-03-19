@@ -3,6 +3,7 @@ authentication-required = Authentication Required
 cancel = Cancel
 authenticate = Authenticate
 log-out = Log Out
+suspend = Suspend
 restart = Restart
 enter-bios = Enter BIOS
 shutdown = Shutdown
