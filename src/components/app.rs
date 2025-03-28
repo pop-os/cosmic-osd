@@ -474,6 +474,7 @@ impl cosmic::Application for App {
                     pulse::Event::CardInfo(_) => {}
                     pulse::Event::DefaultSink(_) => {}
                     pulse::Event::DefaultSource(_) => {}
+                    pulse::Event::Balance(_) | pulse::Event::Channels(_) => {}
                 }
                 Task::none()
             }
