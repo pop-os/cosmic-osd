@@ -34,7 +34,7 @@ tokio = { version = "1.23.0", features = ["process"] }
 tokio-stream = "0.1.11"
 uzers = "0.11.3"
 zbus = { version = "4.2.2", default-features = false, features = ["tokio"] }
-cosmic-settings-subscriptions = { git = "https://github.com/pop-os/cosmic-settings-subscriptions", branch = "sound" }
+cosmic-settings-subscriptions = { git = "https://github.com/pop-os/cosmic-settings-subscriptions" }
 #[patch.'https://github.com/pop-os/libcosmic']
 #libcosmic = { path = "../../pop/libcosmic" }
 #cosmic-config = { path = "../../pop/libcosmic/cosmic-config" }
