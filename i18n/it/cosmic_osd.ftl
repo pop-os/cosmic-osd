@@ -1,18 +1,19 @@
-invalid-password = Password non valida, riprova.
+invalid-password = Password non valida, per favore riprova.
 authentication-required = Autenticazione necessaria
 cancel = Annulla
-authenticate = Esegui autenticazione
+authenticate = Autentica
 log-out = Disconnetti
 restart = Riavvia
+enter-bios = Riavvia nel BIOS
 shutdown = Spegni
 confirm = Conferma
-cancel = Annulla
 confirm-button = {
     $action -> 
         [restart] { restart }
         [suspend] { suspend}
         [shutdown] Spegni
         [log-out] { log-out }
+        [enter-bios] {enter-bios}
         *[other] { confirm}
 }
 confirm-title = 
@@ -20,15 +21,18 @@ confirm-title =
         [restart] { restart }
         [suspend] { suspend }
         [shutdown] { shutdown }
-        [log-out] Chiudi tutte le applicazioni e termina la sessione
-        *[other] Applica l'azione selezionata
-    } now?
+        [enter-bios] {enter-bios}
+        [log-out] Chiudere tutte le applicazioni e disconnettere
+        *[other] Applicare l'azione selezionata
+    } adesso?
 confirm-body = 
-    { $action ->
-        [restart] { restart }
-        [suspend] { suspend }
-        [shutdown] { shutdown }
-        [lock-screen] Blocco schermo in corso
-        [log-out] Disconnessione in corso
-        *[other] L'azione selezionata
-    } verrà eseguita tra { $countdown } secondi.
+    Il sistema { $action ->
+        [restart] verrà riavviato
+        [suspend] verrà sospeso
+        [shutdown] verrà spento
+        [lock-screen] verrà bloccato
+        [log-out] verrà disconnesso
+        [enter-bios] verrà riavviato nel BIOS
+        *[other] applicherà l'azione selezionata
+    } automaticamente in { $countdown } secondi.
+
