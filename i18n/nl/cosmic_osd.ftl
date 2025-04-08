@@ -3,6 +3,7 @@ authentication-required = Authenticatie vereist
 cancel = Annuleren
 authenticate = Authenticeren
 log-out = Afmelden
+suspend = Slaapstand
 restart = Opnieuw opstrarten
 enter-bios = Ga naar BIOS
 shutdown = Afsluiten
