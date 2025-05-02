@@ -191,7 +191,7 @@ impl State {
         if self.sensitive {
             password_input = password_input
                 .on_input(Msg::Password)
-                .on_submit(Msg::Authenticate);
+                .on_submit(|_| Msg::Authenticate);
             cancel_button = cancel_button.on_press(Msg::Cancel);
             authenticate_button = authenticate_button.on_press(Msg::Authenticate);
         }
