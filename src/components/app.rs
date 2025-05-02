@@ -8,7 +8,8 @@ use crate::{
 use crate::{cosmic_session::CosmicSessionProxy, session_manager::SessionManagerProxy};
 use clap::Parser;
 use cosmic::{
-    app::{self, CosmicFlags, DbusActivationDetails},
+    app::{self, CosmicFlags, Task},
+    dbus_activation::Details,
     iced::{
         self,
         event::{
@@ -18,7 +19,7 @@ use cosmic::{
         keyboard::{key::Named, Key},
         time,
         window::Id as SurfaceId,
-        Alignment, Length, Limits, Point, Rectangle, Size, Subscription, Task,
+        Alignment, Length, Limits, Point, Rectangle, Size, Subscription,
     },
     iced_runtime::platform_specific::wayland::layer_surface::SctkLayerSurfaceSettings,
     iced_winit::commands::layer_surface::{
@@ -26,7 +27,7 @@ use cosmic::{
     },
     theme,
     widget::{autosize::autosize, button, container, icon, text, Column},
-    Element,
+    DbusActivation, Element,
 };
 use cosmic_settings_subscriptions::{
     airplane_mode, pulse, settings_daemon,
@@ -69,13 +70,13 @@ pub enum OsdTask {
 }
 
 impl OsdTask {
-    fn perform(self) -> iced::Task<cosmic::app::Message<Msg>> {
-        let msg = |m| cosmic::app::message::app(Msg::Zbus(m));
+    fn perform(self) -> Task<Msg> {
+        let msg = |m| cosmic::action::app(Msg::Zbus(m));
         match self {
-            OsdTask::EnterBios => iced::Task::perform(restart(true), msg),
-            OsdTask::LogOut => iced::Task::perform(log_out(), msg),
-            OsdTask::Restart => iced::Task::perform(restart(false), msg),
-            OsdTask::Shutdown => iced::Task::perform(shutdown(), msg),
+            OsdTask::EnterBios => cosmic::task::future(restart(true)).map(msg),
+            OsdTask::LogOut => cosmic::task::future(log_out()).map(msg),
+            OsdTask::Restart => cosmic::task::future(restart(false)).map(msg),
+            OsdTask::Shutdown => cosmic::task::future(shutdown()).map(msg),
         }
     }
 }
@@ -190,7 +191,7 @@ impl App {
             self.indicator = Some((id, state));
             cmd
         }
-        .map(|x| cosmic::app::Message::App(Msg::OsdIndicator(x)))
+        .map(|x| cosmic::Action::App(Msg::OsdIndicator(x)))
     }
 
     fn handle_overlap(&mut self) {
@@ -284,7 +285,7 @@ impl cosmic::Application for App {
         &mut self.core
     }
 
-    fn update(&mut self, message: Msg) -> cosmic::app::Task<Msg> {
+    fn update(&mut self, message: Msg) -> Task<Msg> {
         match message {
             Msg::Action(action) => {
                 // Ask for user confirmation of non-destructive actions only
@@ -378,8 +379,7 @@ impl cosmic::Application for App {
                     if let Some(state) = state {
                         self.surfaces.insert(id, Surface::PolkitDialog(state));
                     }
-                    return cmd
-                        .map(move |msg| cosmic::app::Message::App(Msg::PolkitDialog((id, msg))));
+                    return cmd.map(move |msg| cosmic::action::app(Msg::PolkitDialog((id, msg))));
                 }
                 Task::none()
             }
@@ -389,7 +389,7 @@ impl cosmic::Application for App {
                     if let Some(state) = state {
                         self.indicator = Some((id, state));
                     }
-                    cmd.map(|x| cosmic::app::Message::App(Msg::OsdIndicator(x)))
+                    cmd.map(|x| cosmic::action::app(Msg::OsdIndicator(x)))
                 } else {
                     Task::none()
                 }
@@ -686,13 +686,10 @@ impl cosmic::Application for App {
         iced::widget::text("").into() // XXX
     }
 
-    fn dbus_activation(
-        &mut self,
-        msg: cosmic::app::DbusActivationMessage,
-    ) -> iced::Task<cosmic::app::Message<Self::Message>> {
+    fn dbus_activation(&mut self, msg: cosmic::dbus_activation::Message) -> Task<Msg> {
         match msg.msg {
-            DbusActivationDetails::Activate => {}
-            DbusActivationDetails::ActivateAction { action, .. } => {
+            Details::Activate => {}
+            Details::ActivateAction { action, .. } => {
                 let Ok(cmd) = OsdTask::from_str(&action) else {
                     return Task::none();
                 };
@@ -708,7 +705,7 @@ impl cosmic::Application for App {
                     ..Default::default()
                 });
             }
-            DbusActivationDetails::Open { .. } => {}
+            Details::Open { .. } => {}
         }
         Task::none()
     }
