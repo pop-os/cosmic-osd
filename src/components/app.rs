@@ -696,17 +696,21 @@ impl cosmic::Application for App {
                 let Ok(cmd) = OsdTask::from_str(&action) else {
                     return Task::none();
                 };
-                let id = SurfaceId::unique();
-                self.action_to_confirm = Some((id, cmd, COUNTDOWN_LENGTH));
-                return get_layer_surface(SctkLayerSurfaceSettings {
-                    id,
-                    keyboard_interactivity: KeyboardInteractivity::Exclusive,
-                    anchor: Anchor::empty(),
-                    namespace: "dialog".into(),
-                    size: None,
-                    size_limits: Limits::NONE.min_width(1.0).min_height(1.0),
-                    ..Default::default()
-                });
+                if let Some(prev) = self.action_to_confirm.take() {
+                    self.action_to_confirm = Some((prev.0, cmd, COUNTDOWN_LENGTH));
+                } else {
+                    let id = SurfaceId::unique();
+                    self.action_to_confirm = Some((id, cmd, COUNTDOWN_LENGTH));
+                    return get_layer_surface(SctkLayerSurfaceSettings {
+                        id,
+                        keyboard_interactivity: KeyboardInteractivity::Exclusive,
+                        anchor: Anchor::empty(),
+                        namespace: "dialog".into(),
+                        size: None,
+                        size_limits: Limits::NONE.min_width(1.0).min_height(1.0),
+                        ..Default::default()
+                    });
+                }
             }
             DbusActivationDetails::Open { .. } => {}
         }
