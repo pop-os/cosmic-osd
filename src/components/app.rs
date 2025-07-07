@@ -8,30 +8,29 @@ use crate::{
 use crate::{cosmic_session::CosmicSessionProxy, session_manager::SessionManagerProxy};
 use clap::Parser;
 use cosmic::{
+    Element,
     app::{self, CosmicFlags, Task},
     dbus_activation::Details,
     iced::{
-        self,
+        self, Alignment, Length, Limits, Point, Rectangle, Size, Subscription,
         event::{
             self, listen_with,
             wayland::{self, LayerEvent, OverlapNotifyEvent},
         },
-        keyboard::{key::Named, Key},
+        keyboard::{Key, key::Named},
         time,
         window::Id as SurfaceId,
-        Alignment, Length, Limits, Point, Rectangle, Size, Subscription,
     },
     iced_runtime::platform_specific::wayland::layer_surface::SctkLayerSurfaceSettings,
     iced_winit::commands::layer_surface::{
-        destroy_layer_surface, get_layer_surface, Anchor, KeyboardInteractivity,
+        Anchor, KeyboardInteractivity, destroy_layer_surface, get_layer_surface,
     },
     theme,
-    widget::{autosize::autosize, button, container, icon, text, Column},
-    Element,
+    widget::{Column, autosize::autosize, button, container, icon, text},
 };
 use cosmic_settings_subscriptions::{
     airplane_mode, pulse, settings_daemon,
-    upower::kbdbacklight::{kbd_backlight_subscription, KeyboardBacklightUpdate},
+    upower::kbdbacklight::{KeyboardBacklightUpdate, kbd_backlight_subscription},
 };
 use logind_zbus::manager::ManagerProxy;
 use serde::{Deserialize, Serialize};
@@ -114,7 +113,7 @@ async fn log_out() -> zbus::Result<()> {
 }
 
 impl Display for OsdTask {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", serde_json::ser::to_string(self).unwrap())
     }
 }
@@ -182,7 +181,7 @@ struct App {
 
 impl App {
     fn create_indicator(&mut self, params: osd_indicator::Params) -> cosmic::app::Task<Msg> {
-        if let Some((_id, ref mut state)) = &mut self.indicator {
+        if let Some((_id, state)) = &mut self.indicator {
             state.replace_params(params)
         } else {
             let id = SurfaceId::unique();
@@ -605,7 +604,7 @@ impl cosmic::Application for App {
         unreachable!()
     }
 
-    fn view_window(&self, id: SurfaceId) -> cosmic::Element<'_, Msg> {
+    fn view_window(&self, id: SurfaceId) -> cosmic::Element<Msg> {
         if let Some(surface) = self.surfaces.get(&id) {
             return match surface {
                 Surface::PolkitDialog(state) => {
@@ -750,11 +749,11 @@ mod pipewire {
     }
 }
 
-fn min_width_and_height<'a>(
-    e: Element<'a, Msg>,
+fn min_width_and_height(
+    e: Element<Msg>,
     width: impl Into<Length>,
     height: impl Into<Length>,
-) -> Column<'a, Msg> {
+) -> Column<Msg> {
     use iced::widget::{column, horizontal_space, row, vertical_space};
     column![
         row![e, vertical_space().height(height)].align_y(Alignment::Center),

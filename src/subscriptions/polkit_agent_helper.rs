@@ -117,7 +117,7 @@ impl Responder {
 }
 
 impl fmt::Debug for Responder {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Responder")
     }
 }
