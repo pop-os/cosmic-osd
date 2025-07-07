@@ -27,7 +27,7 @@ use cosmic::{
     },
     theme,
     widget::{autosize::autosize, button, container, icon, text, Column},
-    DbusActivation, Element,
+    Element,
 };
 use cosmic_settings_subscriptions::{
     airplane_mode, pulse, settings_daemon,

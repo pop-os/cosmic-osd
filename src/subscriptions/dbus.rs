@@ -46,14 +46,14 @@ pub fn subscription() -> iced::Subscription<Event> {
 }
 
 async fn connection() -> zbus::Result<zbus::Connection> {
-    zbus::ConnectionBuilder::session()?
+    zbus::connection::Builder::session()?
         .name(NAME)?
         .build()
         .await
 }
 
 async fn system_connection() -> zbus::Result<zbus::Connection> {
-    zbus::ConnectionBuilder::system()?.build().await
+    zbus::connection::Builder::system()?.build().await
 }
 
 fn result_to_event<T>(res: zbus::Result<T>, context: &'static str, f: fn(T) -> Event) -> Event {
