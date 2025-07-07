@@ -43,3 +43,11 @@ codegen-units = 1
 lto = "thin"
 opt-level = "z"
 panic = "abort"
+
+
+[patch.'https://github.com/pop-os/cosmic-protocols']
+cosmic-protocols = { git = "https://github.com/pop-os/cosmic-protocols//", rev = "1425bd4" }
+cosmic-client-toolkit = { git = "https://github.com/pop-os/cosmic-protocols//", rev = "1425bd4" }
+
+[patch."https://github.com/smithay/client-toolkit.git"]
+sctk = { package = "smithay-client-toolkit", version = "=0.19.2" }
