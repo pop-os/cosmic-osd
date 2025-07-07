@@ -2,23 +2,23 @@
 // TODO: Dismiss on click?
 
 use cosmic::{
-    iced::{self, window::Id as SurfaceId, Alignment, Border, Length},
+    Element, Task,
+    iced::{self, Alignment, Border, Length, window::Id as SurfaceId},
     iced_runtime::platform_specific::wayland::layer_surface::SctkLayerSurfaceSettings,
     iced_winit::commands::{
         layer_surface::{
-            destroy_layer_surface, get_layer_surface, Anchor, KeyboardInteractivity, Layer,
+            Anchor, KeyboardInteractivity, Layer, destroy_layer_surface, get_layer_surface,
         },
         overlap_notify::overlap_notify,
     },
     widget::{self, horizontal_space, vertical_space},
-    Element, Task,
 };
-use futures::future::{abortable, AbortHandle, Aborted};
-use once_cell::sync::Lazy;
+use futures::future::{AbortHandle, Aborted, abortable};
+use std::sync::LazyLock;
 use std::time::Duration;
 
-pub static OSD_INDICATOR_ID: Lazy<widget::Id> =
-    Lazy::new(|| widget::Id::new("osd-indicator".to_string()));
+pub static OSD_INDICATOR_ID: LazyLock<widget::Id> =
+    LazyLock::new(|| widget::Id::new("osd-indicator".to_string()));
 
 #[derive(Debug)]
 pub enum Params {
@@ -144,7 +144,7 @@ impl State {
         cmd
     }
 
-    pub fn view(&self) -> Element<'_, Msg> {
+    pub fn view(&self) -> Element<Msg> {
         let icon = widget::icon::from_name(self.params.icon_name());
 
         // Use large radius on value-OSD to enforce pill-shape with "Round" system style
