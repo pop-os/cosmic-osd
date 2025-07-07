@@ -52,9 +52,8 @@ pub struct Subject<'a> {
 }
 
 impl<'a> zvariant::Type for Subject<'a> {
-    fn signature() -> zvariant::Signature<'static> {
-        unsafe { zvariant::Signature::from_bytes_unchecked(b"(sa{sv})") }
-    }
+    const SIGNATURE: &'static zvariant::Signature =
+        <(String, HashMap<String, zvariant::Value>)>::SIGNATURE;
 }
 
 #[derive(serde::Serialize, serde::Deserialize)]
@@ -64,9 +63,8 @@ pub struct Identity<'a> {
 }
 
 impl<'a> zvariant::Type for Identity<'a> {
-    fn signature() -> zvariant::Signature<'static> {
-        unsafe { zvariant::Signature::from_bytes_unchecked(b"(sa{sv})") }
-    }
+    const SIGNATURE: &'static zvariant::Signature =
+        <(String, HashMap<String, zvariant::Value>)>::SIGNATURE;
 }
 
 #[zbus::proxy(
