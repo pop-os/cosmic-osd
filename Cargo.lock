@@ -1114,6 +1114,7 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "uzers",
+ "xdg",
  "zbus 5.9.0",
 ]
 
