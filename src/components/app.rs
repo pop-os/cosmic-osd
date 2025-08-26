@@ -942,6 +942,7 @@ mod pipewire {
 
     use std::path::Path;
     use std::process::Stdio;
+    use xdg::BaseDirectories;
 
     /// Plays an audio file.
     pub fn play(path: &Path) {
@@ -954,9 +955,15 @@ mod pipewire {
     }
 
     pub fn play_audio_volume_change() {
-        play(Path::new(
-            "/usr/share/sounds/freedesktop/stereo/audio-volume-change.oga",
-        ));
+        if let Ok(sounds_dirs) = xdg::BaseDirectories::with_prefix("sounds") {
+            if let Some(path) =
+                sounds_dirs.find_data_file("freedesktop/stereo/audio-volume-change.oga")
+            {
+                play(&path);
+                return;
+            }
+        }
+        log::error!("Sound file not found in XDG data directories");
     }
 }
 

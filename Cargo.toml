@@ -32,6 +32,7 @@ serde_json = "1.0.140"
 tokio = { version = "1.46.1", features = ["process"] }
 tokio-stream = "0.1.17"
 uzers = "0.12.1"
+xdg = "2.5.2"
 zbus = { version = "5.7.1", default-features = false, features = ["tokio"] }
 cosmic-settings-subscriptions = { git = "https://github.com/pop-os/cosmic-settings-subscriptions", features = [
     "airplane_mode",
