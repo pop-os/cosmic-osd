@@ -16,6 +16,7 @@ i18n-embed-fl = "0.9"
 libcosmic = { git = "https://github.com/pop-os/libcosmic", default-features = false, features = [
     "autosize",
     "dbus-config",
+    "desktop-systemd-scope",
     "tokio",
     "wayland",
     "multi-window",
@@ -32,7 +33,12 @@ tokio = { version = "1.46.1", features = ["process"] }
 tokio-stream = "0.1.17"
 uzers = "0.12.1"
 zbus = { version = "5.7.1", default-features = false, features = ["tokio"] }
-cosmic-settings-subscriptions = { git = "https://github.com/pop-os/cosmic-settings-subscriptions", features = ["airplane_mode", "pulse", "upower", "settings_daemon"] }
+cosmic-settings-subscriptions = { git = "https://github.com/pop-os/cosmic-settings-subscriptions", features = [
+    "airplane_mode",
+    "pulse",
+    "upower",
+    "settings_daemon",
+] }
 #[patch.'https://github.com/pop-os/libcosmic']
 #libcosmic = { path = "../../pop/libcosmic" }
 #cosmic-config = { path = "../../pop/libcosmic/cosmic-config" }
