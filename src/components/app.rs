@@ -19,6 +19,7 @@ use cosmic::{
             wayland::{self, LayerEvent, OverlapNotifyEvent},
         },
         keyboard::{Key, key::Named},
+        platform_specific::shell::commands::activation::request_token,
         time,
         window::Id as SurfaceId,
     },
@@ -209,6 +210,7 @@ pub enum Msg {
     Size(Size),
     Zbus(Result<(), zbus::Error>),
     SoundSettings,
+    ActivationToken(Option<String>),
 }
 
 enum Surface {
@@ -600,8 +602,26 @@ impl cosmic::Application for App {
                 }
                 Task::none()
             }
+
+            Msg::ActivationToken(token) => {
+                let mut envs = Vec::new();
+                if let Some(token) = token {
+                    envs.push(("XDG_ACTIVATION_TOKEN".to_string(), token.clone()));
+                    envs.push(("DESKTOP_STARTUP_ID".to_string(), token));
+                }
+                return Task::perform(
+                    cosmic::desktop::spawn_desktop_exec("cosmic-settings sound", envs, None, false),
+                    |()| cosmic::action::app(Msg::Cancel),
+                );
+            }
             Msg::SoundSettings => {
-                todo!()
+                if let Some(id) = self.action_to_confirm.as_ref().map(|a| a.0.clone()) {
+                    return request_token(Some(String::from(Self::APP_ID)), Some(id))
+                        .map(move |token| cosmic::Action::App(Msg::ActivationToken(token)));
+                } else {
+                    log::error!("Failed ot spawn cosmic-settings.");
+                    return Task::none();
+                }
             }
             Msg::Headphones(value) => {
                 if let Some((
@@ -759,7 +779,7 @@ impl cosmic::Application for App {
                                                     ..
                                                 },_)) if !selected_headset
                                             ))
-                                            .on_press(Msg::Headphones(true)),
+                                            .on_press(Msg::Headphones(false)),
                                         )
                                         .push(text(fl!("headphones")))
                                         .align_x(Alignment::Center)
@@ -787,7 +807,7 @@ impl cosmic::Application for App {
                                                     ..
                                                 },_)) if selected_headset
                                             ))
-                                            .on_press(Msg::Headphones(false)),
+                                            .on_press(Msg::Headphones(true)),
                                         )
                                         .push(text(fl!("headset")))
                                         .align_x(Alignment::Center)
