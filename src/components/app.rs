@@ -13,6 +13,7 @@ use cosmic::{
     dbus_activation::Details,
     iced::{
         self, Alignment, Length, Limits, Point, Rectangle, Size, Subscription,
+        alignment::Horizontal,
         event::{
             self, listen_with,
             wayland::{self, LayerEvent, OverlapNotifyEvent},
@@ -26,7 +27,7 @@ use cosmic::{
         Anchor, KeyboardInteractivity, destroy_layer_surface, get_layer_surface,
     },
     theme,
-    widget::{Column, autosize::autosize, button, container, icon, text},
+    widget::{Column, autosize::autosize, button, container, icon, row, text},
 };
 use cosmic_settings_subscriptions::{
     airplane_mode, pulse, settings_daemon,
@@ -48,7 +49,7 @@ static CONFIRM_ID: LazyLock<iced::id::Id> = LazyLock::new(|| iced::id::Id::new("
 static AUTOSIZE_DIALOG_ID: LazyLock<iced::id::Id> =
     LazyLock::new(|| iced::id::Id::new("autosize-id"));
 
-#[derive(Parser, Debug, Serialize, Deserialize, Clone, Copy)]
+#[derive(Parser, Debug, Serialize, Deserialize, Clone)]
 #[command(author, version, about, long_about = None)]
 #[command(propagate_version = true)]
 pub struct Args {
@@ -56,7 +57,7 @@ pub struct Args {
     pub subcommand: Option<OsdTask>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Copy, clap::Subcommand)]
+#[derive(Debug, Serialize, Deserialize, Clone, clap::Subcommand)]
 pub enum OsdTask {
     #[clap(about = "Toggle the on screen display and start the log out timer")]
     LogOut,
@@ -66,6 +67,16 @@ pub enum OsdTask {
     Shutdown,
     #[clap(about = "Toggle the on screen display and start the restart to bios timer")]
     EnterBios,
+    ConfirmHeadphones {
+        #[arg(long)]
+        card_name: String,
+        #[arg(long)]
+        headphone_profile: String,
+        #[arg(long)]
+        headset_profile: String,
+        #[clap(skip)]
+        selected_headset: bool,
+    },
 }
 
 impl OsdTask {
@@ -76,6 +87,18 @@ impl OsdTask {
             OsdTask::LogOut => cosmic::task::future(log_out()).map(msg),
             OsdTask::Restart => cosmic::task::future(restart(false)).map(msg),
             OsdTask::Shutdown => cosmic::task::future(shutdown()).map(msg),
+            OsdTask::ConfirmHeadphones {
+                card_name,
+                headphone_profile,
+                headset_profile,
+                selected_headset,
+            } => cosmic::task::future(confirm_headphones(
+                card_name,
+                headphone_profile,
+                headset_profile,
+                selected_headset,
+            ))
+            .map(msg),
         }
     }
 }
@@ -112,6 +135,38 @@ async fn log_out() -> zbus::Result<()> {
     Ok(())
 }
 
+async fn confirm_headphones(
+    card_name: String,
+    headphone_profile: String,
+    headset_profile: String,
+    selected_headset: bool,
+) -> zbus::Result<()> {
+    use tokio::process::Command;
+
+    let profile = if selected_headset {
+        headset_profile
+    } else {
+        headphone_profile
+    };
+
+    let status = Command::new("pactl")
+        .arg("set-card-profile")
+        .arg(card_name)
+        .arg(profile)
+        .status()
+        .await;
+
+    match status {
+        Ok(s) if s.success() => Ok(()),
+        Ok(s) => Err(zbus::Error::Failure(
+            format!("pactl exited with status: {}", s).into(),
+        )),
+        Err(e) => Err(zbus::Error::Failure(
+            format!("Failed to run pactl: {}", e).into(),
+        )),
+    }
+}
+
 impl Display for OsdTask {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", serde_json::ser::to_string(self).unwrap())
@@ -142,6 +197,7 @@ pub enum Msg {
     Cancel,
     Countdown,
     DBus(dbus::Event),
+    Headphones(bool),
     PolkitAgent(polkit_agent::Event),
     PolkitDialog((SurfaceId, polkit_dialog::Msg)),
     SettingsDaemon(settings_daemon::Event),
@@ -152,6 +208,7 @@ pub enum Msg {
     Overlap(OverlapNotifyEvent),
     Size(Size),
     Zbus(Result<(), zbus::Error>),
+    SoundSettings,
 }
 
 enum Surface {
@@ -287,7 +344,6 @@ impl cosmic::Application for App {
     fn update(&mut self, message: Msg) -> Task<Msg> {
         match message {
             Msg::Action(action) => {
-                // Ask for user confirmation of non-destructive actions only
                 if matches!(action, OsdTask::Restart)
                     && matches!(self.action_to_confirm, Some((_, OsdTask::Shutdown, _)))
                 {
@@ -324,7 +380,7 @@ impl cosmic::Application for App {
                     *countdown -= 1;
                     if *countdown == 0 {
                         let id = *surface_id;
-                        let a = *a;
+                        let a = a.clone();
 
                         self.action_to_confirm = None;
                         return app::Task::batch(vec![destroy_layer_surface(id), a.perform()]);
@@ -544,6 +600,22 @@ impl cosmic::Application for App {
                 }
                 Task::none()
             }
+            Msg::SoundSettings => {
+                todo!()
+            }
+            Msg::Headphones(value) => {
+                if let Some((
+                    _,
+                    OsdTask::ConfirmHeadphones {
+                        selected_headset, ..
+                    },
+                    _,
+                )) = self.action_to_confirm.as_mut()
+                {
+                    *selected_headset = value;
+                }
+                Task::none()
+            }
         }
     }
 
@@ -600,11 +672,11 @@ impl cosmic::Application for App {
         iced::Subscription::batch(subscriptions)
     }
 
-    fn view(&self) -> cosmic::prelude::Element<Self::Message> {
+    fn view(&self) -> cosmic::prelude::Element<'_, Self::Message> {
         unreachable!()
     }
 
-    fn view_window(&self, id: SurfaceId) -> cosmic::Element<Msg> {
+    fn view_window(&self, id: SurfaceId) -> cosmic::Element<'_, Msg> {
         if let Some(surface) = self.surfaces.get(&id) {
             return match surface {
                 Surface::PolkitDialog(state) => {
@@ -617,12 +689,13 @@ impl cosmic::Application for App {
             }
         } else if matches!(self.action_to_confirm, Some((c_id, _, _)) if c_id == id) {
             let cosmic_theme = self.core.system_theme().cosmic();
-            let (_, power_action, countdown) = self.action_to_confirm.as_ref().unwrap();
-            let action = match *power_action {
+            let (_, cur_action, countdown) = self.action_to_confirm.as_ref().unwrap();
+            let action = match *cur_action {
                 OsdTask::EnterBios => "enter-bios",
                 OsdTask::LogOut => "log-out",
                 OsdTask::Restart => "restart",
                 OsdTask::Shutdown => "shutdown",
+                OsdTask::ConfirmHeadphones { .. } => "confirm-device-type",
             };
 
             let title = fl!(
@@ -630,12 +703,9 @@ impl cosmic::Application for App {
                 HashMap::from_iter(vec![("action", action)])
             );
             let countdown = &countdown.to_string();
-            let mut dialog = cosmic::widget::dialog()
-                .title(title)
-                .body(fl!(
-                    "confirm-body",
-                    HashMap::from_iter(vec![("action", action), ("countdown", countdown)])
-                ))
+            let mut dialog = cosmic::widget::dialog().title(title);
+
+            dialog = dialog
                 .primary_action(
                     button::custom(min_width_and_height(
                         text::body(fl!("confirm", HashMap::from_iter(vec![("action", action)])))
@@ -657,21 +727,100 @@ impl cosmic::Application for App {
                     .padding([0, cosmic_theme.space_s()])
                     .class(theme::Button::Standard)
                     .on_press(Msg::Cancel),
-                )
-                .icon(text_icon(
-                    match power_action {
-                        OsdTask::LogOut => "system-log-out-symbolic",
-                        OsdTask::Restart | OsdTask::EnterBios => "system-restart-symbolic",
-                        OsdTask::Shutdown => "system-shutdown-symbolic",
-                    },
-                    60,
-                ));
+                );
+            let t = self.core.system_theme().cosmic();
+            dialog = if matches!(cur_action, OsdTask::ConfirmHeadphones { .. }) {
+                dialog
+                    .tertiary_action(
+                        button::text(fl!("sound-settings")).on_press(Msg::SoundSettings),
+                    )
+                    .control(
+                        container(
+                            row()
+                                .push(
+                                    cosmic::widget::column()
+                                        .push(
+                                            cosmic::widget::button::custom_image_button(
+                                                container(
+                                                    cosmic::widget::icon::from_name(
+                                                        "audio-headphones-symbolic",
+                                                    )
+                                                    .size(64)
+                                                    .icon(),
+                                                )
+                                                .padding(t.space_m()),
+                                                None,
+                                            )
+                                            .class(cosmic::theme::style::Button::Image)
+                                            .selected(matches!(
+                                                self.action_to_confirm,
+                                                Some((_, OsdTask::ConfirmHeadphones {
+                                                    selected_headset,
+                                                    ..
+                                                },_)) if !selected_headset
+                                            ))
+                                            .on_press(Msg::Headphones(true)),
+                                        )
+                                        .push(text(fl!("headphones")))
+                                        .align_x(Alignment::Center)
+                                        .spacing(t.space_xxxs()),
+                                )
+                                .push(
+                                    cosmic::widget::column()
+                                        .push(
+                                            cosmic::widget::button::custom_image_button(
+                                                container(
+                                                    cosmic::widget::icon::from_name(
+                                                        "audio-headset-symbolic",
+                                                    )
+                                                    .size(64)
+                                                    .icon(),
+                                                )
+                                                .padding(t.space_m()),
+                                                None,
+                                            )
+                                            .class(cosmic::theme::style::Button::Image)
+                                            .selected(matches!(
+                                                self.action_to_confirm,
+                                                Some((_, OsdTask::ConfirmHeadphones {
+                                                    selected_headset,
+                                                    ..
+                                                },_)) if selected_headset
+                                            ))
+                                            .on_press(Msg::Headphones(false)),
+                                        )
+                                        .push(text(fl!("headset")))
+                                        .align_x(Alignment::Center)
+                                        .spacing(t.space_xxxs()),
+                                )
+                                .spacing(t.space_l()),
+                        )
+                        .width(Length::Fixed(522.))
+                        .align_x(Horizontal::Center),
+                    )
+            } else {
+                dialog
+                    .icon(text_icon(
+                        match cur_action {
+                            OsdTask::LogOut => "system-log-out-symbolic",
+                            OsdTask::Restart | OsdTask::EnterBios => "system-restart-symbolic",
+                            OsdTask::Shutdown => "system-shutdown-symbolic",
+                            _ => unreachable!(),
+                        },
+                        60,
+                    ))
+                    .body(fl!(
+                        "confirm-body",
+                        HashMap::from_iter(vec![("action", action), ("countdown", countdown)])
+                    ))
+            };
 
-            if matches!(power_action, OsdTask::Shutdown) {
+            if matches!(cur_action, OsdTask::Shutdown) {
                 dialog = dialog.tertiary_action(
                     button::text(fl!("restart")).on_press(Msg::Action(OsdTask::Restart)),
                 );
             }
+
             return Element::from(
                 autosize(Element::from(container(dialog)), AUTOSIZE_DIALOG_ID.clone()).limits(
                     Limits::NONE

@@ -144,7 +144,7 @@ impl State {
         cmd
     }
 
-    pub fn view(&self) -> Element<Msg> {
+    pub fn view(&self) -> Element<'_, Msg> {
         let icon = widget::icon::from_name(self.params.icon_name());
 
         // Use large radius on value-OSD to enforce pill-shape with "Round" system style
