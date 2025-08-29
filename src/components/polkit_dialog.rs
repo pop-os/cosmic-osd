@@ -169,7 +169,7 @@ impl State {
         (Some(self), Task::none())
     }
 
-    pub fn view(&self) -> cosmic::Element<Msg> {
+    pub fn view(&self) -> cosmic::Element<'_, Msg> {
         // TODO Allocates on every keypress?
 
         let placeholder = self.password_label.trim_end_matches(':');

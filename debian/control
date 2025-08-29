@@ -19,5 +19,6 @@ Architecture: amd64 arm64
 Depends:
   ${misc:Depends},
   ${shlibs:Depends}
+  pulseaudio-utils
 Provides: polkit-1-auth-agent
 Description: Cosmic OSD
