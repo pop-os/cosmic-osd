@@ -39,6 +39,7 @@ use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     fmt::Display,
+    process::Stdio,
     str::FromStr,
     sync::LazyLock,
     time::{Duration, Instant},
@@ -75,6 +76,8 @@ pub enum OsdTask {
         headphone_profile: String,
         #[arg(long)]
         headset_profile: String,
+        #[arg(long)]
+        headset_port_name: String,
         #[clap(skip)]
         selected_headset: bool,
     },
@@ -92,11 +95,13 @@ impl OsdTask {
                 card_name,
                 headphone_profile,
                 headset_profile,
+                headset_port_name,
                 selected_headset,
             } => cosmic::task::future(confirm_headphones(
                 card_name,
                 headphone_profile,
                 headset_profile,
+                headset_port_name,
                 selected_headset,
             ))
             .map(msg),
@@ -140,6 +145,7 @@ async fn confirm_headphones(
     card_name: String,
     headphone_profile: String,
     headset_profile: String,
+    headset_port_name: String,
     selected_headset: bool,
 ) -> zbus::Result<()> {
     use tokio::process::Command;
@@ -158,13 +164,45 @@ async fn confirm_headphones(
         .await;
 
     match status {
-        Ok(s) if s.success() => Ok(()),
-        Ok(s) => Err(zbus::Error::Failure(
-            format!("pactl exited with status: {}", s).into(),
-        )),
-        Err(e) => Err(zbus::Error::Failure(
-            format!("Failed to run pactl: {}", e).into(),
-        )),
+        Ok(s) if s.success() => {}
+        Ok(s) => {
+            return Err(zbus::Error::Failure(
+                format!("pactl exited with status: {}", s).into(),
+            ));
+        }
+
+        Err(e) => {
+            return Err(zbus::Error::Failure(
+                format!("Failed to run pactl: {}", e).into(),
+            ));
+        }
+    };
+
+    let output = Command::new("pactl")
+        .arg("get-default-source")
+        .stdout(Stdio::piped())
+        .output()
+        .await?;
+
+    if !output.status.success() {
+        return Err(zbus::Error::Failure(
+            format!("Failed to get source name.").into(),
+        ));
+    }
+
+    let source_name = String::from_utf8_lossy(&output.stdout).trim().to_string();
+
+    let status = Command::new("pactl")
+        .arg("set-source-port")
+        .arg(&source_name)
+        .arg(&headset_port_name)
+        .status()
+        .await?;
+
+    if status.success() {
+        Ok(())
+    } else {
+        Err(zbus::Error::Failure(format!("Failed to set port.").into()))
     }
 }
 
