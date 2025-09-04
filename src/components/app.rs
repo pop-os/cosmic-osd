@@ -178,31 +178,35 @@ async fn confirm_headphones(
         }
     };
 
-    let output = Command::new("pactl")
-        .arg("get-default-source")
-        .stdout(Stdio::piped())
-        .output()
-        .await?;
+    if selected_headset {
+        let output = Command::new("pactl")
+            .arg("get-default-source")
+            .stdout(Stdio::piped())
+            .output()
+            .await?;
 
-    if !output.status.success() {
-        return Err(zbus::Error::Failure(
-            format!("Failed to get source name.").into(),
-        ));
-    }
+        if !output.status.success() {
+            return Err(zbus::Error::Failure(
+                format!("Failed to get source name.").into(),
+            ));
+        }
 
-    let source_name = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        let source_name = String::from_utf8_lossy(&output.stdout).trim().to_string();
 
-    let status = Command::new("pactl")
-        .arg("set-source-port")
-        .arg(&source_name)
-        .arg(&headset_port_name)
-        .status()
-        .await?;
+        let status = Command::new("pactl")
+            .arg("set-source-port")
+            .arg(&source_name)
+            .arg(&headset_port_name)
+            .status()
+            .await?;
 
-    if status.success() {
-        Ok(())
+        if status.success() {
+            Ok(())
+        } else {
+            Err(zbus::Error::Failure(format!("Failed to set port.").into()))
+        }
     } else {
-        Err(zbus::Error::Failure(format!("Failed to set port.").into()))
+        Ok(())
     }
 }
 
