@@ -7,7 +7,10 @@ suspend = عَلِّق
 restart = أعِدِ التَّشغِيل
 # FIX: Find better translation (https://github.com/pop-os/cosmic-osd/issues/101).
 enter-bios =  اِنتَقِل إلَى البايوس
+sound-settings =  إعدَادَاتُ الصَّوت
 shutdown = أوقِفِ التَّشغيل
+headphones = سَمَّاعَاتُ رَأس
+headset = سَمَّاعَاتُ رَأسٍ بِلَاقِط
 confirm = أكِّد
 confirm-button = {
     $action -> 
@@ -19,14 +22,15 @@ confirm-button = {
         *[other] { confirm }
 }
 confirm-title = 
-    أمُتَأكِّدٌ مِن { $action -> 
-        [restart] إعادةِ التَّشغيلِ
-        [suspend] التَّعليقِ
-        [shutdown] إيقافِ التَّشغيلِ
-        [enter-bios] الاِنتِقَالِ إلَى البايوسِ
-        [log-out] إنهَاءِ كَافَّةِ التَّطبِيقَاتِ وَالخُرُوجِ
-        *[other] تَطبيقِ الإجرَاءِ المُحَدَّدِ
-    } الآن؟
+    { $action ->
+        [restart] أمُتَأكِّدٌ مِن إعادةِ التَّشغيلِ الآن؟
+        [suspend] أمُتَأكِّدٌ مِن التَّعليقِ الآن؟
+        [shutdown] أمُتَأكِّدٌ مِن إيقافِ التَّشغيلِ الآن؟
+        [enter-bios] أمُتَأكِّدٌ مِن الاِنتِقَالِ إلَى البايوسِ الآن؟
+        [log-out] أمُتَأكِّدٌ مِن إنهَاءِ كَافَّةِ التَّطبِيقَاتِ وَالخُرُوجِ الآن؟
+        [confirm-device-type] أكِّدْ نَوعَ الجِّهَاز
+        *[other] أمُتَأكِّدٌ مِن تَطبيقِ الإجرَاءِ المُحَدَّدِ الآن؟
+    }
 confirm-body = {
     $action ->
         [restart] سَيُعادُ تشغيلَ النِّظامِ
