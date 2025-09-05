@@ -6,7 +6,10 @@ log-out = 登出
 suspend = 挂起
 restart = 重启
 enter-bios = 重启到BIOS
+sound-settings = 声音设置
 shutdown = 关机
+headphones = 耳机
+headset = 耳麦
 confirm = 确认
 confirm-button = {
     $action -> 
@@ -24,6 +27,7 @@ confirm-title =
         [shutdown] { shutdown }
         [enter-bios] { enter-bios }
         [log-out] 退出所有应用程序并 { log-out }
+        [confirm-device-type] 确认设备类型
         *[other] 执行所选操作
     } ？
 confirm-body = 
