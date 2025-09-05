@@ -6,7 +6,10 @@ log-out = Logga ut
 suspend = Vänteläge
 restart = Starta om
 enter-bios = Gå in i BIOS
+sound-settings = Ljudinställningar
 shutdown = Stäng av
+headphones = Hörlurar
+headset = Headset
 confirm = Bekräfta
 confirm-button = {
     $action -> 
@@ -24,6 +27,7 @@ confirm-title =
         [shutdown] { shutdown }
         [enter-bios] { Starta om till BIOS }
         [log-out] Avsluta alla applikationer och logga ut
+        [confirm-device-type] Bekräfta enhetstyp
         *[other] Tillämpa vald åtgärd
     } nu?
 confirm-body = 
