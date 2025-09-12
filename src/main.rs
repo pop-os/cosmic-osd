@@ -6,6 +6,7 @@ use rust_embed::RustEmbed;
 use std::sync::LazyLock;
 
 mod components;
+mod config;
 pub mod cosmic_session;
 pub mod session_manager;
 mod subscriptions;

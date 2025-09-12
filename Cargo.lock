@@ -1195,6 +1195,7 @@ name = "cosmic-osd"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "cosmic-config",
  "cosmic-settings-subscriptions",
  "env_logger",
  "futures",
