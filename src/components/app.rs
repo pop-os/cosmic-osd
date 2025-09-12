@@ -942,7 +942,6 @@ mod pipewire {
 
     use std::path::Path;
     use std::process::Stdio;
-    use xdg::BaseDirectories;
 
     /// Plays an audio file.
     pub fn play(path: &Path) {

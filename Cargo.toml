@@ -13,6 +13,7 @@ i18n-embed = { version = "0.15", features = [
     "desktop-requester",
 ] }
 i18n-embed-fl = "0.9"
+cosmic-config = { git = "https://github.com/pop-os/libcosmic" }
 libcosmic = { git = "https://github.com/pop-os/libcosmic", default-features = false, features = [
     "autosize",
     "dbus-config",

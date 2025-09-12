@@ -1,8 +1,9 @@
 // TODO: animation to fade in/out?
 // TODO: Dismiss on click?
 
+use crate::config;
 use cosmic::{
-    Element, Task,
+    Apply, Element, Task,
     iced::{self, Alignment, Border, Length, window::Id as SurfaceId},
     iced_runtime::platform_specific::wayland::layer_surface::SctkLayerSurfaceSettings,
     iced_winit::commands::{
@@ -72,6 +73,26 @@ impl Params {
             Self::SinkVolume(value, false) => Some(*value),
             Self::SourceVolume(value, false) => Some(*value),
             Self::AirplaneMode(_) => None,
+        }
+    }
+
+    fn max_value(&self) -> f32 {
+        match self {
+            Self::SinkVolume(_, _) => {
+                if config::amplification_sink() {
+                    150.0
+                } else {
+                    100.0
+                }
+            }
+            Self::SourceVolume(_, _) => {
+                if config::amplification_source() {
+                    150.0
+                } else {
+                    100.0
+                }
+            }
+            _ => 100.0,
         }
     }
 }
@@ -152,6 +173,23 @@ impl State {
 
         let osd_contents = if let Some(value) = self.params.value() {
             radius = cosmic::theme::active().cosmic().radius_l();
+            let max_value = self.params.max_value();
+            let osd_bar = if max_value > 100.0 {
+                iced::widget::row![
+                    widget::progress_bar(0.0..=100.0, value as f32)
+                        .height(4)
+                        .width(Length::Fixed(178.0)),
+                    widget::progress_bar(100.0..=max_value, value as f32)
+                        .height(4)
+                        .width(Length::Fixed(89.0)),
+                ]
+                .apply(Element::from)
+            } else {
+                widget::progress_bar(0.0..=max_value, value as f32)
+                    .height(4)
+                    .width(Length::Fixed(267.0))
+                    .apply(Element::from)
+            };
             widget::container(
                 iced::widget::row![
                     widget::container(icon.size(20))
@@ -161,9 +199,7 @@ impl State {
                         .width(Length::Fixed(32.0))
                         .align_x(Alignment::Center),
                     widget::horizontal_space().width(Length::Fixed(8.0)),
-                    widget::progress_bar(0. ..=100., value as f32)
-                        .height(4)
-                        .width(Length::Fixed(266.0)),
+                    osd_bar,
                 ]
                 .align_y(Alignment::Center),
             )
