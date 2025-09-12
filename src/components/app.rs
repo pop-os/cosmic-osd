@@ -954,13 +954,11 @@ mod pipewire {
     }
 
     pub fn play_audio_volume_change() {
-        if let Ok(sounds_dirs) = xdg::BaseDirectories::with_prefix("sounds") {
-            if let Some(path) =
-                sounds_dirs.find_data_file("freedesktop/stereo/audio-volume-change.oga")
-            {
-                play(&path);
-                return;
-            }
+        let sounds_dirs = xdg::BaseDirectories::with_prefix("sounds");
+        if let Some(path) = sounds_dirs.find_data_file("freedesktop/stereo/audio-volume-change.oga")
+        {
+            play(&path);
+            return;
         }
         log::error!("Sound file not found in XDG data directories");
     }
