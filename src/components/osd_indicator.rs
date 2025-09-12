@@ -75,26 +75,6 @@ impl Params {
             Self::AirplaneMode(_) => None,
         }
     }
-
-    fn max_value(&self) -> f32 {
-        match self {
-            Self::SinkVolume(_, _) => {
-                if config::amplification_sink() {
-                    150.0
-                } else {
-                    100.0
-                }
-            }
-            Self::SourceVolume(_, _) => {
-                if config::amplification_source() {
-                    150.0
-                } else {
-                    100.0
-                }
-            }
-            _ => 100.0,
-        }
-    }
 }
 
 #[derive(Clone, Debug)]
@@ -109,6 +89,8 @@ pub struct State {
     params: Params,
     timer_abort: AbortHandle,
     pub margin: (i32, i32, i32, i32),
+    amplification_sink: bool,
+    amplification_source: bool,
 }
 
 fn close_timer() -> (Task<Msg>, AbortHandle) {
@@ -143,12 +125,18 @@ impl State {
         cmds.push(overlap_notify(id, true));
         let (cmd, timer_abort) = close_timer();
         cmds.push(cmd);
+
+        let amplification_sink = config::amplification_sink();
+        let amplification_source = config::amplification_source();
+
         (
             Self {
                 id,
                 params,
                 timer_abort,
                 margin: (0, 0, 48, 0),
+                amplification_sink,
+                amplification_source,
             },
             Task::batch(cmds),
         )
@@ -165,6 +153,26 @@ impl State {
         cmd
     }
 
+    fn max_value(&self) -> f32 {
+        match self.params {
+            Params::SinkVolume(_, _) => {
+                if self.amplification_sink {
+                    150.0
+                } else {
+                    100.0
+                }
+            }
+            Params::SourceVolume(_, _) => {
+                if self.amplification_source {
+                    150.0
+                } else {
+                    100.0
+                }
+            }
+            _ => 100.0,
+        }
+    }
+
     pub fn view(&self) -> Element<'_, Msg> {
         let icon = widget::icon::from_name(self.params.icon_name());
 
@@ -173,7 +181,7 @@ impl State {
 
         let osd_contents = if let Some(value) = self.params.value() {
             radius = cosmic::theme::active().cosmic().radius_l();
-            let max_value = self.params.max_value();
+            let max_value = self.max_value();
             let osd_bar = if max_value > 100.0 {
                 iced::widget::row![
                     widget::progress_bar(0.0..=100.0, value as f32)
