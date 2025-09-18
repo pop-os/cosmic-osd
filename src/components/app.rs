@@ -30,6 +30,7 @@ use cosmic::{
     theme,
     widget::{Column, autosize::autosize, button, container, icon, row, text},
 };
+use cosmic_comp_config::input::TouchpadOverride;
 use cosmic_settings_subscriptions::{
     airplane_mode, pulse, settings_daemon,
     upower::kbdbacklight::{KeyboardBacklightUpdate, kbd_backlight_subscription},
@@ -67,6 +68,8 @@ pub enum OsdTask {
     Restart,
     #[clap(about = "Toggle the on screen display and start the shutdown timer")]
     Shutdown,
+    #[clap(about = "Display touchpad toggle indicator")]
+    Touchpad,
     #[clap(about = "Toggle the on screen display and start the restart to bios timer")]
     EnterBios,
     ConfirmHeadphones {
@@ -105,6 +108,7 @@ impl OsdTask {
                 selected_headset,
             ))
             .map(msg),
+            OsdTask::Touchpad { .. } => Task::none(),
         }
     }
 }
@@ -252,6 +256,7 @@ pub enum Msg {
     Size(Size),
     Zbus(Result<(), zbus::Error>),
     SoundSettings,
+    TouchpadEnabled(Option<TouchpadOverride>),
     ActivationToken(Option<String>),
 }
 
@@ -678,6 +683,18 @@ impl cosmic::Application for App {
                 }
                 Task::none()
             }
+            Msg::TouchpadEnabled(enabled) => {
+                let Some(enabled) = enabled else {
+                    log::warn!("TouchpadEnabled event received with None value");
+                    return Task::none();
+                };
+                // Show the OSD indicator for touchpad enabled/disabled
+                let id = SurfaceId::unique();
+                let (state, cmd) =
+                    osd_indicator::State::new(id, osd_indicator::Params::TouchpadEnabled(enabled));
+                self.indicator = Some((id, state));
+                return cmd.map(|x| cosmic::Action::App(Msg::OsdIndicator(x)));
+            }
         }
     }
 
@@ -758,6 +775,7 @@ impl cosmic::Application for App {
                 OsdTask::Restart => "restart",
                 OsdTask::Shutdown => "shutdown",
                 OsdTask::ConfirmHeadphones { .. } => "confirm-device-type",
+                OsdTask::Touchpad { .. } => "touchpad",
             };
 
             let title = fl!(
@@ -903,6 +921,43 @@ impl cosmic::Application for App {
                 let Ok(cmd) = OsdTask::from_str(&action) else {
                     return Task::none();
                 };
+                if let OsdTask::Touchpad = cmd {
+                    return cosmic::task::future(async move {
+                        use cosmic_config::{ConfigGet, ConfigSet};
+
+                        let (tx, rx) = tokio::sync::oneshot::channel();
+
+                        std::thread::spawn({
+                            move || {
+                                if let Ok(helper) =
+                                    cosmic_config::Config::new("com.system76.CosmicComp", 1)
+                                {
+                                    let mut enabled = helper
+                                        .get::<TouchpadOverride>("input_touchpad_override")
+                                        .unwrap_or_default();
+                                    if matches!(enabled, TouchpadOverride::None) {
+                                        // If it's on auto, we consider it enabled
+                                        enabled = TouchpadOverride::ForceDisable;
+                                    } else {
+                                        enabled = TouchpadOverride::None;
+                                    }
+                                    if let Err(err) = helper.set("input_touchpad_override", enabled)
+                                    {
+                                        log::error!("Failed to set touchpad override: {}", err);
+                                        return;
+                                    }
+                                    let _ = tx.send(enabled);
+                                } else {
+                                    log::error!("Failed to load CosmicComp config for touchpad");
+                                    return;
+                                }
+                            }
+                        });
+                        Msg::TouchpadEnabled(rx.await.ok())
+                    })
+                    .map(cosmic::Action::App);
+                }
+
                 if let Some(prev) = self.action_to_confirm.take() {
                     self.action_to_confirm = Some((prev.0, cmd, COUNTDOWN_LENGTH));
                 } else {

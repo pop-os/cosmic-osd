@@ -1186,6 +1186,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "cosmic-comp-config"
+version = "0.1.0"
+source = "git+https://github.com/pop-os/cosmic-comp#64a9c1badfd6f9b3af3af6db2b07b3d76d6f5102"
+dependencies = [
+ "cosmic-config",
+ "input",
+ "serde",
+]
+
+[[package]]
 name = "cosmic-config"
 version = "0.1.0"
 source = "git+https://github.com/pop-os/libcosmic#b9a00c6e799b80154190f11943bb65c1fc4dc58b"
@@ -1233,6 +1243,7 @@ name = "cosmic-osd"
 version = "0.1.0"
 dependencies = [
  "clap",
+ "cosmic-comp-config",
  "cosmic-config",
  "cosmic-settings-subscriptions",
  "env_logger",
@@ -2948,6 +2959,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "input"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fbdc09524a91f9cacd26f16734ff63d7dc650daffadd2b6f84d17a285bd875a9"
+dependencies = [
+ "bitflags 2.9.4",
+ "input-sys",
+ "libc",
+ "log",
+ "udev",
+]
+
+[[package]]
+name = "input-sys"
+version = "1.18.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bd4f5b4d1c00331c5245163aacfe5f20be75b564c7112d45893d4ae038119eb0"
+
+[[package]]
 name = "instant"
 version = "0.1.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3323,6 +3353,16 @@ dependencies = [
  "bindgen",
  "cc",
  "system-deps",
+]
+
+[[package]]
+name = "libudev-sys"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3c8469b4a23b962c1396b9b451dda50ef5b283e8dd309d69033475fa9b334324"
+dependencies = [
+ "libc",
+ "pkg-config",
 ]
 
 [[package]]
@@ -5758,6 +5798,18 @@ name = "typenum"
 version = "1.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1dccffe3ce07af9386bfd29e80c0ab1a8205a2fc34e4bcd40364df902cfa8f3f"
+
+[[package]]
+name = "udev"
+version = "0.9.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "af4e37e9ea4401fc841ff54b9ddfc9be1079b1e89434c1a6a865dd68980f7e9f"
+dependencies = [
+ "io-lifetimes",
+ "libc",
+ "libudev-sys",
+ "pkg-config",
+]
 
 [[package]]
 name = "uds_windows"
