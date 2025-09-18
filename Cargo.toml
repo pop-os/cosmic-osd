@@ -14,6 +14,7 @@ i18n-embed = { version = "0.16", features = [
 ] }
 i18n-embed-fl = "0.10"
 cosmic-config = { git = "https://github.com/pop-os/libcosmic" }
+cosmic-comp-config = { git = "https://github.com/pop-os/cosmic-comp" }
 libcosmic = { git = "https://github.com/pop-os/libcosmic", default-features = false, features = [
     "autosize",
     "dbus-config",

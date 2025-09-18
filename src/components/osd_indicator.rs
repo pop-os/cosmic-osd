@@ -14,6 +14,7 @@ use cosmic::{
     },
     widget::{self, horizontal_space, vertical_space},
 };
+use cosmic_comp_config::input::TouchpadOverride;
 use futures::future::{AbortHandle, Aborted, abortable};
 use std::sync::LazyLock;
 use std::time::Duration;
@@ -28,6 +29,7 @@ pub enum Params {
     SinkVolume(u32, bool),
     SourceVolume(u32, bool),
     AirplaneMode(bool),
+    TouchpadEnabled(TouchpadOverride),
 }
 
 impl Params {
@@ -61,6 +63,8 @@ impl Params {
                     "microphone-sensitivity-high-symbolic"
                 }
             }
+            Self::TouchpadEnabled(TouchpadOverride::None) => "input-touchpad-symbolic",
+            Self::TouchpadEnabled(TouchpadOverride::ForceDisable) => "touchpad-disabled-symbolic",
         }
     }
 
@@ -73,6 +77,7 @@ impl Params {
             Self::SinkVolume(value, false) => Some(*value),
             Self::SourceVolume(value, false) => Some(*value),
             Self::AirplaneMode(_) => None,
+            Self::TouchpadEnabled(_) => None,
         }
     }
 }
