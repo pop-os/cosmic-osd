@@ -2,12 +2,14 @@ Source: cosmic-osd
 Section: admin
 Priority: optional
 Maintainer: System76 <info@system76.com>
-Build-Depends:
-  debhelper (>= 11),
+Build-Depends: debhelper (>= 11),
   debhelper-compat (= 11),
   cargo,
+  libclang-dev,
+  libinput-dev,
   libpulse-dev,
   libudev-dev,
+  libpipewire-0.3-dev,
   libxkbcommon-dev,
   libwayland-dev,
   pkg-config,
@@ -16,8 +18,8 @@ Homepage: https://github.com/pop-os/cosmic-osd
 
 Package: cosmic-osd
 Architecture: amd64 arm64
-Depends:
-  ${misc:Depends},
-  ${shlibs:Depends}
+Depends: ${misc:Depends},
+  ${shlibs:Depends},
+  pulseaudio-utils
 Provides: polkit-1-auth-agent
 Description: Cosmic OSD

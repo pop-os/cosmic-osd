@@ -14,6 +14,7 @@ confirm-button = {
         [suspend] { suspend }
         [shutdown] { shutdown }
         [log-out] { log-out }
+        [enter-bios] {enter-bios}
         *[other] { confirm }
 }
 confirm-title =
@@ -22,9 +23,9 @@ confirm-title =
         [suspend] { suspend }
         [shutdown] { shutdown }
         [enter-bios] {enter-bios}
-        [log-out] Salir de todas las aplicaciones y la sesión
-        *[other] Realizar la acción seleccionada
-    } ahora?
+        [log-out] ¿Cerrar todas las aplicaciones y cerrar la sesión
+        *[other] ¿Realizar la acción seleccionada
+    }?
 confirm-body = 
     { $action ->
         [restart] El ordenador se reiniciará
@@ -32,6 +33,6 @@ confirm-body =
         [shutdown] El ordenador se apagará
         [lock-screen] La pantalla se bloqueará
         [log-out] La sesión se cerrará
-        [enter-bios] El ordenador se reiniciará, ingresando en el BIOS
+        [enter-bios] Reiniciar y entrar en la BIOS
         *[other] La acción seleccionada se realizará
     } automáticamente en { $countdown } segundos.

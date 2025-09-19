@@ -1,35 +1,46 @@
-invalid-password = Nesprávne heslo. Prosím skúste to znova.
-authentication-required = Vyžaduje sa overenie používateľa
+invalid-password = Neplatné heslo. Skúste to znova.
+authentication-required = Vyžaduje sa overenie
 cancel = Zrušiť
 authenticate = Overiť
 log-out = Odhlásiť sa
+suspend = Uspat
 restart = Reštartovať
+enter-bios = Vstúpiť do BIOSu
+sound-settings = Nastavenia zvuku
 shutdown = Vypnúť
+headphones = Slúchadlá
+headset = Headset
 confirm = Potvrdiť
-cancel = Zrušiť
 confirm-button = {
-    $action -> 
+    $action ->
         [restart] { restart }
         [suspend] { suspend}
         [shutdown] Vypnúť
         [log-out] { log-out }
         *[other] { confirm}
 }
-confirm-title = 
-    { $action -> 
+confirm-title =
+    { $action ->
         [restart] { restart }
         [suspend] { suspend }
         [shutdown] { shutdown }
-        [log-out] Ukončiť všetky spustené aplikácie a odhlásiť sa
-        *[other] Vykonať vybranú operáciu
-    } teraz?
-confirm-body = 
-    Systém { $action ->
-        [restart] sa reštartuje
-        [suspend] sa uspí
-        [shutdown] sa vypne
-        [lock-screen] sa zamkne
-        [log-out] odhlási prihláseného používateľa
-        *[other] vykoná vybranú operáciu
-    } automaticky za { $countdown } sekúnd.
-
+        [enter-bios] Vstúpiť do BIOSu?
+        [log-out] Ukončiť všetky aplikácie a odhlásiť sa?
+        [confirm-device-type] Potvrdiť typ zariadenia
+        *[other] Použiť vybranú akciu?
+    }
+confirm-body =
+    Systém sa { $action ->
+        [restart] reštartuje
+        [suspend] uspí
+        [shutdown] vypne
+        [lock-screen] uzamkne
+        [log-out] odhlási
+        [enter-bios] reštartuje do BIOSu
+        *[other] vykoná vybranú akciu
+    } automaticky o { $countdown ->
+        [one] { $countdown } sekundu.
+        [few] { $countdown } sekundy.
+        [many] { $countdown } sekúnd.
+        [other] { $countdown } sekundy.
+    }

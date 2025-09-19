@@ -8,26 +8,24 @@ use crate::{
 };
 use cosmic::{
     iced::{
-        self,
-        event::{wayland, PlatformSpecific},
+        self, Subscription, Task,
+        event::{PlatformSpecific, wayland},
         window::Id as SurfaceId,
-        Subscription, Task,
     },
     iced_runtime::platform_specific::wayland::layer_surface::SctkLayerSurfaceSettings,
     iced_winit::wayland::commands::layer_surface::{
-        destroy_layer_surface, get_layer_surface, KeyboardInteractivity, Layer,
+        KeyboardInteractivity, Layer, destroy_layer_surface, get_layer_surface,
     },
     widget,
 };
-use once_cell::sync::Lazy;
 use std::{
     collections::HashMap,
-    sync::{Arc, Mutex},
+    sync::{Arc, LazyLock, Mutex},
 };
 use tokio::sync::oneshot;
 
-pub static POLKIT_DIALOG_ID: Lazy<widget::Id> =
-    Lazy::new(|| widget::Id::new("polkit-dialog".to_string()));
+pub static POLKIT_DIALOG_ID: LazyLock<widget::Id> =
+    LazyLock::new(|| widget::Id::new("polkit-dialog".to_string()));
 
 #[derive(Clone, Debug)]
 pub struct Params {
@@ -191,7 +189,7 @@ impl State {
         if self.sensitive {
             password_input = password_input
                 .on_input(Msg::Password)
-                .on_submit(Msg::Authenticate);
+                .on_submit(|_| Msg::Authenticate);
             cancel_button = cancel_button.on_press(Msg::Cancel);
             authenticate_button = authenticate_button.on_press(Msg::Authenticate);
         }

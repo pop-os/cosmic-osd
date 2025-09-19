@@ -8,35 +8,39 @@ use crate::{
 use crate::{cosmic_session::CosmicSessionProxy, session_manager::SessionManagerProxy};
 use clap::Parser;
 use cosmic::{
-    app::{self, CosmicFlags, DbusActivationDetails},
+    Element,
+    app::{self, CosmicFlags, Task},
+    dbus_activation::Details,
     iced::{
-        self,
+        self, Alignment, Length, Limits, Point, Rectangle, Size, Subscription,
+        alignment::Horizontal,
         event::{
             self, listen_with,
             wayland::{self, LayerEvent, OverlapNotifyEvent},
         },
-        keyboard::{key::Named, Key},
+        keyboard::{Key, key::Named},
+        platform_specific::shell::commands::activation::request_token,
         time,
         window::Id as SurfaceId,
-        Alignment, Length, Limits, Point, Rectangle, Size, Subscription, Task,
     },
     iced_runtime::platform_specific::wayland::layer_surface::SctkLayerSurfaceSettings,
     iced_winit::commands::layer_surface::{
-        destroy_layer_surface, get_layer_surface, Anchor, KeyboardInteractivity,
+        Anchor, KeyboardInteractivity, destroy_layer_surface, get_layer_surface,
     },
     theme,
-    widget::{autosize::autosize, button, container, icon, text, Column},
-    Element,
+    widget::{Column, autosize::autosize, button, container, icon, row, text},
 };
+use cosmic_comp_config::input::TouchpadOverride;
 use cosmic_settings_subscriptions::{
     airplane_mode, pulse, settings_daemon,
-    upower::kbdbacklight::{kbd_backlight_subscription, KeyboardBacklightUpdate},
+    upower::kbdbacklight::{KeyboardBacklightUpdate, kbd_backlight_subscription},
 };
 use logind_zbus::manager::ManagerProxy;
 use serde::{Deserialize, Serialize};
 use std::{
     collections::HashMap,
     fmt::Display,
+    process::Stdio,
     str::FromStr,
     sync::LazyLock,
     time::{Duration, Instant},
@@ -48,7 +52,7 @@ static CONFIRM_ID: LazyLock<iced::id::Id> = LazyLock::new(|| iced::id::Id::new("
 static AUTOSIZE_DIALOG_ID: LazyLock<iced::id::Id> =
     LazyLock::new(|| iced::id::Id::new("autosize-id"));
 
-#[derive(Parser, Debug, Serialize, Deserialize, Clone, Copy)]
+#[derive(Parser, Debug, Serialize, Deserialize, Clone)]
 #[command(author, version, about, long_about = None)]
 #[command(propagate_version = true)]
 pub struct Args {
@@ -56,7 +60,7 @@ pub struct Args {
     pub subcommand: Option<OsdTask>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Copy, clap::Subcommand)]
+#[derive(Debug, Serialize, Deserialize, Clone, clap::Subcommand)]
 pub enum OsdTask {
     #[clap(about = "Toggle the on screen display and start the log out timer")]
     LogOut,
@@ -64,18 +68,47 @@ pub enum OsdTask {
     Restart,
     #[clap(about = "Toggle the on screen display and start the shutdown timer")]
     Shutdown,
+    #[clap(about = "Display touchpad toggle indicator")]
+    Touchpad,
     #[clap(about = "Toggle the on screen display and start the restart to bios timer")]
     EnterBios,
+    ConfirmHeadphones {
+        #[arg(long)]
+        card_name: String,
+        #[arg(long)]
+        headphone_profile: String,
+        #[arg(long)]
+        headset_profile: String,
+        #[arg(long)]
+        headset_port_name: String,
+        #[clap(skip)]
+        selected_headset: bool,
+    },
 }
 
 impl OsdTask {
-    fn perform(self) -> iced::Task<cosmic::app::Message<Msg>> {
-        let msg = |m| cosmic::app::message::app(Msg::Zbus(m));
+    fn perform(self) -> Task<Msg> {
+        let msg = |m| cosmic::action::app(Msg::Zbus(m));
         match self {
-            OsdTask::EnterBios => iced::Task::perform(restart(true), msg),
-            OsdTask::LogOut => iced::Task::perform(log_out(), msg),
-            OsdTask::Restart => iced::Task::perform(restart(false), msg),
-            OsdTask::Shutdown => iced::Task::perform(shutdown(), msg),
+            OsdTask::EnterBios => cosmic::task::future(restart(true)).map(msg),
+            OsdTask::LogOut => cosmic::task::future(log_out()).map(msg),
+            OsdTask::Restart => cosmic::task::future(restart(false)).map(msg),
+            OsdTask::Shutdown => cosmic::task::future(shutdown()).map(msg),
+            OsdTask::ConfirmHeadphones {
+                card_name,
+                headphone_profile,
+                headset_profile,
+                headset_port_name,
+                selected_headset,
+            } => cosmic::task::future(confirm_headphones(
+                card_name,
+                headphone_profile,
+                headset_profile,
+                headset_port_name,
+                selected_headset,
+            ))
+            .map(msg),
+            OsdTask::Touchpad { .. } => Task::none(),
         }
     }
 }
@@ -112,8 +145,77 @@ async fn log_out() -> zbus::Result<()> {
     Ok(())
 }
 
+async fn confirm_headphones(
+    card_name: String,
+    headphone_profile: String,
+    headset_profile: String,
+    headset_port_name: String,
+    selected_headset: bool,
+) -> zbus::Result<()> {
+    use tokio::process::Command;
+
+    let profile = if selected_headset {
+        headset_profile
+    } else {
+        headphone_profile
+    };
+
+    let status = Command::new("pactl")
+        .arg("set-card-profile")
+        .arg(card_name)
+        .arg(profile)
+        .status()
+        .await;
+
+    match status {
+        Ok(s) if s.success() => {}
+        Ok(s) => {
+            return Err(zbus::Error::Failure(
+                format!("pactl exited with status: {}", s).into(),
+            ));
+        }
+
+        Err(e) => {
+            return Err(zbus::Error::Failure(
+                format!("Failed to run pactl: {}", e).into(),
+            ));
+        }
+    };
+
+    if selected_headset {
+        let output = Command::new("pactl")
+            .arg("get-default-source")
+            .stdout(Stdio::piped())
+            .output()
+            .await?;
+
+        if !output.status.success() {
+            return Err(zbus::Error::Failure(
+                format!("Failed to get source name.").into(),
+            ));
+        }
+
+        let source_name = String::from_utf8_lossy(&output.stdout).trim().to_string();
+
+        let status = Command::new("pactl")
+            .arg("set-source-port")
+            .arg(&source_name)
+            .arg(&headset_port_name)
+            .status()
+            .await?;
+
+        if status.success() {
+            Ok(())
+        } else {
+            Err(zbus::Error::Failure(format!("Failed to set port.").into()))
+        }
+    } else {
+        Ok(())
+    }
+}
+
 impl Display for OsdTask {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{}", serde_json::ser::to_string(self).unwrap())
     }
 }
@@ -142,6 +244,7 @@ pub enum Msg {
     Cancel,
     Countdown,
     DBus(dbus::Event),
+    Headphones(bool),
     PolkitAgent(polkit_agent::Event),
     PolkitDialog((SurfaceId, polkit_dialog::Msg)),
     SettingsDaemon(settings_daemon::Event),
@@ -152,6 +255,9 @@ pub enum Msg {
     Overlap(OverlapNotifyEvent),
     Size(Size),
     Zbus(Result<(), zbus::Error>),
+    SoundSettings,
+    TouchpadEnabled(Option<TouchpadOverride>),
+    ActivationToken(Option<String>),
 }
 
 enum Surface {
@@ -181,7 +287,7 @@ struct App {
 
 impl App {
     fn create_indicator(&mut self, params: osd_indicator::Params) -> cosmic::app::Task<Msg> {
-        if let Some((_id, ref mut state)) = &mut self.indicator {
+        if let Some((_id, state)) = &mut self.indicator {
             state.replace_params(params)
         } else {
             let id = SurfaceId::unique();
@@ -190,7 +296,7 @@ impl App {
             self.indicator = Some((id, state));
             cmd
         }
-        .map(|x| cosmic::app::Message::App(Msg::OsdIndicator(x)))
+        .map(|x| cosmic::Action::App(Msg::OsdIndicator(x)))
     }
 
     fn handle_overlap(&mut self) {
@@ -284,10 +390,9 @@ impl cosmic::Application for App {
         &mut self.core
     }
 
-    fn update(&mut self, message: Msg) -> cosmic::app::Task<Msg> {
+    fn update(&mut self, message: Msg) -> Task<Msg> {
         match message {
             Msg::Action(action) => {
-                // Ask for user confirmation of non-destructive actions only
                 if matches!(action, OsdTask::Restart)
                     && matches!(self.action_to_confirm, Some((_, OsdTask::Shutdown, _)))
                 {
@@ -324,7 +429,7 @@ impl cosmic::Application for App {
                     *countdown -= 1;
                     if *countdown == 0 {
                         let id = *surface_id;
-                        let a = *a;
+                        let a = a.clone();
 
                         self.action_to_confirm = None;
                         return app::Task::batch(vec![destroy_layer_surface(id), a.perform()]);
@@ -378,8 +483,7 @@ impl cosmic::Application for App {
                     if let Some(state) = state {
                         self.surfaces.insert(id, Surface::PolkitDialog(state));
                     }
-                    return cmd
-                        .map(move |msg| cosmic::app::Message::App(Msg::PolkitDialog((id, msg))));
+                    return cmd.map(move |msg| cosmic::action::app(Msg::PolkitDialog((id, msg))));
                 }
                 Task::none()
             }
@@ -389,7 +493,7 @@ impl cosmic::Application for App {
                     if let Some(state) = state {
                         self.indicator = Some((id, state));
                     }
-                    cmd.map(|x| cosmic::app::Message::App(Msg::OsdIndicator(x)))
+                    cmd.map(|x| cosmic::action::app(Msg::OsdIndicator(x)))
                 } else {
                     Task::none()
                 }
@@ -545,6 +649,52 @@ impl cosmic::Application for App {
                 }
                 Task::none()
             }
+
+            Msg::ActivationToken(token) => {
+                let mut envs = Vec::new();
+                if let Some(token) = token {
+                    envs.push(("XDG_ACTIVATION_TOKEN".to_string(), token.clone()));
+                    envs.push(("DESKTOP_STARTUP_ID".to_string(), token));
+                }
+                return Task::perform(
+                    cosmic::desktop::spawn_desktop_exec("cosmic-settings sound", envs, None, false),
+                    |()| cosmic::action::app(Msg::Cancel),
+                );
+            }
+            Msg::SoundSettings => {
+                if let Some(id) = self.action_to_confirm.as_ref().map(|a| a.0.clone()) {
+                    return request_token(Some(String::from(Self::APP_ID)), Some(id))
+                        .map(move |token| cosmic::Action::App(Msg::ActivationToken(token)));
+                } else {
+                    log::error!("Failed ot spawn cosmic-settings.");
+                    return Task::none();
+                }
+            }
+            Msg::Headphones(value) => {
+                if let Some((
+                    _,
+                    OsdTask::ConfirmHeadphones {
+                        selected_headset, ..
+                    },
+                    _,
+                )) = self.action_to_confirm.as_mut()
+                {
+                    *selected_headset = value;
+                }
+                Task::none()
+            }
+            Msg::TouchpadEnabled(enabled) => {
+                let Some(enabled) = enabled else {
+                    log::warn!("TouchpadEnabled event received with None value");
+                    return Task::none();
+                };
+                // Show the OSD indicator for touchpad enabled/disabled
+                let id = SurfaceId::unique();
+                let (state, cmd) =
+                    osd_indicator::State::new(id, osd_indicator::Params::TouchpadEnabled(enabled));
+                self.indicator = Some((id, state));
+                return cmd.map(|x| cosmic::Action::App(Msg::OsdIndicator(x)));
+            }
         }
     }
 
@@ -601,7 +751,7 @@ impl cosmic::Application for App {
         iced::Subscription::batch(subscriptions)
     }
 
-    fn view(&self) -> cosmic::prelude::Element<Self::Message> {
+    fn view(&self) -> cosmic::prelude::Element<'_, Self::Message> {
         unreachable!()
     }
 
@@ -618,12 +768,14 @@ impl cosmic::Application for App {
             }
         } else if matches!(self.action_to_confirm, Some((c_id, _, _)) if c_id == id) {
             let cosmic_theme = self.core.system_theme().cosmic();
-            let (_, power_action, countdown) = self.action_to_confirm.as_ref().unwrap();
-            let action = match *power_action {
+            let (_, cur_action, countdown) = self.action_to_confirm.as_ref().unwrap();
+            let action = match *cur_action {
                 OsdTask::EnterBios => "enter-bios",
                 OsdTask::LogOut => "log-out",
                 OsdTask::Restart => "restart",
                 OsdTask::Shutdown => "shutdown",
+                OsdTask::ConfirmHeadphones { .. } => "confirm-device-type",
+                OsdTask::Touchpad { .. } => "touchpad",
             };
 
             let title = fl!(
@@ -631,12 +783,9 @@ impl cosmic::Application for App {
                 HashMap::from_iter(vec![("action", action)])
             );
             let countdown = &countdown.to_string();
-            let mut dialog = cosmic::widget::dialog()
-                .title(title)
-                .body(fl!(
-                    "confirm-body",
-                    HashMap::from_iter(vec![("action", action), ("countdown", countdown)])
-                ))
+            let mut dialog = cosmic::widget::dialog().title(title);
+
+            dialog = dialog
                 .primary_action(
                     button::custom(min_width_and_height(
                         text::body(fl!("confirm", HashMap::from_iter(vec![("action", action)])))
@@ -658,21 +807,100 @@ impl cosmic::Application for App {
                     .padding([0, cosmic_theme.space_s()])
                     .class(theme::Button::Standard)
                     .on_press(Msg::Cancel),
-                )
-                .icon(text_icon(
-                    match power_action {
-                        OsdTask::LogOut => "system-log-out-symbolic",
-                        OsdTask::Restart | OsdTask::EnterBios => "system-restart-symbolic",
-                        OsdTask::Shutdown => "system-shutdown-symbolic",
-                    },
-                    60,
-                ));
+                );
+            let t = self.core.system_theme().cosmic();
+            dialog = if matches!(cur_action, OsdTask::ConfirmHeadphones { .. }) {
+                dialog
+                    .tertiary_action(
+                        button::text(fl!("sound-settings")).on_press(Msg::SoundSettings),
+                    )
+                    .control(
+                        container(
+                            row()
+                                .push(
+                                    cosmic::widget::column()
+                                        .push(
+                                            cosmic::widget::button::custom_image_button(
+                                                container(
+                                                    cosmic::widget::icon::from_name(
+                                                        "audio-headphones-symbolic",
+                                                    )
+                                                    .size(64)
+                                                    .icon(),
+                                                )
+                                                .padding(t.space_m()),
+                                                None,
+                                            )
+                                            .class(cosmic::theme::style::Button::Image)
+                                            .selected(matches!(
+                                                self.action_to_confirm,
+                                                Some((_, OsdTask::ConfirmHeadphones {
+                                                    selected_headset,
+                                                    ..
+                                                },_)) if !selected_headset
+                                            ))
+                                            .on_press(Msg::Headphones(false)),
+                                        )
+                                        .push(text(fl!("headphones")))
+                                        .align_x(Alignment::Center)
+                                        .spacing(t.space_xxxs()),
+                                )
+                                .push(
+                                    cosmic::widget::column()
+                                        .push(
+                                            cosmic::widget::button::custom_image_button(
+                                                container(
+                                                    cosmic::widget::icon::from_name(
+                                                        "audio-headset-symbolic",
+                                                    )
+                                                    .size(64)
+                                                    .icon(),
+                                                )
+                                                .padding(t.space_m()),
+                                                None,
+                                            )
+                                            .class(cosmic::theme::style::Button::Image)
+                                            .selected(matches!(
+                                                self.action_to_confirm,
+                                                Some((_, OsdTask::ConfirmHeadphones {
+                                                    selected_headset,
+                                                    ..
+                                                },_)) if selected_headset
+                                            ))
+                                            .on_press(Msg::Headphones(true)),
+                                        )
+                                        .push(text(fl!("headset")))
+                                        .align_x(Alignment::Center)
+                                        .spacing(t.space_xxxs()),
+                                )
+                                .spacing(t.space_l()),
+                        )
+                        .width(Length::Fixed(522.))
+                        .align_x(Horizontal::Center),
+                    )
+            } else {
+                dialog
+                    .icon(text_icon(
+                        match cur_action {
+                            OsdTask::LogOut => "system-log-out-symbolic",
+                            OsdTask::Restart | OsdTask::EnterBios => "system-restart-symbolic",
+                            OsdTask::Shutdown => "system-shutdown-symbolic",
+                            _ => unreachable!(),
+                        },
+                        60,
+                    ))
+                    .body(fl!(
+                        "confirm-body",
+                        HashMap::from_iter(vec![("action", action), ("countdown", countdown)])
+                    ))
+            };
 
-            if matches!(power_action, OsdTask::Shutdown) {
+            if matches!(cur_action, OsdTask::Shutdown) {
                 dialog = dialog.tertiary_action(
                     button::text(fl!("restart")).on_press(Msg::Action(OsdTask::Restart)),
                 );
             }
+
             return Element::from(
                 autosize(Element::from(container(dialog)), AUTOSIZE_DIALOG_ID.clone()).limits(
                     Limits::NONE
@@ -686,29 +914,67 @@ impl cosmic::Application for App {
         iced::widget::text("").into() // XXX
     }
 
-    fn dbus_activation(
-        &mut self,
-        msg: cosmic::app::DbusActivationMessage,
-    ) -> iced::Task<cosmic::app::Message<Self::Message>> {
+    fn dbus_activation(&mut self, msg: cosmic::dbus_activation::Message) -> Task<Msg> {
         match msg.msg {
-            DbusActivationDetails::Activate => {}
-            DbusActivationDetails::ActivateAction { action, .. } => {
+            Details::Activate => {}
+            Details::ActivateAction { action, .. } => {
                 let Ok(cmd) = OsdTask::from_str(&action) else {
                     return Task::none();
                 };
-                let id = SurfaceId::unique();
-                self.action_to_confirm = Some((id, cmd, COUNTDOWN_LENGTH));
-                return get_layer_surface(SctkLayerSurfaceSettings {
-                    id,
-                    keyboard_interactivity: KeyboardInteractivity::Exclusive,
-                    anchor: Anchor::empty(),
-                    namespace: "dialog".into(),
-                    size: None,
-                    size_limits: Limits::NONE.min_width(1.0).min_height(1.0),
-                    ..Default::default()
-                });
+                if let OsdTask::Touchpad = cmd {
+                    return cosmic::task::future(async move {
+                        use cosmic_config::{ConfigGet, ConfigSet};
+
+                        let (tx, rx) = tokio::sync::oneshot::channel();
+
+                        std::thread::spawn({
+                            move || {
+                                if let Ok(helper) =
+                                    cosmic_config::Config::new("com.system76.CosmicComp", 1)
+                                {
+                                    let mut enabled = helper
+                                        .get::<TouchpadOverride>("input_touchpad_override")
+                                        .unwrap_or_default();
+                                    if matches!(enabled, TouchpadOverride::None) {
+                                        // If it's on auto, we consider it enabled
+                                        enabled = TouchpadOverride::ForceDisable;
+                                    } else {
+                                        enabled = TouchpadOverride::None;
+                                    }
+                                    if let Err(err) = helper.set("input_touchpad_override", enabled)
+                                    {
+                                        log::error!("Failed to set touchpad override: {}", err);
+                                        return;
+                                    }
+                                    let _ = tx.send(enabled);
+                                } else {
+                                    log::error!("Failed to load CosmicComp config for touchpad");
+                                    return;
+                                }
+                            }
+                        });
+                        Msg::TouchpadEnabled(rx.await.ok())
+                    })
+                    .map(cosmic::Action::App);
+                }
+
+                if let Some(prev) = self.action_to_confirm.take() {
+                    self.action_to_confirm = Some((prev.0, cmd, COUNTDOWN_LENGTH));
+                } else {
+                    let id = SurfaceId::unique();
+                    self.action_to_confirm = Some((id, cmd, COUNTDOWN_LENGTH));
+                    return get_layer_surface(SctkLayerSurfaceSettings {
+                        id,
+                        keyboard_interactivity: KeyboardInteractivity::Exclusive,
+                        anchor: Anchor::empty(),
+                        namespace: "dialog".into(),
+                        size: None,
+                        size_limits: Limits::NONE.min_width(1.0).min_height(1.0),
+                        ..Default::default()
+                    });
+                }
             }
-            DbusActivationDetails::Open { .. } => {}
+            Details::Open { .. } => {}
         }
         Task::none()
     }
@@ -743,17 +1009,21 @@ mod pipewire {
     }
 
     pub fn play_audio_volume_change() {
-        play(Path::new(
-            "/usr/share/sounds/freedesktop/stereo/audio-volume-change.oga",
-        ));
+        let sounds_dirs = xdg::BaseDirectories::with_prefix("sounds");
+        if let Some(path) = sounds_dirs.find_data_file("freedesktop/stereo/audio-volume-change.oga")
+        {
+            play(&path);
+            return;
+        }
+        log::error!("Sound file not found in XDG data directories");
     }
 }
 
-fn min_width_and_height<'a>(
-    e: Element<'a, Msg>,
+fn min_width_and_height(
+    e: Element<Msg>,
     width: impl Into<Length>,
     height: impl Into<Length>,
-) -> Column<'a, Msg> {
+) -> Column<Msg> {
     use iced::widget::{column, horizontal_space, row, vertical_space};
     column![
         row![e, vertical_space().height(height)].align_y(Alignment::Center),

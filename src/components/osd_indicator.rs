@@ -1,24 +1,26 @@
 // TODO: animation to fade in/out?
 // TODO: Dismiss on click?
 
+use crate::config;
 use cosmic::{
-    iced::{self, window::Id as SurfaceId, Alignment, Border, Length},
+    Apply, Element, Task,
+    iced::{self, Alignment, Border, Length, window::Id as SurfaceId},
     iced_runtime::platform_specific::wayland::layer_surface::SctkLayerSurfaceSettings,
     iced_winit::commands::{
         layer_surface::{
-            destroy_layer_surface, get_layer_surface, Anchor, KeyboardInteractivity, Layer,
+            Anchor, KeyboardInteractivity, Layer, destroy_layer_surface, get_layer_surface,
         },
         overlap_notify::overlap_notify,
     },
     widget::{self, horizontal_space, vertical_space},
-    Element, Task,
 };
-use futures::future::{abortable, AbortHandle, Aborted};
-use once_cell::sync::Lazy;
+use cosmic_comp_config::input::TouchpadOverride;
+use futures::future::{AbortHandle, Aborted, abortable};
+use std::sync::LazyLock;
 use std::time::Duration;
 
-pub static OSD_INDICATOR_ID: Lazy<widget::Id> =
-    Lazy::new(|| widget::Id::new("osd-indicator".to_string()));
+pub static OSD_INDICATOR_ID: LazyLock<widget::Id> =
+    LazyLock::new(|| widget::Id::new("osd-indicator".to_string()));
 
 #[derive(Debug)]
 pub enum Params {
@@ -27,6 +29,7 @@ pub enum Params {
     SinkVolume(u32, bool),
     SourceVolume(u32, bool),
     AirplaneMode(bool),
+    TouchpadEnabled(TouchpadOverride),
 }
 
 impl Params {
@@ -60,6 +63,8 @@ impl Params {
                     "microphone-sensitivity-high-symbolic"
                 }
             }
+            Self::TouchpadEnabled(TouchpadOverride::None) => "input-touchpad-symbolic",
+            Self::TouchpadEnabled(TouchpadOverride::ForceDisable) => "touchpad-disabled-symbolic",
         }
     }
 
@@ -72,6 +77,7 @@ impl Params {
             Self::SinkVolume(value, false) => Some(*value),
             Self::SourceVolume(value, false) => Some(*value),
             Self::AirplaneMode(_) => None,
+            Self::TouchpadEnabled(_) => None,
         }
     }
 }
@@ -88,6 +94,8 @@ pub struct State {
     params: Params,
     timer_abort: AbortHandle,
     pub margin: (i32, i32, i32, i32),
+    amplification_sink: bool,
+    amplification_source: bool,
 }
 
 fn close_timer() -> (Task<Msg>, AbortHandle) {
@@ -122,12 +130,18 @@ impl State {
         cmds.push(overlap_notify(id, true));
         let (cmd, timer_abort) = close_timer();
         cmds.push(cmd);
+
+        let amplification_sink = config::amplification_sink();
+        let amplification_source = config::amplification_source();
+
         (
             Self {
                 id,
                 params,
                 timer_abort,
                 margin: (0, 0, 48, 0),
+                amplification_sink,
+                amplification_source,
             },
             Task::batch(cmds),
         )
@@ -144,6 +158,26 @@ impl State {
         cmd
     }
 
+    fn max_value(&self) -> f32 {
+        match self.params {
+            Params::SinkVolume(_, _) => {
+                if self.amplification_sink {
+                    150.0
+                } else {
+                    100.0
+                }
+            }
+            Params::SourceVolume(_, _) => {
+                if self.amplification_source {
+                    150.0
+                } else {
+                    100.0
+                }
+            }
+            _ => 100.0,
+        }
+    }
+
     pub fn view(&self) -> Element<'_, Msg> {
         let icon = widget::icon::from_name(self.params.icon_name());
 
@@ -152,6 +186,23 @@ impl State {
 
         let osd_contents = if let Some(value) = self.params.value() {
             radius = cosmic::theme::active().cosmic().radius_l();
+            let max_value = self.max_value();
+            let osd_bar = if max_value > 100.0 {
+                iced::widget::row![
+                    widget::progress_bar(0.0..=100.0, value as f32)
+                        .height(4)
+                        .width(Length::Fixed(178.0)),
+                    widget::progress_bar(100.0..=max_value, value as f32)
+                        .height(4)
+                        .width(Length::Fixed(89.0)),
+                ]
+                .apply(Element::from)
+            } else {
+                widget::progress_bar(0.0..=max_value, value as f32)
+                    .height(4)
+                    .width(Length::Fixed(267.0))
+                    .apply(Element::from)
+            };
             widget::container(
                 iced::widget::row![
                     widget::container(icon.size(20))
@@ -161,9 +212,7 @@ impl State {
                         .width(Length::Fixed(32.0))
                         .align_x(Alignment::Center),
                     widget::horizontal_space().width(Length::Fixed(8.0)),
-                    widget::progress_bar(0. ..=100., value as f32)
-                        .height(4)
-                        .width(Length::Fixed(266.0)),
+                    osd_bar,
                 ]
                 .align_y(Alignment::Center),
             )
