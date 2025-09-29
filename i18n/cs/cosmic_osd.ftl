@@ -11,23 +11,24 @@ shutdown = Vypnout
 headphones = Sluchátka
 headset = Headset
 confirm = Potvrdit
-confirm-button = {
-    $action ->
+confirm-button =
+    { $action ->
         [restart] { restart }
         [suspend] { suspend }
         [shutdown] Vypnout
         [log-out] { log-out }
-        *[other] { confirm }
-}
+        [enter-bios] { enter-bios }
+       *[other] { confirm }
+    }
 confirm-title =
     { $action ->
         [restart] { restart } nyní?
         [suspend] { suspend } nyní?
         [shutdown] { shutdown } nyní?
-        [enter-bios] Vstoupit do BIOSu nyní?
+        [enter-bios] { enter-bios } nyní?
         [log-out] Ukončit všechny aplikace a odhlásit se nyní?
         [confirm-device-type] Potvrdit typ zařízení
-        *[other] Použít vybranou akci nyní?
+       *[other] Použít vybranou akci nyní?
     }
 confirm-body =
     Systém { $action ->
@@ -37,10 +38,10 @@ confirm-body =
         [lock-screen] se uzamkne
         [log-out] odhlásí uživatele
         [enter-bios] vstoupí do BIOSu
-        *[other] vykoná vybranou akci
+       *[other] vykoná vybranou akci
     } automaticky za { $countdown ->
         [one] { $countdown } sekundu.
         [few] { $countdown } sekundy.
         [many] { $countdown } sekund.
-        *[other] { $countdown } sekund.
+       *[other] { $countdown } sekund.
     }
