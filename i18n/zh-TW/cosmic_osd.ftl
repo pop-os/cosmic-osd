@@ -6,7 +6,6 @@ log-out = 登出
 restart = 重新啟動
 shutdown = 關機
 confirm = 確認
-cancel = 取消
 confirm-button = {
     $action ->
         [restart] { restart }
