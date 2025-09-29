@@ -11,15 +11,15 @@ shutdown = Stäng av
 headphones = Hörlurar
 headset = Headset
 confirm = Bekräfta
-confirm-button = {
-    $action -> 
+confirm-button =
+    { $action -> 
         [restart] { restart }
         [suspend] { suspend }
         [shutdown] { shutdown }
         [log-out] { log-out }
         [enter-bios] { enter-bios }
         *[other] { confirm }
-}
+    }
 confirm-title = 
     { $action -> 
         [restart] { restart }

@@ -42,5 +42,5 @@ confirm-body =
         [one] { $countdown } sekundu.
         [few] { $countdown } sekundy.
         [many] { $countdown } sekúnd.
-        [other] { $countdown } sekundy.
+        *[other] { $countdown } sekundy.
     }

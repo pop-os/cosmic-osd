@@ -8,7 +8,6 @@ restart = Uruchom Ponownie
 enter-bios = Przejdź do BIOS
 shutdown = Wyłącz
 confirm = Potwierdź
-cancel = Anuluj
 confirm-button = {
     $action ->
         [restart] { restart }

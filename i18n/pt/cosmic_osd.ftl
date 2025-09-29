@@ -6,7 +6,6 @@ log-out = Terminar sessão
 restart = Reiniciar
 shutdown = Encerrar
 confirm = Confirmar
-cancel = Cancelar
 confirm-button = {
     $action -> 
         [restart] { restart }

@@ -8,7 +8,6 @@ enter-bios = BIOSに入る
 restart = 再起動
 shutdown = シャットダウン
 confirm = 確認
-cancel = キャンセル
 confirm-button = {
     $action ->
         [restart] { restart }

@@ -6,7 +6,6 @@ log-out = Выход из системы
 restart = Перезагрузка
 shutdown = Выключение
 confirm = Подтвердить
-cancel = Отмена
 confirm-button = {
     $action -> 
         [restart] Перезагрузить

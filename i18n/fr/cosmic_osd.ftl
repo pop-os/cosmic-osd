@@ -8,7 +8,6 @@ suspend = Veille
 enter-bios = Entrer dans le BIOS
 shutdown = Éteindre
 confirm = Confirmer
-cancel = Annuler
 confirm-button = {
     $action ->
         [restart] { restart }

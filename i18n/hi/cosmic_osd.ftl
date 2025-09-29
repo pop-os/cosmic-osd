@@ -6,7 +6,6 @@ log-out = लॉग आउट
 restart = पुनः आरंभ करें
 shutdown = बंद करें
 confirm = पुष्टि करें
-cancel = रद्द करें
 confirm-button = {
     $action -> 
         [restart] { restart }

@@ -6,7 +6,6 @@ log-out = Од‌јављивање
 restart = Поново покрени
 shutdown = Искључи
 confirm = Потврди
-cancel = Откажи
 confirm-body = 
     { $action ->
         [restart] Поновно покретање
