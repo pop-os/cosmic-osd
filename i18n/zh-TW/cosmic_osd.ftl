@@ -7,14 +7,15 @@ restart = 重新啟動
 shutdown = 關機
 confirm = 確認
 cancel = 取消
-confirm-button =
-    { $action -> 
-        [restart] { 重新啟動 }
-        [suspend] { 暫停 }
-        [shutdown] 關機
-        [log-out] { 登出 }
-        *[other] { 確認 }
-    }
+confirm-button = {
+    $action ->
+        [restart] { restart }
+        [suspend] { suspend }
+        [shutdown] Power off
+        [log-out] { log-out }
+        [enter-bios] { enter-bios }
+        *[other] { confirm }
+}
 confirm-title =
     { $action ->
         [restart] 重新啟動

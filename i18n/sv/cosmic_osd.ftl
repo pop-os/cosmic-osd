@@ -11,21 +11,21 @@ shutdown = Stäng av
 headphones = Hörlurar
 headset = Headset
 confirm = Bekräfta
-confirm-button =
-    { $action -> 
+confirm-button = {
+    $action ->
         [restart] { restart }
         [suspend] { suspend }
-        [shutdown] { shutdown }
+        [shutdown] Power off
         [log-out] { log-out }
         [enter-bios] { enter-bios }
         *[other] { confirm }
-    }
+}
 confirm-title =
     { $action ->
         [restart] { restart }
         [suspend] { suspend }
         [shutdown] { shutdown }
-        [enter-bios] { Starta om till BIOS }
+        [enter-bios] Starta om till BIOS
         [log-out] Avsluta alla applikationer och logga ut
         [confirm-device-type] Bekräfta enhetstyp
         *[other] Tillämpa vald åtgärd
