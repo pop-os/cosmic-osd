@@ -20,8 +20,8 @@ confirm-button =
         [enter-bios] { enter-bios }
         *[other] { confirm }
     }
-confirm-title = 
-    { $action -> 
+confirm-title =
+    { $action ->
         [restart] { restart }
         [suspend] { suspend }
         [shutdown] { shutdown }
@@ -30,7 +30,7 @@ confirm-title =
         [confirm-device-type] Bekräfta enhetstyp
         *[other] Tillämpa vald åtgärd
     } nu?
-confirm-body = 
+confirm-body =
     Systemet kommer att { $action ->
         [restart] starta om
         [suspend] försättas i viloläge
