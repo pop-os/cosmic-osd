@@ -1,7 +1,7 @@
 // TODO: animation to fade in/out?
 // TODO: Dismiss on click?
 
-use crate::config;
+use crate::{components::app::DisplayMode, config};
 use cosmic::{
     Apply, Element, Task,
     iced::{self, Alignment, Border, Length, window::Id as SurfaceId},
@@ -25,6 +25,7 @@ pub static OSD_INDICATOR_ID: LazyLock<widget::Id> =
 #[derive(Debug)]
 pub enum Params {
     DisplayBrightness(f64),
+    DisplayToggle(DisplayMode),
     KeyboardBrightness(f64),
     SinkVolume(u32, bool),
     SourceVolume(u32, bool),
@@ -36,6 +37,8 @@ impl Params {
     fn icon_name(&self) -> &'static str {
         match self {
             Self::DisplayBrightness(_) => "display-brightness-symbolic",
+            Self::DisplayToggle(DisplayMode::All) => "laptop-symbolic",
+            Self::DisplayToggle(DisplayMode::External) => "display-symbolic",
             Self::KeyboardBrightness(_) => "keyboard-brightness-symbolic",
             Self::AirplaneMode(true) => "airplane-mode-symbolic",
             Self::AirplaneMode(false) => "airplane-mode-disabled-symbolic",
@@ -78,6 +81,7 @@ impl Params {
             Self::SourceVolume(value, false) => Some(*value),
             Self::AirplaneMode(_) => None,
             Self::TouchpadEnabled(_) => None,
+            Self::DisplayToggle(_) => None,
         }
     }
 }

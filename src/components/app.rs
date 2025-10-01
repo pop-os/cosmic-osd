@@ -62,6 +62,8 @@ pub struct Args {
 
 #[derive(Debug, Serialize, Deserialize, Clone, clap::Subcommand)]
 pub enum OsdTask {
+    #[clap(about = "Display external display toggle indicator")]
+    Display,
     #[clap(about = "Toggle the on screen display and start the log out timer")]
     LogOut,
     #[clap(about = "Toggle the on screen display and start the restart timer")]
@@ -108,7 +110,8 @@ impl OsdTask {
                 selected_headset,
             ))
             .map(msg),
-            OsdTask::Touchpad { .. } => Task::none(),
+            OsdTask::Touchpad => Task::none(),
+            OsdTask::Display => Task::none(),
         }
     }
 }
@@ -237,6 +240,12 @@ impl CosmicFlags for Args {
     }
 }
 
+#[derive(Clone, Copy, Debug)]
+pub enum DisplayMode {
+    All,
+    External,
+}
+
 #[derive(Clone, Debug)]
 pub enum Msg {
     Action(OsdTask),
@@ -244,6 +253,7 @@ pub enum Msg {
     Cancel,
     Countdown,
     DBus(dbus::Event),
+    Display(Option<DisplayMode>),
     Headphones(bool),
     PolkitAgent(polkit_agent::Event),
     PolkitDialog((SurfaceId, polkit_dialog::Msg)),
@@ -695,6 +705,17 @@ impl cosmic::Application for App {
                 self.indicator = Some((id, state));
                 return cmd.map(|x| cosmic::Action::App(Msg::OsdIndicator(x)));
             }
+            Msg::Display(enabled) => {
+                let Some(enabled) = enabled else {
+                    log::warn!("Display event received with None value");
+                    return Task::none();
+                };
+                let id = SurfaceId::unique();
+                let (state, cmd) =
+                    osd_indicator::State::new(id, osd_indicator::Params::DisplayToggle(enabled));
+                self.indicator = Some((id, state));
+                return cmd.map(|x| cosmic::Action::App(Msg::OsdIndicator(x)));
+            }
         }
     }
 
@@ -776,6 +797,7 @@ impl cosmic::Application for App {
                 OsdTask::Shutdown => "shutdown",
                 OsdTask::ConfirmHeadphones { .. } => "confirm-device-type",
                 OsdTask::Touchpad { .. } => "touchpad",
+                OsdTask::Display { .. } => "external-display",
             };
 
             let title = fl!(
@@ -956,6 +978,78 @@ impl cosmic::Application for App {
                         Msg::TouchpadEnabled(rx.await.ok())
                     })
                     .map(cosmic::Action::App);
+                } else if let OsdTask::Display = cmd {
+                    return cosmic::task::future(async move {
+                        let enabled;
+
+                        let Ok(mut output_lists) = cosmic_randr_shell::list().await else {
+                            log::error!("Failed to list displays with cosmic-randr");
+                            return Msg::Display(None);
+                        };
+
+                        let other_enabled = output_lists
+                            .outputs
+                            .values()
+                            .any(|o| !(o.name == "eDP-1" || o.name == "LVDS1") && o.enabled);
+
+                        let Some(internal) = output_lists
+                            .outputs
+                            .values_mut()
+                            .find(|o| o.name == "eDP-1" || o.name == "LVDS1")
+                        else {
+                            log::error!("No internal display found");
+                            return Msg::Display(None);
+                        };
+
+                        if internal.enabled {
+                            if other_enabled {
+                                enabled = Some(DisplayMode::External);
+                                internal.enabled = false;
+                            } else {
+                                log::info!("Not disabling the only enabled display");
+                                return Msg::Display(None);
+                            }
+                        } else {
+                            enabled = Some(DisplayMode::All);
+                            internal.enabled = true;
+                        }
+
+                        let mut task = tokio::process::Command::new("cosmic-randr");
+                        let mut p = if internal.enabled {
+                            task.arg("enable").arg(&internal.name);
+                            let Ok(p) = task.spawn() else {
+                                return Msg::Display(None);
+                            };
+                            p
+                        } else {
+                            task.arg("kdl");
+
+                            task.stdin(Stdio::piped());
+                            let Ok(mut p) = task.spawn() else {
+                                return Msg::Display(None);
+                            };
+
+                            let kdl_doc = kdl::KdlDocument::from(output_lists).to_string();
+                            use tokio::io::AsyncWriteExt;
+
+                            if let Some(mut stdin) = p.stdin.take() {
+                                if let Err(err) = stdin.write_all(kdl_doc.as_bytes()).await {
+                                    log::error!("Failed to write KDL to stdin: {err:?}");
+                                }
+                                if let Err(err) = stdin.flush().await {
+                                    log::error!("Failed to flush stdin: {err:?}");
+                                }
+                            }
+                            p
+                        };
+
+                        log::debug!("executing {task:?}");
+                        let status = p.wait().await;
+                        if let Err(err) = status {
+                            log::error!("Randr error: {err:?}");
+                        };
+                        Msg::Display(enabled)
+                    });
                 }
 
                 if let Some(prev) = self.action_to_confirm.take() {
