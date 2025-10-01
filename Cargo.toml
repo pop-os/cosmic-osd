@@ -42,6 +42,8 @@ cosmic-settings-subscriptions = { git = "https://github.com/pop-os/cosmic-settin
     "upower",
     "settings_daemon",
 ] }
+kdl = "6"
+cosmic-randr-shell = { git = "https://github.com/pop-os/cosmic-randr", default-features = false }
 
 #[patch.'https://github.com/pop-os/libcosmic']
 #libcosmic = { path = "../../pop/libcosmic" }
