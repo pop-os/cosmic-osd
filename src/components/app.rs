@@ -987,67 +987,119 @@ impl cosmic::Application for App {
                             return Msg::Display(None);
                         };
 
-                        let other_enabled = output_lists
+                        let mut enabled_positions = output_lists
                             .outputs
                             .values()
-                            .any(|o| !(o.name == "eDP-1" || o.name == "LVDS1") && o.enabled);
+                            .filter(|o| o.enabled)
+                            .filter_map(|o| {
+                                o.current.and_then(|c_mode| {
+                                    output_lists.modes.get(c_mode).map(|m| (o.position, m.size))
+                                })
+                            })
+                            .collect::<Vec<_>>();
+                        enabled_positions.sort_by_key(|p| p.0.0);
 
-                        let Some(internal) = output_lists
+                        let other_enabled = output_lists.outputs.values().any(|o| {
+                            !(o.name.starts_with("eDP-")
+                                || o.name.starts_with("LVDS-")
+                                || o.name.starts_with("DSI-"))
+                                && o.enabled
+                        });
+
+                        let mut internal = output_lists
                             .outputs
                             .values_mut()
-                            .find(|o| o.name == "eDP-1" || o.name == "LVDS1")
-                        else {
+                            .filter(|o| {
+                                o.name.starts_with("eDP-")
+                                    || o.name.starts_with("LVDS-")
+                                    || o.name.starts_with("DSI-")
+                            })
+                            .collect::<Vec<_>>();
+                        if internal.is_empty() {
                             log::error!("No internal display found");
                             return Msg::Display(None);
-                        };
+                        }
+                        let all_internal_enabled = internal.iter().all(|o| o.enabled);
 
-                        if internal.enabled {
+                        if all_internal_enabled {
                             if other_enabled {
                                 enabled = Some(DisplayMode::External);
-                                internal.enabled = false;
                             } else {
                                 log::info!("Not disabling the only enabled display");
                                 return Msg::Display(None);
                             }
+                            for o in internal.iter_mut() {
+                                o.enabled = false;
+                            }
                         } else {
                             enabled = Some(DisplayMode::All);
-                            internal.enabled = true;
+                            for o in internal.iter_mut() {
+                                o.enabled = true;
+                                let Some(mut mode) = o.modes.get(0).copied() else {
+                                    continue;
+                                };
+                                for m in &o.modes {
+                                    let Some(v) = output_lists.modes.get(*m) else {
+                                        continue;
+                                    };
+                                    if v.preferred {
+                                        mode = *m;
+                                        break;
+                                    }
+                                }
+                                o.current = Some(mode);
+                                // try to place position to the right of the leftmost enabled display, and iterate to the right
+                                // must check if position/size overlaps with any other enabled display
+
+                                for p in enabled_positions.iter() {
+                                    let position = (p.0.0 + p.1.0 as i32, p.0.1);
+                                    let Some(v) = output_lists.modes.get(mode) else {
+                                        continue;
+                                    };
+                                    let size = v.size;
+                                    let overlaps = enabled_positions.iter().any(|p2| {
+                                        !(position.0 >= p2.0.0 + p2.1.0 as i32
+                                            || position.0 + size.0 as i32 <= p2.0.0
+                                            || position.1 >= p2.0.1 + p2.1.1 as i32
+                                            || position.1 + size.1 as i32 <= p2.0.1)
+                                    });
+
+                                    if !overlaps {
+                                        o.position = position;
+                                        enabled_positions.push((position, size));
+                                        enabled_positions.sort_by_key(|p| p.0.0);
+                                        break;
+                                    }
+                                }
+                            }
                         }
 
                         let mut task = tokio::process::Command::new("cosmic-randr");
-                        let mut p = if internal.enabled {
-                            task.arg("enable").arg(&internal.name);
-                            let Ok(p) = task.spawn() else {
-                                return Msg::Display(None);
-                            };
-                            p
-                        } else {
-                            task.arg("kdl");
+                        task.arg("kdl");
 
-                            task.stdin(Stdio::piped());
-                            let Ok(mut p) = task.spawn() else {
-                                return Msg::Display(None);
-                            };
-
-                            let kdl_doc = kdl::KdlDocument::from(output_lists).to_string();
-                            use tokio::io::AsyncWriteExt;
-
-                            if let Some(mut stdin) = p.stdin.take() {
-                                if let Err(err) = stdin.write_all(kdl_doc.as_bytes()).await {
-                                    log::error!("Failed to write KDL to stdin: {err:?}");
-                                }
-                                if let Err(err) = stdin.flush().await {
-                                    log::error!("Failed to flush stdin: {err:?}");
-                                }
-                            }
-                            p
+                        task.stdin(Stdio::piped());
+                        let Ok(mut p) = task.spawn() else {
+                            return Msg::Display(None);
                         };
+
+                        let kdl_doc = kdl::KdlDocument::from(output_lists).to_string();
+                        use tokio::io::AsyncWriteExt;
+
+                        if let Some(mut stdin) = p.stdin.take() {
+                            if let Err(err) = stdin.write_all(kdl_doc.as_bytes()).await {
+                                log::error!("Failed to write KDL to stdin: {err:?}");
+                            }
+                            if let Err(err) = stdin.flush().await {
+                                log::error!("Failed to flush stdin: {err:?}");
+                            }
+                        }
 
                         log::debug!("executing {task:?}");
                         let status = p.wait().await;
                         if let Err(err) = status {
                             log::error!("Randr error: {err:?}");
                         };
+
                         Msg::Display(enabled)
                     });
                 }
