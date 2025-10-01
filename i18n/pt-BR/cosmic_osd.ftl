@@ -5,35 +5,37 @@ authenticate = Autenticar
 log-out = Sair
 suspend = Suspender
 restart = Reiniciar
-enter-bios = Entrar na BIOS
+enter-bios = Entrar no BIOS
 shutdown = Desligar
 confirm = Confirmar
-confirm-button = {
-    $action -> 
-        [restart] { restart }
-        [suspend] { suspend}
-        [shutdown] Desligar
-        [log-out] { log-out }
-        [enter-bios] {enter-bios}
-        *[other] { confirm}
-}
-confirm-title = 
-    { $action -> 
+confirm-button =
+    { $action ->
         [restart] { restart }
         [suspend] { suspend }
-        [shutdown] { shutdown }
-        [enter-bios] {enter-bios}
-        [log-out] Fechar todos os aplicativos e sair
-        *[other] Aplicar a ação selecionada
-    } agora?
-confirm-body = 
+        [shutdown] Desligar
+        [log-out] { log-out }
+        [enter-bios] { enter-bios }
+       *[other] { confirm }
+    }
+confirm-title =
+    { $action ->
+        [restart] { restart } ahora?
+        [suspend] { suspend } ahora?
+        [shutdown] { shutdown } agora?
+        [enter-bios] { enter-bios } ahora?
+        [log-out] Fechar todos os aplicativos e sair agora?
+        [confirm-device-type] Confirmar tipo de dispositivo
+       *[other] Aplicar a ação selecionada agora?
+    }
+confirm-body =
     O sistema irá { $action ->
         [restart] reiniciar
         [suspend] suspender
         [shutdown] desligar
         [lock-screen] bloquear a tela
         [log-out] sair
-        [enter-bios] reiniciar e entrar na BIOS
-        *[other] aplicar a ação selecionada
+        [enter-bios] reiniciar e entrar no BIOS
+       *[other] aplicar a ação selecionada
     } automaticamente em { $countdown } segundos.
-
+sound-settings = Configurações de som
+headphones = Fones de ouvido
