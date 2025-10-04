@@ -6,29 +6,37 @@ log-out = Выход из системы
 restart = Перезагрузка
 shutdown = Выключение
 confirm = Подтвердить
-confirm-button = {
-    $action -> 
-        [restart] Перезагрузить
+confirm-button =
+    { $action ->
+        [restart] { restart }
         [suspend] { suspend }
         [shutdown] Выключить
-        [log-out] Выйти
-        *[other] { confirm }
-}
-confirm-title = 
-    { $action -> 
-        [restart] Перезагрузить
+        [log-out] { log-out }
+        [enter-bios] { enter-bios }
+       *[other] { confirm }
+    }
+confirm-title =
+    { $action ->
+        [restart] Перезагрузить компьютер
         [suspend] Перейти в спящий режим
-        [shutdown] Выключить
+        [shutdown] Выключить компьютер
+        [enter-bios] Перейти в BIOS
         [log-out] Закрыть все приложения и выйти
-        *[other] Выполнить выбранное действие
+        [confirm-device-type] Подтвердить тип устройства
+       *[other] Выполнить выбранное действие
     } сейчас?
-confirm-body = 
+confirm-body =
     Система { $action ->
         [restart] будет перезагружена
         [suspend] перейдёт в спящий режим
         [shutdown] будет выключена
         [lock-screen] заблокирует экран
         [log-out] выполнит выход
-        *[other] выполнит выбранное действие
+        [enter-bios] перезагрузится в BIOS
+       *[other] выполнит выбранное действие
     } автоматически через { $countdown } сек.
-
+suspend = Спящий режим
+enter-bios = Перейти в BIOS
+sound-settings = Параметры звука
+headphones = Наушники
+headset = Гарнитура
