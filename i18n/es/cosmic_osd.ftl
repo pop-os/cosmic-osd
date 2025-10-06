@@ -37,3 +37,4 @@ confirm-body =
         [enter-bios] Reiniciar y entrar en la BIOS
        *[other] La acción seleccionada se realizará
     } automáticamente en { $countdown } segundos.
+sound-settings = Ajustes de sonido
