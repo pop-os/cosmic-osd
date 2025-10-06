@@ -18,3 +18,5 @@ confirm-button =
         [enter-bios] { enter-bios }
        *[other] { confirm }
     }
+enter-bios = Vaata BIOS-i
+sound-settings = Heli seadistused
