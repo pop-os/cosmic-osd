@@ -1,0 +1,13 @@
+invalid-password = Ógilt lykilorð. Reyndu aftur.
+authentication-required = Auðkenningar krafist
+cancel = Hætta við
+authenticate = Auðkenna
+log-out = Skrá út
+suspend = Svæfa
+restart = Endurræsa
+enter-bios = Opna BIOS
+sound-settings = Hljóðstillingar
+shutdown = Slökkva
+headphones = Heyrnartól
+headset = Höfuðtól
+confirm = Staðfesta
