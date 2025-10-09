@@ -3,9 +3,13 @@ authentication-required = Autenticazione necessaria
 cancel = Annulla
 authenticate = Autentica
 log-out = Disconnetti
+suspend = Sospendi
 restart = Riavvia
 enter-bios = Riavvia nel BIOS
+sound-settings = Impostazioni audio
 shutdown = Spegni
+headphones = Cuffie
+headset = Auricolari con microfono
 confirm = Conferma
 confirm-button = {
     $action -> 
@@ -35,4 +39,3 @@ confirm-body =
         [enter-bios] verrà riavviato nel BIOS
         *[other] applicherà l'azione selezionata
     } automaticamente in { $countdown } secondi.
-
