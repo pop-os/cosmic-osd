@@ -11,3 +11,13 @@ shutdown = Slökkva
 headphones = Heyrnartól
 headset = Höfuðtól
 confirm = Staðfesta
+confirm-body =
+    Tölvan mun nú { $action ->
+        [restart] endurræsast
+        [suspend] sofna
+        [shutdown] slökkva á sér
+        [lock-screen] læsa skjánum
+        [log-out] skrá út
+        [enter-bios] endurræsast og fara í BIOS
+       *[other] virkja völdu aðgerðina
+    } slökkva á sér sjálfkrafa eftir { $countdown }.
