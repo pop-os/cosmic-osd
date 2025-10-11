@@ -1,17 +1,17 @@
-invalid-password = كَلِمَةُ المُرُورِ غَيرُ صَحِيحَة. مِن فَضلِكَ حَاوِل مَرَّةً أُخرَى.
-authentication-required = الاسْتِيثَاقُ مُتَطَلَّب
-cancel = ألغِ
-authenticate = اِستَوثِق
-log-out = اِخرُج
-suspend = عَلِّق
-restart = أعِدِ التَّشغِيل
+invalid-password = كلمة سر غير صالحة. يرجى المحاولة مرة أخرى.
+authentication-required = المصادقة مطلوبة
+cancel = إلغاء
+authenticate = مصادقة
+log-out = تسجيل الخروج
+suspend = تعليق
+restart = إعادة التشغيل
 # FIX: Find better translation (https://github.com/pop-os/cosmic-osd/issues/101).
-enter-bios = اِنتَقِل إلَى البايوس
-sound-settings = إعدَادَاتُ الصَّوت
-shutdown = أوقِفِ التَّشغيل
-headphones = سَمَّاعَاتُ رَأس
-headset = سَمَّاعَاتُ رَأسٍ بِلَاقِط
-confirm = أكِّد
+enter-bios = ادخل إلي البايوس
+sound-settings = إعدادات الصوت
+shutdown = إيقاف التشغيل
+headphones = سماعات الرأس
+headset = سماعة رأس
+confirm = تأكيد
 confirm-button =
     { $action ->
         [restart] { restart }
