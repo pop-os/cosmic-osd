@@ -1,6 +1,6 @@
 invalid-password = Invalid password. Please try again.
 authentication-required = Authenticatie vereist
-cancel = Annuleren
+cancel = Annuleer
 authenticate = Authenticeren
 log-out = Afmelden
 suspend = Slaapstand
