@@ -73,7 +73,16 @@ impl Params {
 
     fn value(&self) -> Option<u32> {
         match self {
-            Self::DisplayBrightness(value) => Some((*value * 100.) as u32),
+            Self::DisplayBrightness(value) => {
+                // Round to nearest percent, and ensure non-zero values never display as 0%.
+                // Prevents OSD from showing "0%" when brightness is clamped > 0 by the daemon.
+                let pct = (*value * 100.).round();
+                Some(if pct == 0.0 && *value > 0.0 {
+                    1
+                } else {
+                    pct as u32
+                })
+            }
             Self::KeyboardBrightness(value) => Some((*value * 100.) as u32),
             Self::SinkVolume(_, true) => Some(0),
             Self::SourceVolume(_, true) => Some(0),
