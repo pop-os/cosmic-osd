@@ -519,9 +519,19 @@ impl cosmic::Application for App {
                     Task::none()
                 } else if self.display_brightness != Some(brightness) {
                     self.display_brightness = Some(brightness);
-                    self.create_indicator(osd_indicator::Params::DisplayBrightness(
-                        brightness as f64 / self.max_display_brightness.unwrap_or(100) as f64,
-                    ))
+                    if let Some(max) = self.max_display_brightness {
+                        // Use real max; show ≥1% for any non-zero brightness.
+                        let mut ratio = brightness as f64 / max as f64;
+                        if brightness > 0 && ratio < 0.01 {
+                            ratio = 0.01;
+                        }
+                        self.create_indicator(osd_indicator::Params::DisplayBrightness(ratio))
+                    } else {
+                        // Max unknown yet: still show a meaningful OSD.
+                        // If brightness > 0, display 1%; if 0, display 0%.
+                        let ratio = if brightness > 0 { 0.01 } else { 0.0 };
+                        self.create_indicator(osd_indicator::Params::DisplayBrightness(ratio))
+                    }
                 } else {
                     Task::none()
                 }
