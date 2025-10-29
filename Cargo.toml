@@ -52,7 +52,6 @@ cosmic-randr-shell = { git = "https://github.com/pop-os/cosmic-randr", default-f
 #iced_futures = { path = "../../pop/libcosmic/iced/futures" }
 
 [profile.release]
-codegen-units = 1
 lto = "thin"
-opt-level = "z"
+opt-level = 3
 panic = "abort"
