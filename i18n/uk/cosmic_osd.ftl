@@ -1,8 +1,8 @@
 invalid-password = Неправильний пароль. Будь ласка, повторіть спробу.
 authentication-required = Потрібна автентифікація
 cancel = Скасувати
-authenticate = Автентифікація
-enter-bios = Увійти у налаштування BIOS
+authenticate = Автентифікувати
+enter-bios = Увійти в BIOS
 sound-settings = Налаштування звуку
 shutdown = Вимкнути
 headphones = Навушники
@@ -26,8 +26,8 @@ confirm-title =
         [suspend] { suspend } зараз?
         [shutdown] { shutdown } зараз?
         [enter-bios] { enter-bios } зараз?
-        [log-out] Вийти з усіх застосунків та завершити сеанс зараз?
-        [confirm-device-type] Підтвердіть тип пристрою
+        [log-out] Закрити всі застосунки та вийти зараз?
+        [confirm-device-type] Підтвердити тип пристрою
        *[other] Виконати обрану дію зараз?
     }
 confirm-body =
@@ -37,10 +37,6 @@ confirm-body =
         [shutdown] вимкнеться
         [lock-screen] заблокує екран
         [log-out] завершить сеанс
-        [enter-bios] перезавантажиться у налаштування BIOS
+        [enter-bios] перезавантажиться у BIOS
        *[other] виконає обрану дію
-    } автоматично за { $countdown } { $countdown ->
-        [one] секунду
-        [few] секунди
-       *[other] секунд
-    }.
+    } автоматично через { $countdown } секунд.

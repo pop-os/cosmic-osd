@@ -1,4 +1,4 @@
-invalid-password = Neplatné heslo. Zkuste to znovu.
+invalid-password = Neplatné heslo. Zkuste to prosím znovu.
 authentication-required = Vyžadováno ověření
 cancel = Zrušit
 authenticate = Ověřit
@@ -39,9 +39,9 @@ confirm-body =
         [log-out] odhlásí uživatele
         [enter-bios] vstoupí do BIOSu
        *[other] vykoná vybranou akci
-    } automaticky za { $countdown ->
-        [one] { $countdown } sekundu.
-        [few] { $countdown } sekundy.
-        [many] { $countdown } sekund.
-       *[other] { $countdown } sekund.
+    } automaticky za { $countdown } { $countdown ->
+        [one] sekundu.
+        [few] sekundy.
+        [many] sekund.
+       *[other] sekund.
     }
