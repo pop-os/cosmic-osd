@@ -24,7 +24,8 @@ pub static OSD_INDICATOR_ID: LazyLock<widget::Id> =
 
 #[derive(Debug)]
 pub enum Params {
-    DisplayBrightness(f64),
+    DisplayBrightness(f64),        // Rung ratio k/20.0 (hotkeys)
+    DisplayBrightnessExact(f64),   // Exact raw ratio raw/max (slider/arbitrary)
     DisplayToggle(DisplayMode),
     KeyboardBrightness(f64),
     SinkVolume(u32, bool),
@@ -36,7 +37,7 @@ pub enum Params {
 impl Params {
     fn icon_name(&self) -> &'static str {
         match self {
-            Self::DisplayBrightness(_) => "display-brightness-symbolic",
+            Self::DisplayBrightness(_) | Self::DisplayBrightnessExact(_) => "display-brightness-symbolic",
             Self::DisplayToggle(DisplayMode::All) => "laptop-symbolic",
             Self::DisplayToggle(DisplayMode::External) => "display-symbolic",
             Self::KeyboardBrightness(_) => "keyboard-brightness-symbolic",
@@ -74,14 +75,22 @@ impl Params {
     fn value(&self) -> Option<u32> {
         match self {
             Self::DisplayBrightness(value) => {
-                // Round to nearest percent, and ensure non-zero values never display as 0%.
-                // Prevents OSD from showing "0%" when brightness is clamped > 0 by the daemon.
-                let pct = (*value * 100.).round();
-                Some(if pct == 0.0 && *value > 0.0 {
-                    1
+                let mut rung = (*value * 20.0).round() as u32;
+                if rung > 20 { rung = 20; }
+                if rung == 0 && *value > 0.0 {
+                    Some(1) // 1% at the floor
                 } else {
-                    pct as u32
-                })
+                    Some(5 * rung)
+                }
+            }
+
+            // SLIDER / EXACT: show precise percent from exact ratio, with 1% floor.
+            Self::DisplayBrightnessExact(value) => {
+                // round(100 * ratio)
+                let mut p = (*value * 100.0).round() as i32;
+                if p <= 0 && *value >= 0.0 { p = 1; } // never show 0%
+                if p > 100 { p = 100; }
+                Some(p as u32)
             }
             Self::KeyboardBrightness(value) => Some((*value * 100.) as u32),
             Self::SinkVolume(_, true) => Some(0),
