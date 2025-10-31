@@ -520,17 +520,27 @@ impl cosmic::Application for App {
                 } else if self.display_brightness != Some(brightness) {
                     self.display_brightness = Some(brightness);
                     if let Some(max) = self.max_display_brightness {
-                        // Use real max; show ≥1% for any non-zero brightness.
-                        let mut ratio = brightness as f64 / max as f64;
-                        if brightness > 0 && ratio < 0.01 {
-                            ratio = 0.01;
+                        let raw = brightness; // current raw brightness from daemon
+                        // k = round(20 * raw / max)  (use u64 to avoid overflow)
+                        let mut k = ((raw as u64) * 20 + (max as u64) / 2) / (max as u64);
+                        if k > 20 { k = 20; }
+                        // The 5% rung's raw setpoint: round(max * k / 20)
+                        let rung_raw = ((k * (max as u64)) + 10) / 20;
+                        // Heuristic: if the current raw equals the rung's raw setpoint,
+                        // treat it as a HOTKEY step (rung). Otherwise it's a SLIDER (exact).
+                        let on_rung = (raw as u64) == rung_raw;
+                        if on_rung {
+                            // HOTKEY: send rung ratio (with 1% visual floor sentinel)
+                            let ratio = if k == 0 { 0.01 } else { (k as f64) / 20.0 };
+                            self.create_indicator(osd_indicator::Params::DisplayBrightness(ratio))
+                        } else {
+                            // SLIDER: send exact ratio for precise OSD display
+                            let exact_ratio = (raw as f64) / (max as f64);
+                            self.create_indicator(osd_indicator::Params::DisplayBrightnessExact(exact_ratio))
                         }
-                        self.create_indicator(osd_indicator::Params::DisplayBrightness(ratio))
                     } else {
-                        // Max unknown yet: still show a meaningful OSD.
-                        // If brightness > 0, display 1%; if 0, display 0%.
-                        let ratio = if brightness > 0 { 0.01 } else { 0.0 };
-                        self.create_indicator(osd_indicator::Params::DisplayBrightness(ratio))
+                        // Fallback if max is unknown: keep a consistent floor (1%)
+                        self.create_indicator(osd_indicator::Params::DisplayBrightnessExact(0.01))
                     }
                 } else {
                     Task::none()
