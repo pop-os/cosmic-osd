@@ -5,7 +5,9 @@ use crate::{components::app::DisplayMode, config};
 use cosmic::{
     Apply, Element, Task,
     iced::{self, Alignment, Border, Length, window::Id as SurfaceId},
-    iced_runtime::platform_specific::wayland::layer_surface::{IcedOutput, SctkLayerSurfaceSettings},
+    iced_runtime::platform_specific::wayland::layer_surface::{
+        IcedOutput, SctkLayerSurfaceSettings,
+    },
     iced_winit::commands::{
         layer_surface::{
             Anchor, KeyboardInteractivity, Layer, destroy_layer_surface, get_layer_surface,
@@ -41,7 +43,9 @@ impl Params {
             Self::DisplayBrightness(_) | Self::DisplayBrightnessExact(_) => "display-brightness-symbolic",
             Self::DisplayToggle(DisplayMode::All) => "laptop-symbolic",
             Self::DisplayToggle(DisplayMode::External) => "display-symbolic",
-            Self::DisplayNumber(_) => unreachable!("DisplayNumber uses custom rendering and should not call icon_name()"),
+            Self::DisplayNumber(_) => {
+                unreachable!("DisplayNumber uses custom rendering and should not call icon_name()")
+            }
             Self::KeyboardBrightness(_) => "keyboard-brightness-symbolic",
             Self::AirplaneMode(true) => "airplane-mode-symbolic",
             Self::AirplaneMode(false) => "airplane-mode-disabled-symbolic",
@@ -105,7 +109,6 @@ impl Params {
             Self::DisplayNumber(_) => None,
         }
     }
-
 }
 
 #[derive(Clone, Debug)]
@@ -323,7 +326,9 @@ impl State {
         // Large number display
         let number_text = widget::text::title1(format!("{}", display_number))
             .size(240)
-            .line_height(cosmic::iced::widget::text::LineHeight::Absolute(cosmic::iced::Pixels(240.0)))
+            .line_height(cosmic::iced::widget::text::LineHeight::Absolute(
+                cosmic::iced::Pixels(240.0),
+            ))
             .width(Length::Shrink)
             .align_x(Alignment::Center)
             .align_y(Alignment::Center);
@@ -339,10 +344,10 @@ impl State {
 
         let container = widget::container(content)
             .padding([
-                vertical_padding,      // top
-                horizontal_padding,    // right
-                vertical_padding,      // bottom
-                horizontal_padding,    // left
+                vertical_padding,   // top
+                horizontal_padding, // right
+                vertical_padding,   // bottom
+                horizontal_padding, // left
             ])
             .width(Length::Shrink)
             .height(Length::Shrink)
