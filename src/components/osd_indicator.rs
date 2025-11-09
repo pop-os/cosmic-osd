@@ -5,7 +5,7 @@ use crate::{components::app::DisplayMode, config};
 use cosmic::{
     Apply, Element, Task,
     iced::{self, Alignment, Border, Length, window::Id as SurfaceId},
-    iced_runtime::platform_specific::wayland::layer_surface::SctkLayerSurfaceSettings,
+    iced_runtime::platform_specific::wayland::layer_surface::{IcedOutput, SctkLayerSurfaceSettings},
     iced_winit::commands::{
         layer_surface::{
             Anchor, KeyboardInteractivity, Layer, destroy_layer_surface, get_layer_surface,
@@ -27,6 +27,7 @@ pub enum Params {
     DisplayBrightness(f64),        // Rung ratio k/20.0 (hotkeys)
     DisplayBrightnessExact(f64),   // Exact raw ratio raw/max (slider/arbitrary)
     DisplayToggle(DisplayMode),
+    DisplayNumber(u32),
     KeyboardBrightness(f64),
     SinkVolume(u32, bool),
     SourceVolume(u32, bool),
@@ -40,6 +41,7 @@ impl Params {
             Self::DisplayBrightness(_) | Self::DisplayBrightnessExact(_) => "display-brightness-symbolic",
             Self::DisplayToggle(DisplayMode::All) => "laptop-symbolic",
             Self::DisplayToggle(DisplayMode::External) => "display-symbolic",
+            Self::DisplayNumber(_) => unreachable!("DisplayNumber uses custom rendering and should not call icon_name()"),
             Self::KeyboardBrightness(_) => "keyboard-brightness-symbolic",
             Self::AirplaneMode(true) => "airplane-mode-symbolic",
             Self::AirplaneMode(false) => "airplane-mode-disabled-symbolic",
@@ -100,8 +102,10 @@ impl Params {
             Self::AirplaneMode(_) => None,
             Self::TouchpadEnabled(_) => None,
             Self::DisplayToggle(_) => None,
+            Self::DisplayNumber(_) => None,
         }
     }
+
 }
 
 #[derive(Clone, Debug)]
@@ -137,18 +141,32 @@ fn close_timer() -> (Task<Msg>, AbortHandle) {
 
 impl State {
     pub fn new(id: SurfaceId, params: Params) -> (Self, Task<Msg>) {
-        // Anchor to bottom right, with margin?
+        Self::new_with_output(id, params, IcedOutput::Active)
+    }
+
+    pub fn new_with_output(id: SurfaceId, params: Params, output: IcedOutput) -> (Self, Task<Msg>) {
         let mut cmds = vec![];
+
+        let is_display_number = matches!(params, Params::DisplayNumber(_));
+        let anchor = if is_display_number {
+            Anchor::empty() // Center for display numbers
+        } else {
+            Anchor::BOTTOM // Bottom for other OSDs
+        };
+
         cmds.push(get_layer_surface(SctkLayerSurfaceSettings {
             id,
             keyboard_interactivity: KeyboardInteractivity::None,
             namespace: "osd".into(),
             layer: Layer::Overlay,
             size: None,
-            anchor: Anchor::BOTTOM,
+            anchor,
+            output,
             ..Default::default()
         }));
+
         cmds.push(overlap_notify(id, true));
+
         let (cmd, timer_abort) = close_timer();
         cmds.push(cmd);
 
@@ -200,6 +218,11 @@ impl State {
     }
 
     pub fn view(&self) -> Element<'_, Msg> {
+        // Display numbers use a completely different rendering
+        if let Params::DisplayNumber(display_number) = self.params {
+            return self.view_display_number(display_number);
+        }
+
         let icon = widget::icon::from_name(self.params.icon_name());
 
         // Use large radius on value-OSD to enforce pill-shape with "Round" system style
@@ -291,6 +314,59 @@ impl State {
         .min_width(1.)
         .min_height(1.)
         .into()
+    }
+
+    fn view_display_number(&self, display_number: u32) -> Element<'_, Msg> {
+        let theme = cosmic::theme::active();
+        let cosmic_theme = theme.cosmic();
+
+        // Large number display
+        let number_text = widget::text::title1(format!("{}", display_number))
+            .size(240)
+            .line_height(cosmic::iced::widget::text::LineHeight::Absolute(cosmic::iced::Pixels(240.0)))
+            .width(Length::Shrink)
+            .align_x(Alignment::Center)
+            .align_y(Alignment::Center);
+
+        let content = widget::container(number_text)
+            .width(Length::Shrink)
+            .height(Length::Shrink)
+            .align_x(Alignment::Center)
+            .align_y(Alignment::Center);
+
+        let vertical_padding = cosmic_theme.space_xxl() + cosmic_theme.space_l();
+        let horizontal_padding = (80.0 + 1.5 * vertical_padding as f32) as u16;
+
+        let container = widget::container(content)
+            .padding([
+                vertical_padding,      // top
+                horizontal_padding,    // right
+                vertical_padding,      // bottom
+                horizontal_padding,    // left
+            ])
+            .width(Length::Shrink)
+            .height(Length::Shrink)
+            .align_x(Alignment::Center)
+            .align_y(Alignment::Center)
+            .class(cosmic::theme::Container::custom(move |theme| {
+                widget::container::Style {
+                    text_color: Some(theme.cosmic().on_bg_color().into()),
+                    background: Some(iced::Color::from(theme.cosmic().bg_color()).into()),
+                    border: Border {
+                        radius: theme.cosmic().radius_xl().into(),
+                        width: 2.0,
+                        color: theme.cosmic().accent_color().into(),
+                    },
+                    shadow: Default::default(),
+                    icon_color: Some(theme.cosmic().on_bg_color().into()),
+                }
+            }));
+
+        let autosize_id = iced::id::Id::new(format!("display-number-{}", display_number));
+        widget::autosize::autosize(container, autosize_id)
+            .min_width(1.)
+            .min_height(1.)
+            .into()
     }
 
     pub fn update(self, msg: Msg) -> (Option<Self>, Task<Msg>) {
