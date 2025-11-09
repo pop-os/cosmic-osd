@@ -16,14 +16,16 @@ use cosmic::{
         alignment::Horizontal,
         event::{
             self, listen_with,
-            wayland::{self, LayerEvent, OverlapNotifyEvent, OutputEvent},
+            wayland::{self, LayerEvent, OutputEvent, OverlapNotifyEvent},
         },
         keyboard::{Key, key::Named},
         platform_specific::shell::commands::activation::request_token,
         time,
         window::Id as SurfaceId,
     },
-    iced_runtime::platform_specific::wayland::layer_surface::{IcedOutput, SctkLayerSurfaceSettings},
+    iced_runtime::platform_specific::wayland::layer_surface::{
+        IcedOutput, SctkLayerSurfaceSettings,
+    },
     iced_winit::commands::layer_surface::{
         Anchor, KeyboardInteractivity, destroy_layer_surface, get_layer_surface,
     },
@@ -69,8 +71,8 @@ pub struct Args {
 pub enum OsdTask {
     #[clap(about = "Display external display toggle indicator")]
     Display,
-    #[clap(about = "Show numbers on all displays for identification", name = "identify-displays")]
-    DisplayIdentifier,
+    #[clap(about = "Show numbers on all displays for identification")]
+    IdentifyDisplays,
     #[clap(about = "Toggle the on screen display and start the log out timer")]
     LogOut,
     #[clap(about = "Toggle the on screen display and start the restart timer")]
@@ -119,7 +121,7 @@ impl OsdTask {
             .map(msg),
             OsdTask::Touchpad => Task::none(),
             OsdTask::Display => Task::none(),
-            OsdTask::DisplayIdentifier => Task::none(),
+            OsdTask::IdentifyDisplays => Task::none(),
         }
     }
 }
@@ -516,7 +518,9 @@ impl cosmic::Application for App {
                     if let Some(state) = state {
                         self.surfaces.insert(id, Surface::OsdIndicator(state));
                     }
-                    return cmd.map(move |msg| cosmic::action::app(Msg::DisplayIdentifierSurface((id, msg))));
+                    return cmd.map(move |msg| {
+                        cosmic::action::app(Msg::DisplayIdentifierSurface((id, msg)))
+                    });
                 }
                 Task::none()
             }
@@ -767,7 +771,9 @@ impl cosmic::Application for App {
                     );
 
                     self.surfaces.insert(id, Surface::OsdIndicator(state));
-                    tasks.push(cmd.map(move |msg| cosmic::action::app(Msg::DisplayIdentifierSurface((id, msg)))));
+                    tasks.push(cmd.map(move |msg| {
+                        cosmic::action::app(Msg::DisplayIdentifierSurface((id, msg)))
+                    }));
                 }
 
                 Task::batch(tasks)
@@ -838,10 +844,16 @@ impl cosmic::Application for App {
             _ => None,
         }));
 
-        subscriptions.extend(self.surfaces.iter().filter_map(|(id, surface)| match surface {
-            Surface::PolkitDialog(state) => Some(state.subscription().with(*id).map(Msg::PolkitDialog)),
-            Surface::OsdIndicator(_) => None, // OSD indicators don't have subscriptions
-        }));
+        subscriptions.extend(
+            self.surfaces
+                .iter()
+                .filter_map(|(id, surface)| match surface {
+                    Surface::PolkitDialog(state) => {
+                        Some(state.subscription().with(*id).map(Msg::PolkitDialog))
+                    }
+                    Surface::OsdIndicator(_) => None, // OSD indicators don't have subscriptions
+                }),
+        );
         if self.action_to_confirm.is_some() {
             subscriptions.push(time::every(Duration::from_millis(1000)).map(|_| Msg::Countdown));
         }
@@ -859,9 +871,9 @@ impl cosmic::Application for App {
                 Surface::PolkitDialog(state) => {
                     state.view().map(move |msg| Msg::PolkitDialog((id, msg)))
                 }
-                Surface::OsdIndicator(state) => {
-                    state.view().map(move |msg| Msg::DisplayIdentifierSurface((id, msg)))
-                }
+                Surface::OsdIndicator(state) => state
+                    .view()
+                    .map(move |msg| Msg::DisplayIdentifierSurface((id, msg))),
             };
         } else if let Some((indicator_id, state)) = &self.indicator {
             if id == *indicator_id {
@@ -878,7 +890,7 @@ impl cosmic::Application for App {
                 OsdTask::ConfirmHeadphones { .. } => "confirm-device-type",
                 OsdTask::Touchpad => "touchpad",
                 OsdTask::Display => "external-display",
-                OsdTask::DisplayIdentifier => "display-identifier",
+                OsdTask::IdentifyDisplays => "identify-displays",
             };
 
             let title = fl!(
@@ -1182,7 +1194,7 @@ impl cosmic::Application for App {
 
                         Msg::Display(enabled)
                     });
-                } else if let OsdTask::DisplayIdentifier = cmd {
+                } else if let OsdTask::IdentifyDisplays = cmd {
                     return cosmic::task::future(async move {
                         let Ok(output_lists) = cosmic_randr_shell::list().await else {
                             log::error!("Failed to list displays with cosmic-randr");
