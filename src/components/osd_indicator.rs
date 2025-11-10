@@ -257,11 +257,11 @@ impl State {
         let osd_contents = if self.margin.1 != 0 || self.margin.3 != 0 {
             Element::from(widget::row::with_children(vec![
                 horizontal_space().width(self.margin.1 as f32).into(),
-                osd_contents.into(),
+                osd_contents,
                 horizontal_space().width(self.margin.3 as f32).into(),
             ]))
         } else {
-            osd_contents.into()
+            osd_contents
         };
         widget::autosize::autosize(
             widget::container(osd_contents)

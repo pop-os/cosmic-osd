@@ -173,15 +173,14 @@ async fn confirm_headphones(
     match status {
         Ok(s) if s.success() => {}
         Ok(s) => {
-            return Err(zbus::Error::Failure(
-                format!("pactl exited with status: {}", s).into(),
-            ));
+            return Err(zbus::Error::Failure(format!(
+                "pactl exited with status: {}",
+                s
+            )));
         }
 
         Err(e) => {
-            return Err(zbus::Error::Failure(
-                format!("Failed to run pactl: {}", e).into(),
-            ));
+            return Err(zbus::Error::Failure(format!("Failed to run pactl: {}", e)));
         }
     };
 
@@ -194,7 +193,7 @@ async fn confirm_headphones(
 
         if !output.status.success() {
             return Err(zbus::Error::Failure(
-                format!("Failed to get source name.").into(),
+                "Failed to get source name.".to_string(),
             ));
         }
 
@@ -210,7 +209,7 @@ async fn confirm_headphones(
         if status.success() {
             Ok(())
         } else {
-            Err(zbus::Error::Failure(format!("Failed to set port.").into()))
+            Err(zbus::Error::Failure("Failed to set port.".to_string()))
         }
     } else {
         Ok(())
@@ -666,18 +665,18 @@ impl cosmic::Application for App {
                     envs.push(("XDG_ACTIVATION_TOKEN".to_string(), token.clone()));
                     envs.push(("DESKTOP_STARTUP_ID".to_string(), token));
                 }
-                return Task::perform(
+                Task::perform(
                     cosmic::desktop::spawn_desktop_exec("cosmic-settings sound", envs, None, false),
                     |()| cosmic::action::app(Msg::Cancel),
-                );
+                )
             }
             Msg::SoundSettings => {
-                if let Some(id) = self.action_to_confirm.as_ref().map(|a| a.0.clone()) {
-                    return request_token(Some(String::from(Self::APP_ID)), Some(id))
-                        .map(move |token| cosmic::Action::App(Msg::ActivationToken(token)));
+                if let Some(id) = self.action_to_confirm.as_ref().map(|a| a.0) {
+                    request_token(Some(String::from(Self::APP_ID)), Some(id))
+                        .map(move |token| cosmic::Action::App(Msg::ActivationToken(token)))
                 } else {
                     log::error!("Failed ot spawn cosmic-settings.");
-                    return Task::none();
+                    Task::none()
                 }
             }
             Msg::Headphones(value) => {
@@ -703,7 +702,7 @@ impl cosmic::Application for App {
                 let (state, cmd) =
                     osd_indicator::State::new(id, osd_indicator::Params::TouchpadEnabled(enabled));
                 self.indicator = Some((id, state));
-                return cmd.map(|x| cosmic::Action::App(Msg::OsdIndicator(x)));
+                cmd.map(|x| cosmic::Action::App(Msg::OsdIndicator(x)))
             }
             Msg::Display(enabled) => {
                 let Some(enabled) = enabled else {
@@ -714,7 +713,7 @@ impl cosmic::Application for App {
                 let (state, cmd) =
                     osd_indicator::State::new(id, osd_indicator::Params::DisplayToggle(enabled));
                 self.indicator = Some((id, state));
-                return cmd.map(|x| cosmic::Action::App(Msg::OsdIndicator(x)));
+                cmd.map(|x| cosmic::Action::App(Msg::OsdIndicator(x)))
             }
         }
     }
@@ -751,14 +750,11 @@ impl cosmic::Application for App {
                 }
             }
             cosmic::iced::Event::Keyboard(iced::keyboard::Event::KeyPressed {
-                key,
+                key: Key::Named(Named::Escape),
                 text: _,
                 modifiers: _,
                 ..
-            }) => match key {
-                Key::Named(Named::Escape) => Some(Msg::Cancel),
-                _ => None,
-            },
+            }) => Some(Msg::Cancel),
             _ => None,
         }));
 
@@ -796,8 +792,8 @@ impl cosmic::Application for App {
                 OsdTask::Restart => "restart",
                 OsdTask::Shutdown => "shutdown",
                 OsdTask::ConfirmHeadphones { .. } => "confirm-device-type",
-                OsdTask::Touchpad { .. } => "touchpad",
-                OsdTask::Display { .. } => "external-display",
+                OsdTask::Touchpad => "touchpad",
+                OsdTask::Display => "external-display",
             };
 
             let title = fl!(
@@ -971,7 +967,6 @@ impl cosmic::Application for App {
                                     let _ = tx.send(enabled);
                                 } else {
                                     log::error!("Failed to load CosmicComp config for touchpad");
-                                    return;
                                 }
                             }
                         });
@@ -1035,7 +1030,7 @@ impl cosmic::Application for App {
                             enabled = Some(DisplayMode::All);
                             for o in internal.iter_mut() {
                                 o.enabled = true;
-                                let Some(mut mode) = o.modes.get(0).copied() else {
+                                let Some(mut mode) = o.modes.first().copied() else {
                                     continue;
                                 };
                                 for m in &o.modes {
