@@ -123,7 +123,6 @@ impl State {
         let mut cmds = vec![];
         cmds.push(get_layer_surface(SctkLayerSurfaceSettings {
             id,
-            pointer_interactivity: false,
             keyboard_interactivity: KeyboardInteractivity::None,
             namespace: "osd".into(),
             layer: Layer::Overlay,
@@ -195,16 +194,17 @@ impl State {
                 iced::widget::row![
                     widget::progress_bar(0.0..=100.0, value as f32)
                         .height(4)
-                        .width(Length::Fixed(178.0)),
+                        .width(Length::FillPortion(2)),
                     widget::progress_bar(100.0..=max_value, value as f32)
                         .height(4)
-                        .width(Length::Fixed(89.0)),
+                        .width(Length::FillPortion(1)),
                 ]
+                .width(Length::Fixed(266.0))
                 .apply(Element::from)
             } else {
                 widget::progress_bar(0.0..=max_value, value as f32)
                     .height(4)
-                    .width(Length::Fixed(267.0))
+                    .width(Length::Fixed(266.0))
                     .apply(Element::from)
             };
             widget::container(

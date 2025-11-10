@@ -31,9 +31,11 @@ use cosmic::{
     widget::{Column, autosize::autosize, button, container, icon, row, text},
 };
 use cosmic_comp_config::input::TouchpadOverride;
-use cosmic_settings_subscriptions::{
-    airplane_mode, pulse, settings_daemon,
-    upower::kbdbacklight::{KeyboardBacklightUpdate, kbd_backlight_subscription},
+use cosmic_settings_airplane_mode_subscription as airplane_mode;
+use cosmic_settings_daemon_subscription as settings_daemon;
+use cosmic_settings_sound_subscription::pulse;
+use cosmic_settings_upower_subscription::kbdbacklight::{
+    KeyboardBacklightUpdate, kbd_backlight_subscription,
 };
 use logind_zbus::manager::ManagerProxy;
 use serde::{Deserialize, Serialize};
@@ -744,7 +746,7 @@ impl cosmic::Application for App {
             event::Event::Window(iced::window::Event::Resized(s)) => Some(Msg::Size(s)),
             event::Event::PlatformSpecific(event::PlatformSpecific::Wayland(wayland_event)) => {
                 match wayland_event {
-                    event::wayland::Event::OverlapNotify(event) => Some(Msg::Overlap(event)),
+                    event::wayland::Event::OverlapNotify(event, _, _) => Some(Msg::Overlap(event)),
                     wayland::Event::Layer(LayerEvent::Unfocused, ..) => Some(Msg::Cancel),
                     _ => None,
                 }
