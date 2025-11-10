@@ -145,10 +145,10 @@ impl PolkitAgent {
 fn select_user_from_identities(identities: &[Identity]) -> Option<(u32, String)> {
     let mut uids = Vec::new();
     for ident in identities {
-        if ident.identity_kind == "unix-user" {
-            if let Some(zvariant::Value::U32(uid)) = ident.identity_details.get("uid") {
-                uids.push(*uid);
-            }
+        if ident.identity_kind == "unix-user"
+            && let Some(zvariant::Value::U32(uid)) = ident.identity_details.get("uid")
+        {
+            uids.push(*uid);
         }
         // `unix-group` is apparently a thing too, but Gnome Shell doesn't seem to handle it...
     }
