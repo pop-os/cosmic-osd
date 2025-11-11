@@ -520,9 +520,19 @@ impl cosmic::Application for App {
                     Task::none()
                 } else if self.display_brightness != Some(brightness) {
                     self.display_brightness = Some(brightness);
-                    self.create_indicator(osd_indicator::Params::DisplayBrightness(
-                        brightness as f64 / self.max_display_brightness.unwrap_or(100) as f64,
-                    ))
+                    if let Some(max) = self.max_display_brightness {
+                        if max <= 20 {
+                            // Coarse displays: rung_ratio=(raw+1)/20
+                            let rung_ratio = ((brightness + 1) as f64) / 20.0;
+                            self.create_indicator(osd_indicator::Params::DisplayBrightness(rung_ratio))
+                        } else {
+                            // Fine displays: exact integer percent from raw/max
+                            let ratio = (brightness as f64) / (max as f64);
+                            self.create_indicator(osd_indicator::Params::DisplayBrightnessExact(ratio))
+                        }
+                    } else {
+                        Task::none()
+                    }
                 } else {
                     Task::none()
                 }
