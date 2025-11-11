@@ -28,7 +28,7 @@ confirm-title =
         [enter-bios] { enter-bios } nyní?
         [log-out] Ukončit všechny aplikace a odhlásit se nyní?
         [confirm-device-type] Potvrdit typ zařízení
-       *[other] Použít vybranou akci nyní?
+       *[other] Vykonat vybranou akci nyní?
     }
 confirm-body =
     Systém { $action ->
@@ -42,6 +42,5 @@ confirm-body =
     } automaticky za { $countdown } { $countdown ->
         [one] sekundu.
         [few] sekundy.
-        [many] sekund.
        *[other] sekund.
     }
