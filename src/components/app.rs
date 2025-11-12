@@ -51,7 +51,7 @@ use std::{
 };
 use zbus::Connection;
 
-// Type alias for Wayland output - matches what's used in SctkLayerSurfaceSettings
+// Type alias for Wayland output. Matches what's used in SctkLayerSurfaceSettings
 type WlOutput = cosmic::cctk::sctk::reexports::client::protocol::wl_output::WlOutput;
 
 const COUNTDOWN_LENGTH: u8 = 60;
