@@ -836,7 +836,7 @@ impl cosmic::Application for App {
             event::Event::Window(iced::window::Event::Resized(s)) => Some(Msg::Size(s)),
             event::Event::PlatformSpecific(event::PlatformSpecific::Wayland(wayland_event)) => {
                 match wayland_event {
-                    event::wayland::Event::OverlapNotify(event) => Some(Msg::Overlap(event)),
+                    event::wayland::Event::OverlapNotify(event, ..) => Some(Msg::Overlap(event)),
                     wayland::Event::Layer(LayerEvent::Unfocused, ..) => Some(Msg::Cancel),
                     event::wayland::Event::Output(output_event, output) => {
                         match output_event {
