@@ -196,9 +196,7 @@ impl State {
         // Display numbers don't auto-close, other OSDs do
         let timer_abort = if is_display_number {
             // Create a dummy abort handle that never triggers
-            let (future, timer_abort) = abortable(async {
-                std::future::pending::<()>().await
-            });
+            let (future, timer_abort) = abortable(async { std::future::pending::<()>().await });
             let _ = Task::perform(future, |_| Msg::Ignore);
             timer_abort
         } else {
