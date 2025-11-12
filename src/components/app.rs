@@ -73,6 +73,8 @@ pub enum OsdTask {
     Display,
     #[clap(about = "Show numbers on all displays for identification")]
     IdentifyDisplays,
+    #[clap(about = "Dismiss display identification numbers")]
+    DismissDisplayIdentifiers,
     #[clap(about = "Toggle the on screen display and start the log out timer")]
     LogOut,
     #[clap(about = "Toggle the on screen display and start the restart timer")]
@@ -122,6 +124,7 @@ impl OsdTask {
             OsdTask::Touchpad => Task::none(),
             OsdTask::Display => Task::none(),
             OsdTask::IdentifyDisplays => Task::none(),
+            OsdTask::DismissDisplayIdentifiers => Task::none(),
         }
     }
 }
@@ -279,6 +282,7 @@ pub enum Msg {
     ActivationToken(Option<String>),
     DisplayIdentifierSurface((SurfaceId, osd_indicator::Msg)),
     CreateDisplayIdentifiers(Vec<(String, u32)>),
+    DismissDisplayIdentifiers,
     OutputInfo(WlOutput, String),
 }
 
@@ -778,6 +782,31 @@ impl cosmic::Application for App {
 
                 Task::batch(tasks)
             }
+            Msg::DismissDisplayIdentifiers => {
+                let mut tasks = Vec::new();
+                let ids_to_remove: Vec<SurfaceId> = self
+                    .surfaces
+                    .iter()
+                    .filter_map(|(id, surface)| {
+                        if let Surface::OsdIndicator(state) = surface {
+                            if matches!(state.params(), osd_indicator::Params::DisplayNumber(_)) {
+                                Some(*id)
+                            } else {
+                                None
+                            }
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
+
+                for id in ids_to_remove {
+                    self.surfaces.remove(&id);
+                    tasks.push(destroy_layer_surface(id));
+                }
+
+                Task::batch(tasks)
+            }
         }
     }
 
@@ -891,6 +920,7 @@ impl cosmic::Application for App {
                 OsdTask::Touchpad => "touchpad",
                 OsdTask::Display => "external-display",
                 OsdTask::IdentifyDisplays => "identify-displays",
+                OsdTask::DismissDisplayIdentifiers => "dismiss-display-identifiers",
             };
 
             let title = fl!(
@@ -1221,6 +1251,8 @@ impl cosmic::Application for App {
                         Msg::CreateDisplayIdentifiers(displays)
                     })
                     .map(cosmic::Action::App);
+                } else if let OsdTask::DismissDisplayIdentifiers = cmd {
+                    return Task::done(cosmic::Action::App(Msg::DismissDisplayIdentifiers));
                 }
 
                 if let Some(prev) = self.action_to_confirm.take() {

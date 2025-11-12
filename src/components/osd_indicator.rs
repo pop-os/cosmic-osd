@@ -6,7 +6,7 @@ use cosmic::{
     Apply, Element, Task,
     iced::{self, Alignment, Border, Length, window::Id as SurfaceId},
     iced_runtime::platform_specific::wayland::layer_surface::{
-        IcedOutput, SctkLayerSurfaceSettings,
+        IcedMargin, IcedOutput, SctkLayerSurfaceSettings,
     },
     iced_winit::commands::{
         layer_surface::{
@@ -134,9 +134,30 @@ impl State {
 
         let is_display_number = matches!(params, Params::DisplayNumber(_));
         let anchor = if is_display_number {
-            Anchor::empty() // Center for display numbers
+            Anchor::TOP
         } else {
-            Anchor::BOTTOM // Bottom for other OSDs
+            Anchor::BOTTOM
+        };
+
+        // For display numbers, set exclusive_zone to -1 so they don't block input
+        // in transparent areas. For other OSDs, use default behavior.
+        let exclusive_zone = if is_display_number { -1 } else { 0 };
+        let margin = if is_display_number {
+            // Set top margin for display identifiers
+            IcedMargin {
+                top: 48,
+                right: 0,
+                bottom: 0,
+                left: 0,
+            }
+        } else {
+            // No margin for other OSDs (they use widget-based margins)
+            IcedMargin {
+                top: 0,
+                right: 0,
+                bottom: 0,
+                left: 0,
+            }
         };
 
         cmds.push(get_layer_surface(SctkLayerSurfaceSettings {
@@ -147,28 +168,53 @@ impl State {
             size: None,
             anchor,
             output,
+            exclusive_zone,
+            margin,
             ..Default::default()
         }));
 
         cmds.push(overlap_notify(id, true));
 
-        let (cmd, timer_abort) = close_timer();
-        cmds.push(cmd);
+        // Display numbers don't auto-close, other OSDs do
+        let timer_abort = if is_display_number {
+            // Create a dummy abort handle that never triggers
+            let (future, timer_abort) = abortable(async {
+                std::future::pending::<()>().await
+            });
+            let _ = Task::perform(future, |_| Msg::Ignore);
+            timer_abort
+        } else {
+            let (cmd, timer_abort) = close_timer();
+            cmds.push(cmd);
+            timer_abort
+        };
 
         let amplification_sink = config::amplification_sink();
         let amplification_source = config::amplification_source();
+
+        // Margin: (top, right, bottom, left)
+        // Display numbers at top, other OSDs at bottom
+        let margin = if is_display_number {
+            (48, 0, 0, 0) // Top margin for display numbers
+        } else {
+            (0, 0, 48, 0) // Bottom margin for other OSDs
+        };
 
         (
             Self {
                 id,
                 params,
                 timer_abort,
-                margin: (0, 0, 48, 0),
+                margin,
                 amplification_sink,
                 amplification_source,
             },
             Task::batch(cmds),
         )
+    }
+
+    pub fn params(&self) -> &Params {
+        &self.params
     }
 
     // Re-use OSD surface to show a different OSD
@@ -305,47 +351,41 @@ impl State {
         let theme = cosmic::theme::active();
         let cosmic_theme = theme.cosmic();
 
-        // Large number display
         let number_text = widget::text::title1(format!("{}", display_number))
-            .size(240)
+            .size(80)
             .line_height(cosmic::iced::widget::text::LineHeight::Absolute(
-                cosmic::iced::Pixels(240.0),
+                cosmic::iced::Pixels(80.0),
             ))
             .width(Length::Shrink)
             .align_x(Alignment::Center)
             .align_y(Alignment::Center);
 
         let content = widget::container(number_text)
-            .width(Length::Shrink)
-            .height(Length::Shrink)
+            .width(Length::Fill)
+            .height(Length::Fill)
             .align_x(Alignment::Center)
             .align_y(Alignment::Center);
 
-        let vertical_padding = cosmic_theme.space_xxl() + cosmic_theme.space_l();
-        let horizontal_padding = (80.0 + 1.5 * vertical_padding as f32) as u16;
+        let padding = cosmic_theme.space_l();
+        let square_size = 80.0 + (padding * 2) as f32;
 
         let container = widget::container(content)
-            .padding([
-                vertical_padding,   // top
-                horizontal_padding, // right
-                vertical_padding,   // bottom
-                horizontal_padding, // left
-            ])
-            .width(Length::Shrink)
-            .height(Length::Shrink)
+            .padding(padding)
+            .width(Length::Fixed(square_size))
+            .height(Length::Fixed(square_size))
             .align_x(Alignment::Center)
             .align_y(Alignment::Center)
             .class(cosmic::theme::Container::custom(move |theme| {
                 widget::container::Style {
-                    text_color: Some(theme.cosmic().on_bg_color().into()),
-                    background: Some(iced::Color::from(theme.cosmic().bg_color()).into()),
+                    text_color: Some(iced::Color::from(theme.cosmic().on_accent_color()).into()),
+                    background: Some(iced::Color::from(theme.cosmic().accent_color()).into()),
                     border: Border {
-                        radius: theme.cosmic().radius_xl().into(),
-                        width: 2.0,
-                        color: theme.cosmic().accent_color().into(),
+                        radius: theme.cosmic().radius_m().into(),
+                        width: 0.0,
+                        color: iced::Color::TRANSPARENT,
                     },
                     shadow: Default::default(),
-                    icon_color: Some(theme.cosmic().on_bg_color().into()),
+                    icon_color: Some(iced::Color::from(theme.cosmic().on_accent_color()).into()),
                 }
             }));
 
