@@ -132,11 +132,26 @@ fn close_timer() -> (Task<Msg>, AbortHandle) {
         let duration = Duration::from_secs(3);
         tokio::time::sleep(duration).await;
     });
-    let command = Task::perform(future, |res| {
-        if res == Err(Aborted) {
-            Msg::Ignore
-        } else {
-            Msg::Close
+    let command = cosmic::task::future(async move {
+        match future.await {
+            Ok(_) => Msg::Close,
+            Err(Aborted) => Msg::Ignore,
+        }
+    });
+    (command, timer_abort)
+}
+
+/// Creates a 1-second timer for display identifiers
+/// When the timer expires, it sends Msg::Close to remove the display identifier
+fn display_identifier_timer() -> (Task<Msg>, AbortHandle) {
+    let (future, timer_abort) = abortable(async {
+        let duration = Duration::from_secs(1);
+        tokio::time::sleep(duration).await;
+    });
+    let command = cosmic::task::future(async move {
+        match future.await {
+            Ok(_) => Msg::Close,
+            Err(Aborted) => Msg::Ignore,
         }
     });
     (command, timer_abort)
@@ -193,11 +208,10 @@ impl State {
 
         cmds.push(overlap_notify(id, true));
 
-        // Display numbers don't auto-close, other OSDs do
+        // Display numbers auto-close after 1 second, other OSDs after 3 seconds
         let timer_abort = if is_display_number {
-            // Create a dummy abort handle that never triggers
-            let (future, timer_abort) = abortable(async { std::future::pending::<()>().await });
-            let _ = Task::perform(future, |_| Msg::Ignore);
+            let (cmd, timer_abort) = display_identifier_timer();
+            cmds.push(cmd);
             timer_abort
         } else {
             let (cmd, timer_abort) = close_timer();
@@ -240,6 +254,19 @@ impl State {
         // Reset timer
         self.timer_abort.abort();
         let (cmd, timer_abort) = close_timer();
+        self.timer_abort = timer_abort;
+        cmd
+    }
+
+    // Reset the timer for display identifiers
+    // This is called when a new identify message is received to keep them visible
+    pub fn reset_display_identifier_timer(&mut self) -> Task<Msg> {
+        if !matches!(self.params, Params::DisplayNumber(_)) {
+            return Task::none();
+        }
+
+        self.timer_abort.abort();
+        let (cmd, timer_abort) = display_identifier_timer();
         self.timer_abort = timer_abort;
         cmd
     }

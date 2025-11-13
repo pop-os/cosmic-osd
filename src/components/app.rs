@@ -281,6 +281,7 @@ pub enum Msg {
     TouchpadEnabled(Option<TouchpadOverride>),
     ActivationToken(Option<String>),
     DisplayIdentifierSurface((SurfaceId, osd_indicator::Msg)),
+    ResetDisplayIdentifierTimer(SurfaceId),
     CreateDisplayIdentifiers(Vec<(String, u32)>),
     DismissDisplayIdentifiers,
     OutputInfo(WlOutput, String),
@@ -766,31 +767,75 @@ impl cosmic::Application for App {
                     return Task::none();
                 }
 
-                // Create display number indicators for each display
+                // Build a map of display name to number from the requested displays
+                let requested_displays: std::collections::HashMap<String, u32> =
+                    displays.iter().cloned().collect();
+
+                let mut existing_identifiers: std::collections::HashMap<u32, SurfaceId> =
+                    std::collections::HashMap::new();
+
+                // Find existing display identifiers and collect ones to remove
+                let mut ids_to_remove = Vec::new();
+                for (id, surface) in &self.surfaces {
+                    if let Surface::OsdIndicator(state) = surface {
+                        if let osd_indicator::Params::DisplayNumber(num) = state.params() {
+                            // Check if this display number is still in the requested list
+                            if requested_displays.values().any(|&n| n == *num) {
+                                existing_identifiers.insert(*num, *id);
+                            } else {
+                                ids_to_remove.push(*id);
+                            }
+                        }
+                    }
+                }
+
+                // Remove display identifiers that are no longer needed
                 let mut tasks = Vec::new();
+                for id in ids_to_remove {
+                    self.surfaces.remove(&id);
+                    tasks.push(destroy_layer_surface(id));
+                }
+
+                // Process each requested display
                 for (display_name, display_number) in displays {
-                    let id = SurfaceId::unique();
+                    if let Some(&existing_id) = existing_identifiers.get(&display_number) {
+                        // Display identifier already exists, reset its timer
+                        tasks.push(Task::done(cosmic::Action::App(
+                            Msg::ResetDisplayIdentifierTimer(existing_id),
+                        )));
+                    } else {
+                        // Create new display identifier
+                        let id = SurfaceId::unique();
 
-                    // Find the matching wayland output for this display
-                    let iced_output = self
-                        .wayland_outputs
-                        .get(&display_name)
-                        .map(|(output, _)| IcedOutput::Output(output.clone()))
-                        .unwrap_or(IcedOutput::Active);
+                        // Find the matching wayland output for this display
+                        let iced_output = self
+                            .wayland_outputs
+                            .get(&display_name)
+                            .map(|(output, _)| IcedOutput::Output(output.clone()))
+                            .unwrap_or(IcedOutput::Active);
 
-                    let (state, cmd) = osd_indicator::State::new_with_output(
-                        id,
-                        osd_indicator::Params::DisplayNumber(display_number),
-                        iced_output,
-                    );
+                        let (state, cmd) = osd_indicator::State::new_with_output(
+                            id,
+                            osd_indicator::Params::DisplayNumber(display_number),
+                            iced_output,
+                        );
 
-                    self.surfaces.insert(id, Surface::OsdIndicator(state));
-                    tasks.push(cmd.map(move |msg| {
-                        cosmic::action::app(Msg::DisplayIdentifierSurface((id, msg)))
-                    }));
+                        self.surfaces.insert(id, Surface::OsdIndicator(state));
+                        tasks.push(cmd.map(move |msg| {
+                            cosmic::action::app(Msg::DisplayIdentifierSurface((id, msg)))
+                        }));
+                    }
                 }
 
                 Task::batch(tasks)
+            }
+            Msg::ResetDisplayIdentifierTimer(id) => {
+                if let Some(Surface::OsdIndicator(state)) = self.surfaces.get_mut(&id) {
+                    return state.reset_display_identifier_timer().map(move |msg| {
+                        cosmic::action::app(Msg::DisplayIdentifierSurface((id, msg)))
+                    });
+                }
+                Task::none()
             }
             Msg::DismissDisplayIdentifiers => {
                 let mut tasks = Vec::new();
