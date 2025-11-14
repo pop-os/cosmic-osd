@@ -5,7 +5,9 @@ use crate::{components::app::DisplayMode, config};
 use cosmic::{
     Apply, Element, Task,
     iced::{self, Alignment, Border, Length, window::Id as SurfaceId},
-    iced_runtime::platform_specific::wayland::layer_surface::SctkLayerSurfaceSettings,
+    iced_runtime::platform_specific::wayland::layer_surface::{
+        IcedMargin, IcedOutput, SctkLayerSurfaceSettings,
+    },
     iced_winit::commands::{
         layer_surface::{
             Anchor, KeyboardInteractivity, Layer, destroy_layer_surface, get_layer_surface,
@@ -26,6 +28,7 @@ pub static OSD_INDICATOR_ID: LazyLock<widget::Id> =
 pub enum Params {
     DisplayBrightness(f64),
     DisplayToggle(DisplayMode),
+    DisplayNumber(u32),
     KeyboardBrightness(f64),
     SinkVolume(u32, bool),
     SourceVolume(u32, bool),
@@ -39,6 +42,9 @@ impl Params {
             Self::DisplayBrightness(_) => "display-brightness-symbolic",
             Self::DisplayToggle(DisplayMode::All) => "laptop-symbolic",
             Self::DisplayToggle(DisplayMode::External) => "display-symbolic",
+            Self::DisplayNumber(_) => {
+                unreachable!("DisplayNumber uses custom rendering and should not call icon_name()")
+            }
             Self::KeyboardBrightness(_) => "keyboard-brightness-symbolic",
             Self::AirplaneMode(true) => "airplane-mode-symbolic",
             Self::AirplaneMode(false) => "airplane-mode-disabled-symbolic",
@@ -82,6 +88,7 @@ impl Params {
             Self::AirplaneMode(_) => None,
             Self::TouchpadEnabled(_) => None,
             Self::DisplayToggle(_) => None,
+            Self::DisplayNumber(_) => None,
         }
     }
 }
@@ -107,11 +114,26 @@ fn close_timer() -> (Task<Msg>, AbortHandle) {
         let duration = Duration::from_secs(3);
         tokio::time::sleep(duration).await;
     });
-    let command = Task::perform(future, |res| {
-        if res == Err(Aborted) {
-            Msg::Ignore
-        } else {
-            Msg::Close
+    let command = cosmic::task::future(async move {
+        match future.await {
+            Ok(_) => Msg::Close,
+            Err(Aborted) => Msg::Ignore,
+        }
+    });
+    (command, timer_abort)
+}
+
+/// Creates a 1-second timer for display identifiers
+/// When the timer expires, it sends Msg::Close to remove the display identifier
+fn display_identifier_timer() -> (Task<Msg>, AbortHandle) {
+    let (future, timer_abort) = abortable(async {
+        let duration = Duration::from_secs(1);
+        tokio::time::sleep(duration).await;
+    });
+    let command = cosmic::task::future(async move {
+        match future.await {
+            Ok(_) => Msg::Close,
+            Err(Aborted) => Msg::Ignore,
         }
     });
     (command, timer_abort)
@@ -119,35 +141,92 @@ fn close_timer() -> (Task<Msg>, AbortHandle) {
 
 impl State {
     pub fn new(id: SurfaceId, params: Params) -> (Self, Task<Msg>) {
-        // Anchor to bottom right, with margin?
+        Self::new_with_output(id, params, IcedOutput::Active)
+    }
+
+    pub fn new_with_output(id: SurfaceId, params: Params, output: IcedOutput) -> (Self, Task<Msg>) {
         let mut cmds = vec![];
+
+        let is_display_number = matches!(params, Params::DisplayNumber(_));
+        let anchor = if is_display_number {
+            Anchor::TOP
+        } else {
+            Anchor::BOTTOM
+        };
+
+        // For display numbers, set exclusive_zone to -1 so they don't block input
+        // in transparent areas. For other OSDs, use default behavior.
+        let exclusive_zone = if is_display_number { -1 } else { 0 };
+        let margin = if is_display_number {
+            // Set top margin for display identifiers
+            IcedMargin {
+                top: 48,
+                right: 0,
+                bottom: 0,
+                left: 0,
+            }
+        } else {
+            // No margin for other OSDs (they use widget-based margins)
+            IcedMargin {
+                top: 0,
+                right: 0,
+                bottom: 0,
+                left: 0,
+            }
+        };
+
         cmds.push(get_layer_surface(SctkLayerSurfaceSettings {
             id,
             keyboard_interactivity: KeyboardInteractivity::None,
             namespace: "osd".into(),
             layer: Layer::Overlay,
             size: None,
-            anchor: Anchor::BOTTOM,
+            anchor,
+            output,
+            exclusive_zone,
+            margin,
             ..Default::default()
         }));
+
         cmds.push(overlap_notify(id, true));
-        let (cmd, timer_abort) = close_timer();
-        cmds.push(cmd);
+
+        // Display numbers auto-close after 1 second, other OSDs after 3 seconds
+        let timer_abort = if is_display_number {
+            let (cmd, timer_abort) = display_identifier_timer();
+            cmds.push(cmd);
+            timer_abort
+        } else {
+            let (cmd, timer_abort) = close_timer();
+            cmds.push(cmd);
+            timer_abort
+        };
 
         let amplification_sink = config::amplification_sink();
         let amplification_source = config::amplification_source();
+
+        // Margin: (top, right, bottom, left)
+        // Display numbers at top, other OSDs at bottom
+        let margin = if is_display_number {
+            (48, 0, 0, 0) // Top margin for display numbers
+        } else {
+            (0, 0, 48, 0) // Bottom margin for other OSDs
+        };
 
         (
             Self {
                 id,
                 params,
                 timer_abort,
-                margin: (0, 0, 48, 0),
+                margin,
                 amplification_sink,
                 amplification_source,
             },
             Task::batch(cmds),
         )
+    }
+
+    pub fn params(&self) -> &Params {
+        &self.params
     }
 
     // Re-use OSD surface to show a different OSD
@@ -157,6 +236,19 @@ impl State {
         // Reset timer
         self.timer_abort.abort();
         let (cmd, timer_abort) = close_timer();
+        self.timer_abort = timer_abort;
+        cmd
+    }
+
+    // Reset the timer for display identifiers
+    // This is called when a new identify message is received to keep them visible
+    pub fn reset_display_identifier_timer(&mut self) -> Task<Msg> {
+        if !matches!(self.params, Params::DisplayNumber(_)) {
+            return Task::none();
+        }
+
+        self.timer_abort.abort();
+        let (cmd, timer_abort) = display_identifier_timer();
         self.timer_abort = timer_abort;
         cmd
     }
@@ -182,6 +274,11 @@ impl State {
     }
 
     pub fn view(&self) -> Element<'_, Msg> {
+        // Display numbers use a completely different rendering
+        if let Params::DisplayNumber(display_number) = self.params {
+            return self.view_display_number(display_number);
+        }
+
         let icon = widget::icon::from_name(self.params.icon_name());
 
         // Use large radius on value-OSD to enforce pill-shape with "Round" system style
@@ -273,6 +370,55 @@ impl State {
         .min_width(1.)
         .min_height(1.)
         .into()
+    }
+
+    fn view_display_number(&self, display_number: u32) -> Element<'_, Msg> {
+        let theme = cosmic::theme::active();
+        let cosmic_theme = theme.cosmic();
+
+        let number_text = widget::text::title1(format!("{}", display_number))
+            .size(56)
+            .line_height(cosmic::iced::widget::text::LineHeight::Absolute(
+                cosmic::iced::Pixels(56.0),
+            ))
+            .width(Length::Shrink)
+            .align_x(Alignment::Center)
+            .align_y(Alignment::Center);
+
+        let content = widget::container(number_text)
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .align_x(Alignment::Center)
+            .align_y(Alignment::Center);
+
+        let padding = cosmic_theme.space_l();
+        let square_size = 56.0 + (padding * 2) as f32;
+
+        let container = widget::container(content)
+            .padding(padding)
+            .width(Length::Fixed(square_size))
+            .height(Length::Fixed(square_size))
+            .align_x(Alignment::Center)
+            .align_y(Alignment::Center)
+            .class(cosmic::theme::Container::custom(move |theme| {
+                widget::container::Style {
+                    text_color: Some(iced::Color::from(theme.cosmic().on_accent_color()).into()),
+                    background: Some(iced::Color::from(theme.cosmic().accent_color()).into()),
+                    border: Border {
+                        radius: theme.cosmic().radius_m().into(),
+                        width: 0.0,
+                        color: iced::Color::TRANSPARENT,
+                    },
+                    shadow: Default::default(),
+                    icon_color: Some(iced::Color::from(theme.cosmic().on_accent_color()).into()),
+                }
+            }));
+
+        let autosize_id = iced::id::Id::new(format!("display-number-{}", display_number));
+        widget::autosize::autosize(container, autosize_id)
+            .min_width(1.)
+            .min_height(1.)
+            .into()
     }
 
     pub fn update(self, msg: Msg) -> (Option<Self>, Task<Msg>) {
