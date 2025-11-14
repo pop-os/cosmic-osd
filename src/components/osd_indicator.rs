@@ -377,9 +377,9 @@ impl State {
         let cosmic_theme = theme.cosmic();
 
         let number_text = widget::text::title1(format!("{}", display_number))
-            .size(80)
+            .size(56)
             .line_height(cosmic::iced::widget::text::LineHeight::Absolute(
-                cosmic::iced::Pixels(80.0),
+                cosmic::iced::Pixels(56.0),
             ))
             .width(Length::Shrink)
             .align_x(Alignment::Center)
@@ -392,7 +392,7 @@ impl State {
             .align_y(Alignment::Center);
 
         let padding = cosmic_theme.space_l();
-        let square_size = 80.0 + (padding * 2) as f32;
+        let square_size = 56.0 + (padding * 2) as f32;
 
         let container = widget::container(content)
             .padding(padding)
