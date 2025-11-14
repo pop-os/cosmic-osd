@@ -19,8 +19,9 @@ pub fn subscription(system_connection: zbus::Connection) -> iced::Subscription<E
         async move {
             let (sender, receiver) = mpsc::channel(32);
             tokio::spawn(async move {
-                // XXX unwrap
-                register_agent(&system_connection, sender).await.unwrap();
+                if let Err(e) = register_agent(&system_connection, sender).await {
+                    log::warn!("Failed to register PolicyKit agent: {}. This is normal if an agent is already registered.", e);
+                }
             });
             ReceiverStream::new(receiver)
         }
