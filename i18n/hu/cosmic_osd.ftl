@@ -11,26 +11,26 @@ shutdown = Leállítás
 headphones = Fejhallgató
 headset = Headset
 confirm = Megerősítés
-confirm-button = {
-    $action ->
+confirm-button =
+    { $action ->
         [restart] { restart }
         [suspend] { suspend }
         [shutdown] Leállítás
         [log-out] { log-out }
         [enter-bios] { enter-bios }
-        *[other] { confirm }
-}
-confirm-title = 
-    { $action -> 
+       *[other] { confirm }
+    }
+confirm-title =
+    { $action ->
         [restart] { restart } most?
         [suspend] { suspend } most?
         [shutdown] { shutdown } most?
-        [enter-bios] Belépsz a BIOS-ba most?
+        [enter-bios] { enter-bios } most?
         [log-out] Minden alkalmazás bezárása és kijelentkezés most?
         [confirm-device-type] Eszköztípus megerősítése
-        *[other] A kiválasztott művelet alkalmazása most?
+       *[other] A kiválasztott művelet alkalmazása most?
     }
-confirm-body = 
+confirm-body =
     A rendszer automatikusan { $action ->
         [restart] újra fog indulni
         [suspend] felfüggesztésre kerül
@@ -38,5 +38,5 @@ confirm-body =
         [lock-screen] le fogja zárni a képernyőt
         [log-out] ki fog jelentkezni
         [enter-bios] újraindul a BIOS-ba
-        *[other] alkalmazni fogja a kiválasztott műveletet
+       *[other] alkalmazni fogja a kiválasztott műveletet
     } { $countdown } másodperc múlva.
