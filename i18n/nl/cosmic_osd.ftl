@@ -1,12 +1,12 @@
-invalid-password = Invalid password. Please try again.
-authentication-required = Authenticatie vereist
+invalid-password = Ongeldig wachtwoord. Probeer het opnieuw.
+authentication-required = Verificatie vereist
 cancel = Annuleer
-authenticate = Authenticeren
+authenticate = Verifieer
 log-out = Afmelden
 suspend = Slaapstand
-restart = Opnieuw opstrarten
+restart = Herstart
 enter-bios = Ga naar BIOS
-shutdown = Afsluiten
+shutdown = Sluit af
 confirm = Bevestig
 confirm-button =
     { $action ->
@@ -36,3 +36,6 @@ confirm-body =
         [enter-bios] De computer start na { $countdown } seconden automatisch opnieuw op in de BIOS.
        *[other] De geselecteerde actie wordt na { $countdown } seconden automatisch uitgevoerd.
     }
+headphones = Koptelefoons
+headset = Koptelefoon met microfoon
+sound-settings = Geluidsinstellingen
