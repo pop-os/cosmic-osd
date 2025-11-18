@@ -373,13 +373,16 @@ impl State {
     }
 
     fn view_display_number(&self, display_number: u32) -> Element<'_, Msg> {
+        const CONTAINER_BASE_SIZE: u16 = 27;
+        const TEXT_SIZE: u16 = 45;
+
         let theme = cosmic::theme::active();
         let cosmic_theme = theme.cosmic();
 
         let number_text = widget::text::title1(format!("{}", display_number))
-            .size(56)
+            .size(TEXT_SIZE)
             .line_height(cosmic::iced::widget::text::LineHeight::Absolute(
-                cosmic::iced::Pixels(56.0),
+                cosmic::iced::Pixels(TEXT_SIZE as f32),
             ))
             .width(Length::Shrink)
             .align_x(Alignment::Center)
@@ -392,7 +395,7 @@ impl State {
             .align_y(Alignment::Center);
 
         let padding = cosmic_theme.space_l();
-        let square_size = 56.0 + (padding * 2) as f32;
+        let square_size = (CONTAINER_BASE_SIZE + (padding * 2)) as f32;
 
         let container = widget::container(content)
             .padding(padding)
