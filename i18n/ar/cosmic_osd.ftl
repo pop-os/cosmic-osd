@@ -2,13 +2,13 @@ invalid-password = كلمة سر غير صالحة. يرجى المحاولة م
 authentication-required = المصادقة مطلوبة
 cancel = إلغاء
 authenticate = مصادقة
-log-out = تسجيل الخروج
-suspend = عَلِّق
-restart = إعادة التشغيل
+log-out = سجِّل الخروج
+suspend = علِّق
+restart = أعد التشغيل
 # FIX: Find better translation (https://github.com/pop-os/cosmic-osd/issues/101).
 enter-bios = ادخل إلي البايوس
 sound-settings = إعدادات الصوت
-shutdown = إيقاف التشغيل
+shutdown = أطفئ
 headphones = سماعات الرأس
 headset = سماعة رأس
 confirm = تأكيد
