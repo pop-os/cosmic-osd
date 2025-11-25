@@ -1,23 +1,15 @@
 #!/usr/bin/make -f
 
 DESTDIR = debian/tmp
-CLEAN ?= 1
-VENDOR ?= 1
 
 %:
 	dh $@
 
 override_dh_auto_clean:
-	if test "${CLEAN}" = "1"; then \
-		just clean; \
-	fi
-
-	if ! ischroot && test "${VENDOR}" = "1"; then \
-		just vendor; \
-	fi
+	ischroot || just vendor
 
 override_dh_auto_build:
-	test -e vendor.tar && just build-vendored || just build-release
+	test -e vendor.tar && just build-vendored || just
 
 override_dh_auto_install:
 	just rootdir=$(DESTDIR) install
