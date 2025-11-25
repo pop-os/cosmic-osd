@@ -1,6 +1,6 @@
 #!/usr/bin/make -f
 
-export DESTDIR = debian/cosmic-osd
+export DESTDIR = debian/tmp
 
 %:
 	dh $@

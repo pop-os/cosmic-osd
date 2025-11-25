@@ -2,6 +2,10 @@ vendor*
 target
 /result
 .cargo
-debian/cosmic-osd*
-debian/*debhelper*
-debian/files
+debian/*
+!debian/changelog
+!debian/control
+!debian/copyright
+!debian/rules
+!debian/source
+!debian/install
