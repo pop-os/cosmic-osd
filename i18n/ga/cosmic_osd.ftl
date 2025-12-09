@@ -5,7 +5,7 @@ authenticate = Fíordheimhnigh
 log-out = Logáil Amach
 restart = Atosaigh
 enter-bios = Iontráil BIOS
-shutdown = Múch
+shutdown = Múchadh
 confirm = Deimhnigh
 confirm-button =
     { $action ->
@@ -18,12 +18,12 @@ confirm-button =
     }
 confirm-title =
     { $action ->
-        [restart] { restart } Atosaigh anois?
-        [suspend] { suspend } Cuir ar fionraí anois?
-        [shutdown] { shutdown } Múch anois?
-        [enter-bios] { enter-bios } Iontráil an BIOS anois?
+        [restart] { restart } anois?
+        [suspend] { suspend } anois?
+        [shutdown] { shutdown } anois?
+        [enter-bios] { enter-bios } anois?
         [log-out] Scoir as na haipeanna go léir agus logáil amach anois?
-        [confirm-device-type] Deimhnigh Cineál na Gléasra
+        [confirm-device-type] Deimhnigh cineál na gléasra
        *[other] Cuir an gníomh roghnaithe i bhfeidhm anois?
     }
 confirm-body =
@@ -35,7 +35,7 @@ confirm-body =
         [log-out] logáil amach
         [enter-bios] atosaigh sa BIOS
        *[other] ar an ngníomh roghnaithe i bhfeidhm
-    } go huathoibríoch i gceann { $countdown } soicind.
+    } go huathoibríoch i gceann { $countdown } soicindí.
 suspend = Cuir ar fionraí
 sound-settings = Socruithe fuaime
 headphones = Cluasáin

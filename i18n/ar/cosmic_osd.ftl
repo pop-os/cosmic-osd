@@ -11,7 +11,7 @@ sound-settings = إعدادات الصوت
 shutdown = أطفئ
 headphones = سماعات الرأس
 headset = سماعة رأس
-confirm = تأكيد
+confirm = أكِّد
 confirm-button =
     { $action ->
         [restart] { restart }
