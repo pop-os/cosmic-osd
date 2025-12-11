@@ -19,10 +19,10 @@ confirm-button =
     }
 confirm-title =
     { $action ->
-        [restart] { restart } ahora?
-        [suspend] { suspend } ahora?
+        [restart] { restart } agora?
+        [suspend] { suspend } agora?
         [shutdown] { shutdown } agora?
-        [enter-bios] { enter-bios } ahora?
+        [enter-bios] { enter-bios } agora?
         [log-out] Fechar todos os aplicativos e sair agora?
         [confirm-device-type] Confirmar tipo de dispositivo
        *[other] Aplicar a ação selecionada agora?
@@ -39,3 +39,4 @@ confirm-body =
     } automaticamente em { $countdown } segundos.
 sound-settings = Configurações de som
 headphones = Fones de ouvido
+headset = Headset

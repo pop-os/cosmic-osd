@@ -1,6 +1,6 @@
 invalid-password = كلمة سر غير صالحة. يرجى المحاولة مرة أخرى.
 authentication-required = المصادقة مطلوبة
-cancel = إلغاء
+cancel = ألغِ
 authenticate = مصادقة
 log-out = سجِّل الخروج
 suspend = علِّق
