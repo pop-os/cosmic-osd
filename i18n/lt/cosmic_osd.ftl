@@ -29,3 +29,4 @@ confirm-body =
         [enter-bios] įjungs iš naujo įrenginį ir paleis BIOS
        *[other] taikys pasirinktą veiksmą
     } automatiškai po { $countdown } sekundžių.
+shutdown = Išjungti
