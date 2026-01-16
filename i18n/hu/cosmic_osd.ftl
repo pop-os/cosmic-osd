@@ -39,4 +39,4 @@ confirm-body =
         [log-out] ki fog jelentkezni
         [enter-bios] újraindul a BIOS-ba
        *[other] alkalmazni fogja a kiválasztott műveletet
-    } { $countdown } másodperc múlva.
+    } { $countdown } másodperc múlva
