@@ -5,11 +5,11 @@ authenticate = Hitelesítés
 log-out = Kijelentkezés
 suspend = Felfüggesztés
 restart = Újraindítás
-enter-bios = BIOS-ba lépés
+enter-bios = Belépés a BIOS-ba
 sound-settings = Hangbeállítások
 shutdown = Leállítás
 headphones = Fejhallgató
-headset = Headset
+headset = Fejhallgató
 confirm = Megerősítés
 confirm-button =
     { $action ->
