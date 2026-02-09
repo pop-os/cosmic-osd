@@ -39,8 +39,9 @@ confirm-body =
         [log-out] odhlásí uživatele
         [enter-bios] vstoupí do BIOSu
        *[other] vykoná vybranou akci
-    } automaticky za { $countdown } { $countdown ->
-        [one] sekundu.
-        [few] sekundy.
-       *[other] sekund.
+    } automaticky { $countdown ->
+        [0] nyní.
+        [one] za 1 sekundu.
+        [few] za { $countdown } sekundy.
+       *[other] za { $countdown } sekund.
     }

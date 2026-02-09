@@ -1,13 +1,13 @@
 invalid-password = Ongeldig wachtwoord. Probeer het opnieuw.
 authentication-required = Verificatie vereist
-cancel = Annuleer
+cancel = Annuleren
 authenticate = Verifieer
 log-out = Afmelden
 suspend = Slaapstand
 restart = Herstart
 enter-bios = Ga naar BIOS
 shutdown = Sluit af
-confirm = Bevestig
+confirm = Bevestigen
 confirm-button =
     { $action ->
         [restart] Opnieuw opstarten

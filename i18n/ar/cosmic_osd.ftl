@@ -1,7 +1,7 @@
-invalid-password = كلمة سر غير صالحة. يرجى المحاولة مرة أخرى.
-authentication-required = المصادقة مطلوبة
+invalid-password = كلمة سر غير صالحة. يُرجى المحاولة مرة أخرى.
+authentication-required = الاستيثاق مطلوب
 cancel = ألغِ
-authenticate = مصادقة
+authenticate = استوثّق
 log-out = سجِّل الخروج
 suspend = علِّق
 restart = أعد التشغيل

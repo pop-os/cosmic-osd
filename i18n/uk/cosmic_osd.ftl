@@ -26,7 +26,7 @@ confirm-title =
         [suspend] { suspend } зараз?
         [shutdown] { shutdown } зараз?
         [enter-bios] { enter-bios } зараз?
-        [log-out] Закрити всі застосунки та вийти зараз?
+        [log-out] Закрити застосунки й вийти зараз?
         [confirm-device-type] Підтвердити тип пристрою
        *[other] Виконати обрану дію зараз?
     }
