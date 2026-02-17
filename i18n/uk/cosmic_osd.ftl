@@ -1,5 +1,5 @@
 invalid-password = Неправильний пароль. Повторіть спробу.
-authentication-required = Автентифікація необхідна
+authentication-required = Автентифікація обов'язкова
 cancel = Скасувати
 authenticate = Автентифікувати
 enter-bios = Увійти в BIOS
@@ -27,7 +27,7 @@ confirm-title =
         [shutdown] { shutdown } зараз?
         [enter-bios] { enter-bios } зараз?
         [log-out] Закрити застосунки й вийти зараз?
-        [confirm-device-type] Підтвердити тип пристрою
+        [confirm-device-type] Підтвердіть тип пристрою
        *[other] Виконати обрану дію зараз?
     }
 confirm-body =

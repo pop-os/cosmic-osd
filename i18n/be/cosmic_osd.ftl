@@ -30,3 +30,13 @@ confirm-title =
         [confirm-device-type] Пацвердзіце тып прылады
        *[other] Прымяніць выбранае дзеянне зараз?
     }
+confirm-body =
+    Сістэма { $action ->
+        [restart] будзе перазапушчана
+        [suspend] будзе прыпынена
+        [shutdown] будзе выключана
+        [lock-screen] будзе заблакіравана
+        [log-out] выйдзе
+        [enter-bios] будзе перазапушчана ў BIOS
+       *[other] прыменіць выбранае дзеянне
+    } аўтаматычна праз { $countdown } секунд.
