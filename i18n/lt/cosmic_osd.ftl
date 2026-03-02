@@ -30,3 +30,13 @@ confirm-body =
        *[other] taikys pasirinktą veiksmą
     } automatiškai po { $countdown } sekundžių.
 shutdown = Išjungti
+suspend = Miego režimas
+confirm-button =
+    { $action ->
+        [restart] { restart }
+        [suspend] { suspend }
+        [shutdown] Išjungti
+        [log-out] { log-out }
+        [enter-bios] { enter-bios }
+       *[other] { confirm }
+    }

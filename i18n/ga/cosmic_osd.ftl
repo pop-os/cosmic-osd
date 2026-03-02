@@ -22,7 +22,7 @@ confirm-title =
         [suspend] { suspend } anois?
         [shutdown] { shutdown } anois?
         [enter-bios] { enter-bios } anois?
-        [log-out] Scoir as na haipeanna go léir agus logáil amach anois?
+        [log-out] Scoir gach feidhmchlár agus logáil amach anois?
         [confirm-device-type] Deimhnigh cineál na gléasra
        *[other] Cuir an gníomh roghnaithe i bhfeidhm anois?
     }

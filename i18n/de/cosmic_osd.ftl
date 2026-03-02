@@ -36,3 +36,5 @@ confirm-body =
         [enter-bios] neu gestartet und das BIOS aufgerufen
        *[other] die ausgewählte Aktion anwenden
     }.
+sound-settings = Klangeinstellungen
+headphones = Kopfhörer
