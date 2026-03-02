@@ -1,0 +1,11 @@
+confirm = Vahvista
+invalid-password = Väärä salasana. Yritä uudelleen.
+cancel = Peru
+log-out = Kirjaudu ulos
+suspend = Lepotila
+restart = Käynnistä uudelleen
+enter-bios = Mene BIOS:iin
+sound-settings = Ääniasetukset
+shutdown = Sammuta
+headphones = Kuulokkeet
+headset = Kuulokemikrofoni

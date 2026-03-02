@@ -1,5 +1,5 @@
 invalid-password = Ongeldig wachtwoord. Probeer het opnieuw.
-authentication-required = Verificatie vereist
+authentication-required = Authenticatie vereist
 cancel = Annuleren
 authenticate = Verifieer
 log-out = Afmelden

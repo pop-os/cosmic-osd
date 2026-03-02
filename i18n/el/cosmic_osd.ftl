@@ -1,0 +1,9 @@
+cancel = Ακύρωση
+restart = Επανεκκίνηση
+sound-settings = Ρυθμίσεις Ήχου
+shutdown = Τερματισμός
+headphones = Ακουστικά
+headset = Ακουστικά
+confirm = Επιβεβαίωση
+log-out = Αποσύνδεση
+suspend = Αναστολή
