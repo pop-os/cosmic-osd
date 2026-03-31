@@ -21,10 +21,10 @@ pub enum Event {
 
 pub fn subscription(pw_name: &str, cookie: &str, retry: u32) -> iced::Subscription<Event> {
     // TODO: Avoid clone?
-    let mut args = Some((pw_name.to_owned(), cookie.to_owned()));
+    let args = Some((pw_name.to_owned(), cookie.to_owned()));
     let name = format!("agent-helper-{}-{}", cookie, retry);
-    iced::Subscription::run_with_id(
-        name,
+    iced::Subscription::run_with((name, args), |(_, args)| {
+        let mut args = args.clone();
         stream::unfold(None::<AgentHelper>, move |agent_helper| {
             let args = args.take();
             async move {
@@ -51,8 +51,8 @@ pub fn subscription(pw_name: &str, cookie: &str, retry: u32) -> iced::Subscripti
                     }
                 }
             }
-        }),
-    )
+        })
+    })
 }
 
 struct AgentHelper {

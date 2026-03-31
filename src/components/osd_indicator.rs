@@ -14,7 +14,7 @@ use cosmic::{
         },
         overlap_notify::overlap_notify,
     },
-    widget::{self, horizontal_space, vertical_space},
+    widget,
 };
 use cosmic_comp_config::input::TouchpadOverride;
 use futures::future::{AbortHandle, Aborted, abortable};
@@ -26,8 +26,8 @@ pub static OSD_INDICATOR_ID: LazyLock<widget::Id> =
 
 #[derive(Debug)]
 pub enum Params {
-    DisplayBrightness(f64),        // Rung ratio k/20.0 (hotkeys)
-    DisplayBrightnessExact(f64),   // Exact raw ratio raw/max (slider/arbitrary)
+    DisplayBrightness(f64),      // Rung ratio k/20.0 (hotkeys)
+    DisplayBrightnessExact(f64), // Exact raw ratio raw/max (slider/arbitrary)
     DisplayToggle(DisplayMode),
     DisplayNumber(u32),
     KeyboardBrightness(f64),
@@ -40,7 +40,9 @@ pub enum Params {
 impl Params {
     fn icon_name(&self) -> &'static str {
         match self {
-            Self::DisplayBrightness(_) | Self::DisplayBrightnessExact(_) => "display-brightness-symbolic",
+            Self::DisplayBrightness(_) | Self::DisplayBrightnessExact(_) => {
+                "display-brightness-symbolic"
+            }
             Self::DisplayToggle(DisplayMode::All) => "laptop-symbolic",
             Self::DisplayToggle(DisplayMode::External) => "display-symbolic",
             Self::DisplayNumber(_) => {
@@ -82,7 +84,9 @@ impl Params {
         match self {
             Self::DisplayBrightness(value) => {
                 let mut rung = (*value * 20.0).round() as u32;
-                if rung > 20 { rung = 20; }
+                if rung > 20 {
+                    rung = 20;
+                }
                 if rung == 0 && *value > 0.0 {
                     Some(1) // 1% at the floor
                 } else {
@@ -94,8 +98,12 @@ impl Params {
             Self::DisplayBrightnessExact(value) => {
                 // round(100 * ratio)
                 let mut p = (*value * 100.0).round() as i32;
-                if p <= 0 && *value >= 0.0 { p = 1; } // never show 0%
-                if p > 100 { p = 100; }
+                if p <= 0 && *value >= 0.0 {
+                    p = 1;
+                } // never show 0%
+                if p > 100 {
+                    p = 100;
+                }
                 Some(p as u32)
             }
             Self::KeyboardBrightness(value) => Some((*value * 100.) as u32),
@@ -308,33 +316,30 @@ impl State {
             let osd_bar = if max_value > 100.0 {
                 iced::widget::row![
                     widget::progress_bar(0.0..=100.0, value as f32)
-                        .height(4)
-                        .width(Length::FillPortion(2)),
+                        .girth(4)
+                        .length(Length::FillPortion(2)),
                     widget::progress_bar(100.0..=max_value, value as f32)
-                        .height(4)
-                        .width(Length::FillPortion(1)),
+                        .girth(4)
+                        .length(Length::FillPortion(1)),
                 ]
                 .width(Length::Fixed(266.0))
                 .apply(Element::from)
             } else {
                 widget::progress_bar(0.0..=max_value, value as f32)
-                    .height(4)
-                    .width(Length::Fixed(266.0))
+                    .girth(4)
+                    .length(Length::Fixed(266.0))
                     .apply(Element::from)
             };
-            widget::container(
-                iced::widget::row![
-                    widget::container(icon.size(20))
-                        .width(Length::Fixed(32.0))
-                        .align_x(Alignment::Center),
-                    widget::text::body(format!("{}%", value))
-                        .width(Length::Fixed(32.0))
-                        .align_x(Alignment::Center),
-                    widget::horizontal_space().width(Length::Fixed(8.0)),
-                    osd_bar,
-                ]
-                .align_y(Alignment::Center),
-            )
+            iced::widget::row![
+                widget::container(icon.size(20)).center_x(Length::Fixed(32.0)),
+                widget::text::body(format!("{}%", value))
+                    .width(Length::Fixed(32.0))
+                    .center(),
+                widget::space::horizontal().width(Length::Fixed(8.0)),
+                osd_bar,
+            ]
+            .align_y(Alignment::Center)
+            .apply(widget::container)
             .width(Length::Fixed(392.0))
             .height(Length::Fixed(52.0))
         } else {
@@ -357,24 +362,35 @@ impl State {
                 },
                 shadow: Default::default(),
                 icon_color: Some(theme.cosmic().on_bg_color().into()),
+                snap: true,
             }
         }));
 
         let osd_contents = if self.margin.0 != 0 || self.margin.2 != 0 {
-            Element::from(widget::column::with_children(vec![
-                vertical_space().height(self.margin.0 as f32).into(),
+            widget::column::with_children([
+                widget::space::vertical()
+                    .height(self.margin.0 as f32)
+                    .into(),
                 osd_contents.into(),
-                vertical_space().height(self.margin.2 as f32).into(),
-            ]))
+                widget::space::vertical()
+                    .height(self.margin.2 as f32)
+                    .into(),
+            ])
+            .into()
         } else {
             osd_contents.into()
         };
         let osd_contents = if self.margin.1 != 0 || self.margin.3 != 0 {
-            Element::from(widget::row::with_children(vec![
-                horizontal_space().width(self.margin.1 as f32).into(),
+            widget::row::with_children([
+                widget::space::horizontal()
+                    .width(self.margin.1 as f32)
+                    .into(),
                 osd_contents,
-                horizontal_space().width(self.margin.3 as f32).into(),
-            ]))
+                widget::space::horizontal()
+                    .width(self.margin.3 as f32)
+                    .into(),
+            ])
+            .into()
         } else {
             osd_contents
         };
@@ -406,24 +422,17 @@ impl State {
             .align_x(Alignment::Center)
             .align_y(Alignment::Center);
 
-        let content = widget::container(number_text)
-            .width(Length::Fill)
-            .height(Length::Fill)
-            .align_x(Alignment::Center)
-            .align_y(Alignment::Center);
+        let content = widget::container(number_text).center(Length::Fill);
 
         let padding = cosmic_theme.space_l();
         let square_size = (CONTAINER_BASE_SIZE + (padding * 2)) as f32;
 
         let container = widget::container(content)
             .padding(padding)
-            .width(Length::Fixed(square_size))
-            .height(Length::Fixed(square_size))
-            .align_x(Alignment::Center)
-            .align_y(Alignment::Center)
+            .center(Length::Fixed(square_size))
             .class(cosmic::theme::Container::custom(move |theme| {
                 widget::container::Style {
-                    text_color: Some(iced::Color::from(theme.cosmic().on_accent_color()).into()),
+                    text_color: Some(iced::Color::from(theme.cosmic().on_accent_color())),
                     background: Some(iced::Color::from(theme.cosmic().accent_color()).into()),
                     border: Border {
                         radius: theme.cosmic().radius_m().into(),
@@ -431,7 +440,8 @@ impl State {
                         color: iced::Color::TRANSPARENT,
                     },
                     shadow: Default::default(),
-                    icon_color: Some(iced::Color::from(theme.cosmic().on_accent_color()).into()),
+                    icon_color: Some(iced::Color::from(theme.cosmic().on_accent_color())),
+                    snap: true,
                 }
             }));
 

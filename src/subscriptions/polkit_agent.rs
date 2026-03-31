@@ -3,6 +3,7 @@
 use cosmic::iced::{self, futures::FutureExt};
 use std::{
     collections::HashMap,
+    hash::Hash,
     sync::{Arc, Mutex},
 };
 use tokio::sync::{mpsc, oneshot};
@@ -14,18 +15,38 @@ use crate::components::polkit_dialog;
 const OBJECT_PATH: &str = "/com/system76/CosmicOsd";
 
 pub fn subscription(system_connection: zbus::Connection) -> iced::Subscription<Event> {
-    iced::Subscription::run_with_id(
-        "dbus-polkit-agent",
-        async move {
+    struct Wrapper {
+        id: &'static str,
+        conn: zbus::Connection,
+    }
+
+    impl Hash for Wrapper {
+        fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+            self.id.hash(state);
+        }
+    }
+
+    iced::Subscription::run_with(
+        Wrapper {
+            id: "dbus-polkit-agent",
+            conn: system_connection,
+        },
+        |Wrapper {
+             id: _id,
+             conn: system_connection,
+         }| {
+            let connection = system_connection.clone();
+            async move {
             let (sender, receiver) = mpsc::channel(32);
             tokio::spawn(async move {
-                if let Err(e) = register_agent(&system_connection, sender).await {
+                if let Err(e) = register_agent(&connection, sender).await {
                     log::warn!("Failed to register PolicyKit agent: {}. This is normal if an agent is already registered.", e);
                 }
             });
             ReceiverStream::new(receiver)
         }
-        .flatten_stream(),
+        .flatten_stream()
+        },
     )
 }
 
