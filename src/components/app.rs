@@ -1,5 +1,3 @@
-#![allow(irrefutable_let_patterns)]
-
 use crate::{
     components::{osd_indicator, polkit_dialog},
     fl,
@@ -8,8 +6,8 @@ use crate::{
 use crate::{cosmic_session::CosmicSessionProxy, session_manager::SessionManagerProxy};
 use clap::Parser;
 use cosmic::{
-    Element,
-    app::{self, CosmicFlags, Task},
+    Apply, Element,
+    app::{CosmicFlags, Task},
     dbus_activation::Details,
     iced::{
         self, Alignment, Length, Limits, Point, Rectangle, Size, Subscription,
@@ -30,12 +28,12 @@ use cosmic::{
         Anchor, KeyboardInteractivity, destroy_layer_surface, get_layer_surface,
     },
     theme,
-    widget::{Column, autosize::autosize, button, container, icon, row, text},
+    widget::{self, autosize, button, container, icon, text},
 };
 use cosmic_comp_config::input::TouchpadOverride;
 use cosmic_settings_airplane_mode_subscription as airplane_mode;
 use cosmic_settings_daemon_subscription as settings_daemon;
-use cosmic_settings_sound_subscription::pulse;
+use cosmic_settings_pulse_subscription as pulse;
 use cosmic_settings_upower_subscription::kbdbacklight::{
     KeyboardBacklightUpdate, kbd_backlight_subscription,
 };
@@ -479,9 +477,9 @@ impl cosmic::Application for App {
                 if matches!(action, OsdTask::IdentifyDisplays) {
                     // Clear dismissed flag to allow showing identifiers
                     self.identifiers_dismissed = false;
-                    return self.trigger_identify_displays();
+                    self.trigger_identify_displays()
                 } else if matches!(action, OsdTask::DismissDisplayIdentifiers) {
-                    return Task::done(cosmic::Action::App(Msg::DismissDisplayIdentifiers));
+                    Task::done(cosmic::Action::App(Msg::DismissDisplayIdentifiers))
                 } else if matches!(action, OsdTask::Restart)
                     && matches!(self.action_to_confirm, Some((_, OsdTask::Shutdown, _)))
                 {
@@ -502,7 +500,7 @@ impl cosmic::Application for App {
             }
             Msg::Confirm => {
                 if let Some((id, a, _)) = self.action_to_confirm.take() {
-                    app::Task::batch(vec![destroy_layer_surface(id), a.perform()])
+                    Task::batch(vec![destroy_layer_surface(id), a.perform()])
                 } else {
                     Task::none()
                 }
@@ -521,7 +519,7 @@ impl cosmic::Application for App {
                         let a = a.clone();
 
                         self.action_to_confirm = None;
-                        return app::Task::batch(vec![destroy_layer_surface(id), a.perform()]);
+                        return Task::batch(vec![destroy_layer_surface(id), a.perform()]);
                     }
                 }
                 Task::none()
@@ -617,11 +615,15 @@ impl cosmic::Application for App {
                         if max <= 20 {
                             // Coarse displays: rung_ratio=(raw+1)/20
                             let rung_ratio = ((brightness + 1) as f64) / 20.0;
-                            self.create_indicator(osd_indicator::Params::DisplayBrightness(rung_ratio))
+                            self.create_indicator(osd_indicator::Params::DisplayBrightness(
+                                rung_ratio,
+                            ))
                         } else {
                             // Fine displays: exact integer percent from raw/max
                             let ratio = (brightness as f64) / (max as f64);
-                            self.create_indicator(osd_indicator::Params::DisplayBrightnessExact(ratio))
+                            self.create_indicator(osd_indicator::Params::DisplayBrightnessExact(
+                                ratio,
+                            ))
                         }
                     } else {
                         Task::none()
@@ -887,10 +889,10 @@ impl cosmic::Application for App {
 
                 let mut existing_identifiers: HashMap<String, (SurfaceId, u32)> = HashMap::new();
                 for (id, display_name) in &self.display_identifier_displays {
-                    if let Some(Surface::OsdIndicator(state)) = self.surfaces.get(id) {
-                        if let osd_indicator::Params::DisplayNumber(num) = state.params() {
-                            existing_identifiers.insert(display_name.clone(), (*id, *num));
-                        }
+                    if let Some(Surface::OsdIndicator(state)) = self.surfaces.get(id)
+                        && let osd_indicator::Params::DisplayNumber(num) = state.params()
+                    {
+                        existing_identifiers.insert(display_name.clone(), (*id, *num));
                     }
                 }
 
@@ -1083,9 +1085,9 @@ impl cosmic::Application for App {
             event::Event::Window(iced::window::Event::Resized(s)) => Some(Msg::Size(s)),
             event::Event::PlatformSpecific(event::PlatformSpecific::Wayland(wayland_event)) => {
                 match wayland_event {
-                    event::wayland::Event::OverlapNotify(event, ..) => Some(Msg::Overlap(event)),
+                    wayland::Event::OverlapNotify(event, ..) => Some(Msg::Overlap(event)),
                     wayland::Event::Layer(LayerEvent::Unfocused, ..) => Some(Msg::Cancel),
-                    event::wayland::Event::Output(output_event, output) => {
+                    wayland::Event::Output(output_event, output) => {
                         match output_event {
                             OutputEvent::Created(Some(info)) => {
                                 // Track this output for creating per-display surfaces
@@ -1179,7 +1181,7 @@ impl cosmic::Application for App {
                 HashMap::from_iter(vec![("action", action)])
             );
             let countdown = &countdown.to_string();
-            let mut dialog = cosmic::widget::dialog().title(title);
+            let mut dialog = widget::dialog().title(title);
 
             dialog = dialog
                 .primary_action(
@@ -1211,68 +1213,59 @@ impl cosmic::Application for App {
                         button::text(fl!("sound-settings")).on_press(Msg::SoundSettings),
                     )
                     .control(
-                        container(
-                            row()
-                                .push(
-                                    cosmic::widget::column()
-                                        .push(
-                                            cosmic::widget::button::custom_image_button(
-                                                container(
-                                                    cosmic::widget::icon::from_name(
-                                                        "audio-headphones-symbolic",
-                                                    )
-                                                    .size(64)
-                                                    .icon(),
-                                                )
-                                                .padding(t.space_m()),
-                                                None,
-                                            )
-                                            .class(cosmic::theme::style::Button::Image)
-                                            .selected(matches!(
-                                                self.action_to_confirm,
-                                                Some((_, OsdTask::ConfirmHeadphones {
-                                                    selected_headset,
-                                                    ..
-                                                },_)) if !selected_headset
-                                            ))
-                                            .on_press(Msg::Headphones(false)),
-                                        )
-                                        .push(text(fl!("headphones")))
-                                        .align_x(Alignment::Center)
-                                        .spacing(t.space_xxxs()),
+                        widget::row::with_children([
+                            widget::column::with_children([
+                                button::custom_image_button(
+                                    container(
+                                        icon::from_name("audio-headphones-symbolic")
+                                            .size(64)
+                                            .icon(),
+                                    )
+                                    .padding(t.space_m()),
+                                    None,
                                 )
-                                .push(
-                                    cosmic::widget::column()
-                                        .push(
-                                            cosmic::widget::button::custom_image_button(
-                                                container(
-                                                    cosmic::widget::icon::from_name(
-                                                        "audio-headset-symbolic",
-                                                    )
-                                                    .size(64)
-                                                    .icon(),
-                                                )
-                                                .padding(t.space_m()),
-                                                None,
-                                            )
-                                            .class(cosmic::theme::style::Button::Image)
-                                            .selected(matches!(
-                                                self.action_to_confirm,
-                                                Some((_, OsdTask::ConfirmHeadphones {
-                                                    selected_headset,
-                                                    ..
-                                                },_)) if selected_headset
-                                            ))
-                                            .on_press(Msg::Headphones(true)),
-                                        )
-                                        .push(text(fl!("headset")))
-                                        .align_x(Alignment::Center)
-                                        .spacing(t.space_xxxs()),
+                                .class(cosmic::theme::style::Button::Image)
+                                .selected(matches!(
+                                    self.action_to_confirm,
+                                    Some((_, OsdTask::ConfirmHeadphones {
+                                        selected_headset,
+                                        ..
+                                    },_)) if !selected_headset
+                                ))
+                                .on_press(Msg::Headphones(false))
+                                .into(),
+                                text::body(fl!("headphones")).into(),
+                            ])
+                            .align_x(Alignment::Center)
+                            .spacing(t.space_xxxs())
+                            .into(),
+                            widget::column::with_children([
+                                button::custom_image_button(
+                                    container(
+                                        icon::from_name("audio-headset-symbolic").size(64).icon(),
+                                    )
+                                    .padding(t.space_m()),
+                                    None,
                                 )
-                                .spacing(t.space_l()),
-                        )
-                        .width(Length::Fixed(522.))
-                        .align_x(Horizontal::Center),
+                                .class(cosmic::theme::style::Button::Image)
+                                .selected(matches!(
+                                    self.action_to_confirm,
+                                    Some((_, OsdTask::ConfirmHeadphones {
+                                        selected_headset,
+                                        ..
+                                    },_)) if selected_headset
+                                ))
+                                .on_press(Msg::Headphones(true))
+                                .into(),
+                                text::body(fl!("headset")).into(),
+                            ])
+                            .align_x(Alignment::Center)
+                            .spacing(t.space_xxxs())
+                            .into(),
+                        ])
+                        .spacing(t.space_l())
+                        .apply(container)
+                        .center_x(Length::Fixed(522.)),
                     )
             } else {
                 dialog
@@ -1298,7 +1291,7 @@ impl cosmic::Application for App {
             }
 
             return Element::from(
-                autosize(Element::from(container(dialog)), AUTOSIZE_DIALOG_ID.clone()).limits(
+                autosize::autosize(container(dialog), AUTOSIZE_DIALOG_ID.clone()).limits(
                     Limits::NONE
                         .min_width(1.)
                         .min_height(1.)
@@ -1550,15 +1543,15 @@ fn min_width_and_height(
     e: Element<Msg>,
     width: impl Into<Length>,
     height: impl Into<Length>,
-) -> Column<Msg> {
-    use iced::widget::{column, horizontal_space, row, vertical_space};
+) -> widget::Column<Msg> {
+    use iced::widget::{column, row, space};
     column![
-        row![e, vertical_space().height(height)].align_y(Alignment::Center),
-        horizontal_space().width(width)
+        row![e, space::vertical().height(height)].align_y(Alignment::Center),
+        space::horizontal().width(width)
     ]
     .align_x(Alignment::Center)
 }
 
-fn text_icon(name: &str, size: u16) -> cosmic::widget::Icon {
+fn text_icon(name: &str, size: u16) -> widget::Icon {
     icon::from_name(name).size(size).symbolic(true).icon()
 }

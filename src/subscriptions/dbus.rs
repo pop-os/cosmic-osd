@@ -19,8 +19,7 @@ enum State {
 }
 
 pub fn subscription() -> iced::Subscription<Event> {
-    iced::Subscription::run_with_id(
-        "dbus-service",
+    iced::Subscription::run_with("dbus-service", |_| {
         stream::unfold(State::Start, |state| async move {
             match state {
                 State::Start => Some((
@@ -41,8 +40,8 @@ pub fn subscription() -> iced::Subscription<Event> {
                 )),
                 State::CreatedSystemConnection => iced::futures::future::pending().await,
             }
-        }),
-    )
+        })
+    })
 }
 
 async fn connection() -> zbus::Result<zbus::Connection> {
