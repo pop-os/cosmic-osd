@@ -1,21 +1,18 @@
 // TODO: animation to fade in/out?
 // TODO: Dismiss on click?
 
-use crate::{components::app::DisplayMode, config};
-use cosmic::{
-    Apply, Element, Task,
-    iced::{self, Alignment, Border, Length, window::Id as SurfaceId},
-    iced_runtime::platform_specific::wayland::layer_surface::{
-        IcedMargin, IcedOutput, SctkLayerSurfaceSettings,
-    },
-    iced_winit::commands::{
-        layer_surface::{
-            Anchor, KeyboardInteractivity, Layer, destroy_layer_surface, get_layer_surface,
-        },
-        overlap_notify::overlap_notify,
-    },
-    widget,
+use crate::components::app::DisplayMode;
+use crate::config;
+use cosmic::iced::window::Id as SurfaceId;
+use cosmic::iced::{self, Alignment, Border, Length};
+use cosmic::iced_runtime::platform_specific::wayland::layer_surface::{
+    IcedMargin, IcedOutput, SctkLayerSurfaceSettings,
 };
+use cosmic::iced_winit::commands::layer_surface::{
+    Anchor, KeyboardInteractivity, Layer, destroy_layer_surface, get_layer_surface,
+};
+use cosmic::iced_winit::commands::overlap_notify::overlap_notify;
+use cosmic::{Apply, Element, Task, widget};
 use cosmic_comp_config::input::TouchpadOverride;
 use futures::future::{AbortHandle, Aborted, abortable};
 use std::sync::LazyLock;

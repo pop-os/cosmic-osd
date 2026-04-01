@@ -1,11 +1,10 @@
 // TODO: only open one dialog at a time?
 
-use cosmic::iced::{self, futures::FutureExt};
-use std::{
-    collections::HashMap,
-    hash::Hash,
-    sync::{Arc, Mutex},
-};
+use cosmic::iced::Subscription;
+use cosmic::iced::futures::FutureExt;
+use std::collections::HashMap;
+use std::hash::Hash;
+use std::sync::{Arc, Mutex};
 use tokio::sync::{mpsc, oneshot};
 use tokio_stream::wrappers::ReceiverStream;
 use zbus::zvariant;
@@ -14,7 +13,7 @@ use crate::components::polkit_dialog;
 
 const OBJECT_PATH: &str = "/com/system76/CosmicOsd";
 
-pub fn subscription(system_connection: zbus::Connection) -> iced::Subscription<Event> {
+pub fn subscription(system_connection: zbus::Connection) -> Subscription<Event> {
     struct Wrapper {
         id: &'static str,
         conn: zbus::Connection,
@@ -26,7 +25,7 @@ pub fn subscription(system_connection: zbus::Connection) -> iced::Subscription<E
         }
     }
 
-    iced::Subscription::run_with(
+    Subscription::run_with(
         Wrapper {
             id: "dbus-polkit-agent",
             conn: system_connection,
