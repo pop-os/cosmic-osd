@@ -1,35 +1,26 @@
-use crate::{
-    components::{osd_indicator, polkit_dialog},
-    fl,
-    subscriptions::{dbus, polkit_agent},
-};
-use crate::{cosmic_session::CosmicSessionProxy, session_manager::SessionManagerProxy};
+use crate::components::{osd_indicator, polkit_dialog};
+use crate::cosmic_session::CosmicSessionProxy;
+use crate::fl;
+use crate::session_manager::SessionManagerProxy;
+use crate::subscriptions::{dbus, polkit_agent};
 use clap::Parser;
-use cosmic::{
-    Apply, Element,
-    app::{CosmicFlags, Task},
-    dbus_activation::Details,
-    iced::{
-        self, Alignment, Length, Limits, Point, Rectangle, Size, Subscription,
-        alignment::Horizontal,
-        event::{
-            self, listen_with,
-            wayland::{self, LayerEvent, OutputEvent, OverlapNotifyEvent},
-        },
-        keyboard::{Key, key::Named},
-        platform_specific::shell::commands::activation::request_token,
-        time,
-        window::Id as SurfaceId,
-    },
-    iced_runtime::platform_specific::wayland::layer_surface::{
-        IcedOutput, SctkLayerSurfaceSettings,
-    },
-    iced_winit::commands::layer_surface::{
-        Anchor, KeyboardInteractivity, destroy_layer_surface, get_layer_surface,
-    },
-    theme,
-    widget::{self, autosize, button, container, icon, text},
+use cosmic::app::{CosmicFlags, Task};
+use cosmic::dbus_activation::Details;
+use cosmic::iced::event::wayland::{self, LayerEvent, OutputEvent, OverlapNotifyEvent};
+use cosmic::iced::event::{self, listen_with};
+use cosmic::iced::keyboard::Key;
+use cosmic::iced::keyboard::key::Named;
+use cosmic::iced::platform_specific::shell::commands::activation::request_token;
+use cosmic::iced::window::Id as SurfaceId;
+use cosmic::iced::{self, Alignment, Length, Limits, Point, Rectangle, Size, Subscription, time};
+use cosmic::iced_runtime::platform_specific::wayland::layer_surface::{
+    IcedOutput, SctkLayerSurfaceSettings,
 };
+use cosmic::iced_winit::commands::layer_surface::{
+    Anchor, KeyboardInteractivity, destroy_layer_surface, get_layer_surface,
+};
+use cosmic::widget::{self, autosize, button, container, icon, text};
+use cosmic::{Apply, Element, theme};
 use cosmic_comp_config::input::TouchpadOverride;
 use cosmic_settings_airplane_mode_subscription as airplane_mode;
 use cosmic_settings_daemon_subscription as settings_daemon;
@@ -39,14 +30,12 @@ use cosmic_settings_upower_subscription::kbdbacklight::{
 };
 use logind_zbus::manager::ManagerProxy;
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::HashMap,
-    fmt::Display,
-    process::Stdio,
-    str::FromStr,
-    sync::LazyLock,
-    time::{Duration, Instant},
-};
+use std::collections::HashMap;
+use std::fmt::Display;
+use std::process::Stdio;
+use std::str::FromStr;
+use std::sync::LazyLock;
+use std::time::{Duration, Instant};
 use zbus::Connection;
 
 // Type alias for Wayland output. Matches what's used in SctkLayerSurfaceSettings

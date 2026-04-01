@@ -2,26 +2,19 @@
 
 #![allow(clippy::single_match)]
 
-use crate::{
-    fl,
-    subscriptions::{polkit_agent::PolkitError, polkit_agent_helper},
+use crate::fl;
+use crate::subscriptions::polkit_agent::PolkitError;
+use crate::subscriptions::polkit_agent_helper;
+use cosmic::iced::event::{PlatformSpecific, wayland};
+use cosmic::iced::window::Id as SurfaceId;
+use cosmic::iced::{self, Subscription, Task};
+use cosmic::iced_runtime::platform_specific::wayland::layer_surface::SctkLayerSurfaceSettings;
+use cosmic::iced_winit::wayland::commands::layer_surface::{
+    KeyboardInteractivity, Layer, destroy_layer_surface, get_layer_surface,
 };
-use cosmic::{
-    iced::{
-        self, Subscription, Task,
-        event::{PlatformSpecific, wayland},
-        window::Id as SurfaceId,
-    },
-    iced_runtime::platform_specific::wayland::layer_surface::SctkLayerSurfaceSettings,
-    iced_winit::wayland::commands::layer_surface::{
-        KeyboardInteractivity, Layer, destroy_layer_surface, get_layer_surface,
-    },
-    widget,
-};
-use std::{
-    collections::HashMap,
-    sync::{Arc, LazyLock, Mutex},
-};
+use cosmic::widget;
+use std::collections::HashMap;
+use std::sync::{Arc, LazyLock, Mutex};
 use tokio::sync::oneshot;
 
 pub static POLKIT_DIALOG_ID: LazyLock<widget::Id> =
@@ -228,7 +221,7 @@ impl State {
     }
 
     pub fn subscription(&self) -> Subscription<Msg> {
-        iced::Subscription::batch([
+        Subscription::batch([
             iced::event::listen_with(|e, _status, _id| match e {
                 iced::Event::PlatformSpecific(PlatformSpecific::Wayland(
                     wayland::Event::Layer(e, ..),

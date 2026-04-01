@@ -1,7 +1,5 @@
-use i18n_embed::{
-    DesktopLanguageRequester,
-    fluent::{FluentLanguageLoader, fluent_language_loader},
-};
+use i18n_embed::DesktopLanguageRequester;
+use i18n_embed::fluent::{FluentLanguageLoader, fluent_language_loader};
 use rust_embed::RustEmbed;
 use std::sync::LazyLock;
 

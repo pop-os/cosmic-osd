@@ -1,11 +1,12 @@
-use cosmic::iced::{self, futures::future};
+use cosmic::iced::Subscription;
+use cosmic::iced::futures::future;
 use futures::stream;
-use std::{fmt, io, process::Stdio, sync::Arc};
-use tokio::{
-    io::{AsyncBufReadExt, AsyncWriteExt, BufReader},
-    process::Command,
-    sync::Mutex,
-};
+use std::process::Stdio;
+use std::sync::Arc;
+use std::{fmt, io};
+use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
+use tokio::process::Command;
+use tokio::sync::Mutex;
 
 const HELPER_PATH: Option<&str> = option_env!("POLKIT_AGENT_HELPER_1");
 
@@ -19,11 +20,11 @@ pub enum Event {
     Complete(bool),
 }
 
-pub fn subscription(pw_name: &str, cookie: &str, retry: u32) -> iced::Subscription<Event> {
+pub fn subscription(pw_name: &str, cookie: &str, retry: u32) -> Subscription<Event> {
     // TODO: Avoid clone?
     let args = Some((pw_name.to_owned(), cookie.to_owned()));
     let name = format!("agent-helper-{}-{}", cookie, retry);
-    iced::Subscription::run_with((name, args), |(_, args)| {
+    Subscription::run_with((name, args), |(_, args)| {
         let mut args = args.clone();
         stream::unfold(None::<AgentHelper>, move |agent_helper| {
             let args = args.take();
