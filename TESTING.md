@@ -10,3 +10,6 @@ This document provides a regression testing checklist for the COSMIC OSD compone
 - [ ] Keyboard backlight brightness can be adjusted via hotkeys
 - [ ] Airplane mode can be enabled and disabled via hotkey
 - [ ] Touchpad can be disabled and enabled via hotkey
+- [ ] Open the Log Out dialog; tab key works to navigate buttons
+    - [ ] Spacebar on Cancel exits dialog
+    - [ ] Esc key (without anything focused) also exits dialog
