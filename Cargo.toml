@@ -17,7 +17,6 @@ cosmic-config = { git = "https://github.com/pop-os/libcosmic" }
 cosmic-comp-config = { git = "https://github.com/pop-os/cosmic-comp" }
 libcosmic = { git = "https://github.com/pop-os/libcosmic", default-features = false, features = [
     "autosize",
-    "advanced-shaping",
     "dbus-config",
     "desktop-systemd-scope",
     "tokio",

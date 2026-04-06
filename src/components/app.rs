@@ -1048,7 +1048,21 @@ impl cosmic::Application for App {
 
                 Task::batch(tasks)
             }
-            Msg::Focused => focus::<()>(CANCEL_ID.clone()).discard(),
+            Msg::Focused => {
+                if self.action_to_confirm.is_some() {
+                    focus::<()>(CANCEL_ID.clone()).discard()
+                } else if let Some(state) = self.surfaces.values().find_map(|surface| {
+                    if let Surface::PolkitDialog(state) = surface {
+                        Some(state)
+                    } else {
+                        None
+                    }
+                }) {
+                    focus::<()>(state.text_input_id.clone()).discard()
+                } else {
+                    Task::none()
+                }
+            }
         }
     }
 
