@@ -11,6 +11,7 @@ use cosmic::iced::event::{self, listen_with};
 use cosmic::iced::keyboard::Key;
 use cosmic::iced::keyboard::key::Named;
 use cosmic::iced::platform_specific::shell::commands::activation::request_token;
+use cosmic::iced::widget::operation::focus;
 use cosmic::iced::window::Id as SurfaceId;
 use cosmic::iced::{self, Alignment, Length, Limits, Point, Rectangle, Size, Subscription, time};
 use cosmic::iced_runtime::platform_specific::wayland::layer_surface::{
@@ -43,6 +44,7 @@ type WlOutput = cosmic::cctk::sctk::reexports::client::protocol::wl_output::WlOu
 
 const COUNTDOWN_LENGTH: u8 = 60;
 static CONFIRM_ID: LazyLock<iced::id::Id> = LazyLock::new(|| iced::id::Id::new("confirm-id"));
+static CANCEL_ID: LazyLock<iced::id::Id> = LazyLock::new(|| iced::id::Id::new("cancel-id"));
 static AUTOSIZE_DIALOG_ID: LazyLock<iced::id::Id> =
     LazyLock::new(|| iced::id::Id::new("autosize-id"));
 
@@ -253,6 +255,7 @@ pub enum Msg {
     Countdown,
     DBus(dbus::Event),
     Display(Option<DisplayMode>),
+    Focused,
     Headphones(bool),
     PolkitAgent(polkit_agent::Event),
     PolkitDialog((SurfaceId, polkit_dialog::Msg)),
@@ -1045,6 +1048,21 @@ impl cosmic::Application for App {
 
                 Task::batch(tasks)
             }
+            Msg::Focused => {
+                if self.action_to_confirm.is_some() {
+                    focus::<()>(CANCEL_ID.clone()).discard()
+                } else if let Some(state) = self.surfaces.values().find_map(|surface| {
+                    if let Surface::PolkitDialog(state) = surface {
+                        Some(state)
+                    } else {
+                        None
+                    }
+                }) {
+                    focus::<()>(state.text_input_id.clone()).discard()
+                } else {
+                    Task::none()
+                }
+            }
         }
     }
 
@@ -1076,6 +1094,7 @@ impl cosmic::Application for App {
                 match wayland_event {
                     wayland::Event::OverlapNotify(event, ..) => Some(Msg::Overlap(event)),
                     wayland::Event::Layer(LayerEvent::Unfocused, ..) => Some(Msg::Cancel),
+                    wayland::Event::Layer(LayerEvent::Focused, ..) => Some(Msg::Focused),
                     wayland::Event::Output(output_event, output) => {
                         match output_event {
                             OutputEvent::Created(Some(info)) => {
@@ -1193,6 +1212,7 @@ impl cosmic::Application for App {
                     ))
                     .padding([0, cosmic_theme.space_s()])
                     .class(theme::Button::Standard)
+                    .id(CANCEL_ID.clone())
                     .on_press(Msg::Cancel),
                 );
             let t = self.core.system_theme().cosmic();
@@ -1532,13 +1552,16 @@ fn min_width_and_height(
     e: Element<Msg>,
     width: impl Into<Length>,
     height: impl Into<Length>,
-) -> widget::Column<Msg> {
-    use iced::widget::{column, row, space};
-    column![
-        row![e, space::vertical().height(height)].align_y(Alignment::Center),
-        space::horizontal().width(width)
-    ]
-    .align_x(Alignment::Center)
+) -> widget::Column<Msg, cosmic::Theme> {
+    use cosmic::widget::{column, row, space};
+    column::with_capacity(2)
+        .push(
+            row::with_capacity(2)
+                .push(e)
+                .push(space::vertical().height(height))
+                .align_y(Alignment::Center),
+        )
+        .align_x(Alignment::Center)
 }
 
 fn text_icon(name: &str, size: u16) -> widget::Icon {

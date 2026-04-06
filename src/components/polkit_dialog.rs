@@ -51,7 +51,7 @@ pub struct State {
     message: Option<String>, // TODO show
     password_label: String,  // TODO
     echo: bool,
-    text_input_id: iced::id::Id,
+    pub text_input_id: iced::id::Id,
     sensitive: bool,
     retries: u32,
     // TODO: Better way to use fluent with iced?
