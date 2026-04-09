@@ -3,15 +3,15 @@
 
 use crate::components::app::DisplayMode;
 use crate::config;
-use cosmic::iced::window::Id as SurfaceId;
-use cosmic::iced::{self, Alignment, Border, Length};
-use cosmic::iced_runtime::platform_specific::wayland::layer_surface::{
-    IcedMargin, IcedOutput, SctkLayerSurfaceSettings,
-};
-use cosmic::iced_winit::commands::layer_surface::{
+use cosmic::iced::platform_specific::shell::commands::layer_surface::{
     Anchor, KeyboardInteractivity, Layer, destroy_layer_surface, get_layer_surface,
 };
-use cosmic::iced_winit::commands::overlap_notify::overlap_notify;
+use cosmic::iced::platform_specific::shell::commands::overlap_notify::overlap_notify;
+use cosmic::iced::runtime::platform_specific::wayland::layer_surface::{
+    IcedMargin, IcedOutput, SctkLayerSurfaceSettings,
+};
+use cosmic::iced::window::Id as SurfaceId;
+use cosmic::iced::{self, Alignment, Border, Length};
 use cosmic::{Apply, Element, Task, widget};
 use cosmic_comp_config::input::TouchpadOverride;
 use futures::future::{AbortHandle, Aborted, abortable};
@@ -312,19 +312,21 @@ impl State {
             let max_value = self.max_value();
             let osd_bar = if max_value > 100.0 {
                 iced::widget::row![
-                    widget::progress_bar(0.0..=100.0, value as f32)
+                    widget::determinate_linear(((value as f32) / 100.).min(1.0))
                         .girth(4)
-                        .length(Length::FillPortion(2)),
-                    widget::progress_bar(100.0..=max_value, value as f32)
-                        .girth(4)
-                        .length(Length::FillPortion(1)),
+                        .width(Length::FillPortion(2)),
+                    widget::determinate_linear(
+                        (value as f32 - 100.0).max(0.0) / (max_value - 100.0)
+                    )
+                    .girth(4)
+                    .width(Length::FillPortion(1)),
                 ]
                 .width(Length::Fixed(266.0))
                 .apply(Element::from)
             } else {
-                widget::progress_bar(0.0..=max_value, value as f32)
+                widget::determinate_linear(value as f32 / max_value as f32)
                     .girth(4)
-                    .length(Length::Fixed(266.0))
+                    .width(Length::Fixed(266.0))
                     .apply(Element::from)
             };
             iced::widget::row![
