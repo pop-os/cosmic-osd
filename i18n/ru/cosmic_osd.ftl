@@ -37,6 +37,6 @@ confirm-body =
     } автоматически через { $countdown } сек.
 suspend = Спящий режим
 enter-bios = Перейти в BIOS
-sound-settings = Параметры звука
+sound-settings = Настройки звука
 headphones = Наушники
 headset = Гарнитура
