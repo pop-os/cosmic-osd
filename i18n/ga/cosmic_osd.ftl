@@ -5,7 +5,7 @@ authenticate = Fíordheimhnigh
 log-out = Logáil Amach
 restart = Atosaigh
 enter-bios = Iontráil BIOS
-shutdown = Múchadh
+shutdown = Múch
 confirm = Deimhnigh
 confirm-button =
     { $action ->

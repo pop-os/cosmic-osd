@@ -37,6 +37,6 @@ invalid-password = Feil passord, Prøv igjen.
 authentication-required = Autentisering Kreves
 authenticate = Autentiser
 log-out = Logg ut
-suspend = Dvalemodus
+suspend = Hvilemodus
 enter-bios = Gå inn i BIOS
 sound-settings = Lydinnstillinger

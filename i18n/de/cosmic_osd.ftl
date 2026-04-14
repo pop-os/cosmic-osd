@@ -19,13 +19,14 @@ confirm-button =
     }
 confirm-title =
     { $action ->
-        [restart] { restart }
-        [suspend] { suspend }
-        [shutdown] { shutdown }
-        [enter-bios] { enter-bios }
-        [log-out] Alle Anwendungen beenden und abmelden
-       *[other] Die ausgewählte Aktion
-    } jetzt anwenden?
+        [restart] Jetzt { restart }?
+        [suspend] Jetzt { suspend }?
+        [shutdown] Jetzt { shutdown }?
+        [enter-bios] Jetzt { enter-bios }?
+        [log-out] Jetzt alle Anwendungen beenden und abmelden?
+        [confirm-device-type] Gerätetyp bestätigen
+       *[other] Die ausgewählte Aktion jetzt anwenden?
+    }
 confirm-body =
     Das System wird in { $countdown } Sekunden automatisch { $action ->
         [restart] neu gestartet
@@ -38,3 +39,4 @@ confirm-body =
     }.
 sound-settings = Klangeinstellungen
 headphones = Kopfhörer
+headset = Headset

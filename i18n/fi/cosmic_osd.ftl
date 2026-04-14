@@ -30,3 +30,13 @@ confirm-body =
         [enter-bios] käynnistyy uudelleen BIOS:iin
        *[other] toteuttaa valitun toiminnon
     } automaattisesti { $countdown } sekunnin kuluttua.
+confirm-title =
+    { $action ->
+        [restart] { restart } nyt?
+        [suspend] { suspend } nyt?
+        [shutdown] { shutdown } nyt?
+        [enter-bios] { enter-bios } nyt?
+        [log-out] Lopetetaanko kaikki sovellukset ja kirjaudutaan ulos?
+        [confirm-device-type] Vahvista laitetyyppi
+       *[other] Toteutaanko valittu toiminto nyt?
+    }

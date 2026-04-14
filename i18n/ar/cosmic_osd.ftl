@@ -16,7 +16,7 @@ confirm-button =
     { $action ->
         [restart] { restart }
         [suspend] { suspend }
-        [shutdown] إيقاف التشغيل
+        [shutdown] أطفئ
         [log-out] { log-out }
         [enter-bios] { enter-bios }
        *[other] { confirm }
@@ -35,9 +35,9 @@ confirm-body =
     سيقوم النظام بـ { $action ->
         [restart] إعادة التشغيل
         [suspend] التعليق
-        [shutdown] إيقاف التشغيل
+        [shutdown] إطفاء
         [lock-screen] قفل الشاشة
         [log-out] تسجيل الخروج
-        [enter-bios] إعادة التشغيل في BIOS
+        [enter-bios] إعادة التشغيل إلى BIOS
        *[other] تطبيق الإجراء المحدد
     } تلقائيًا في غضون { $countdown } ثانية.
