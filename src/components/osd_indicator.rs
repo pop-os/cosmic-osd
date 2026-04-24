@@ -278,20 +278,14 @@ impl State {
 
     fn max_value(&self) -> f32 {
         match self.params {
-            Params::SinkVolume(_, _) => {
-                if self.amplification_sink {
+            Params::SinkVolume(_, _)
+                if self.amplification_sink => {
                     150.0
-                } else {
-                    100.0
                 }
-            }
-            Params::SourceVolume(_, _) => {
-                if self.amplification_source {
+            Params::SourceVolume(_, _)
+                if self.amplification_source => {
                     150.0
-                } else {
-                    100.0
                 }
-            }
             _ => 100.0,
         }
     }
@@ -324,7 +318,7 @@ impl State {
                 .width(Length::Fixed(266.0))
                 .apply(Element::from)
             } else {
-                widget::determinate_linear(value as f32 / max_value as f32)
+                widget::determinate_linear(value as f32 / max_value)
                     .girth(4)
                     .width(Length::Fixed(266.0))
                     .apply(Element::from)

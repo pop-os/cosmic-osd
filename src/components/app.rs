@@ -731,16 +731,14 @@ impl cosmic::Application for App {
                         logical_rect,
                         exclusive,
                         ..
-                    } => {
-                        if namespace == "Dock" || namespace == "Panel" || exclusive > 0 {
-                            self.overlap.insert(identifier, logical_rect);
-                            self.handle_overlap();
-                        }
+                    } if (namespace == "Dock" || namespace == "Panel" || exclusive > 0) => {
+                        self.overlap.insert(identifier, logical_rect);
+                        self.handle_overlap();
                     }
-                    OverlapNotifyEvent::OverlapLayerRemove { identifier } => {
-                        if self.overlap.remove(&identifier).is_some() {
-                            self.handle_overlap();
-                        }
+                    OverlapNotifyEvent::OverlapLayerRemove { identifier }
+                        if self.overlap.remove(&identifier).is_some() =>
+                    {
+                        self.handle_overlap();
                     }
                     _ => {}
                 }
@@ -1554,14 +1552,11 @@ fn min_width_and_height(
     height: impl Into<Length>,
 ) -> widget::Column<Msg, cosmic::Theme> {
     use cosmic::widget::{column, row, space};
-    column::with_capacity(2)
-        .push(
-            row::with_capacity(2)
-                .push(e)
-                .push(space::vertical().height(height))
-                .align_y(Alignment::Center),
-        )
-        .align_x(Alignment::Center)
+    column![
+        row![e, space::vertical().height(height)].align_y(Alignment::Center),
+        space::horizontal().width(width)
+    ]
+    .align_x(Alignment::Center)
 }
 
 fn text_icon(name: &str, size: u16) -> widget::Icon {
