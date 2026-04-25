@@ -3,7 +3,6 @@
 
 use crate::components::app::DisplayMode;
 use crate::config;
-use cosmic::cctk::sctk::seat::input_method_v3::Rectangle;
 use cosmic::iced::platform_specific::shell::commands::layer_surface::{
     Anchor, KeyboardInteractivity, Layer, destroy_layer_surface, get_layer_surface,
 };
@@ -22,6 +21,17 @@ use std::time::Duration;
 pub static OSD_INDICATOR_ID: LazyLock<widget::Id> =
     LazyLock::new(|| widget::Id::new("osd-indicator".to_string()));
 
+/// Coarse classification of an audio output for picking a meaningful OSD icon.
+/// Derived from the default-sink node name reported by PulseAudio/PipeWire
+/// (e.g. `bluez_output.*` → `Bluetooth`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum SinkKind {
+    #[default]
+    Speaker,
+    Headphones,
+    Bluetooth,
+}
+
 #[derive(Debug)]
 pub enum Params {
     DisplayBrightness(f64),      // Rung ratio k/20.0 (hotkeys)
@@ -29,10 +39,14 @@ pub enum Params {
     DisplayToggle(DisplayMode),
     DisplayNumber(u32),
     KeyboardBrightness(f64),
-    SinkVolume(u32, bool),
+    /// (volume %, muted, output device kind)
+    SinkVolume(u32, bool, SinkKind),
     SourceVolume(u32, bool),
     AirplaneMode(bool),
     TouchpadEnabled(TouchpadOverride),
+    /// Battery power status on AC plug/unplug.
+    /// (percent 0-100, on_battery, charging)
+    BatteryStatus(u32, bool, bool),
 }
 
 impl Params {
@@ -49,17 +63,29 @@ impl Params {
             Self::KeyboardBrightness(_) => "keyboard-brightness-symbolic",
             Self::AirplaneMode(true) => "airplane-mode-symbolic",
             Self::AirplaneMode(false) => "airplane-mode-disabled-symbolic",
-            Self::SinkVolume(volume, muted) => {
+            Self::SinkVolume(volume, muted, kind) => {
                 if *volume == 0 || *muted {
                     "audio-volume-muted-symbolic"
-                } else if *volume < 33 {
-                    "audio-volume-low-symbolic"
-                } else if *volume < 66 {
-                    "audio-volume-medium-symbolic"
-                } else if *volume <= 100 {
-                    "audio-volume-high-symbolic"
                 } else {
-                    "audio-volume-overamplified-symbolic"
+                    // For non-speaker outputs, prefer a device-shape icon over the
+                    // generic speaker family — the speaker silhouette is misleading
+                    // when audio is going to headphones/Bluetooth.
+                    match kind {
+                        SinkKind::Bluetooth | SinkKind::Headphones => {
+                            "audio-headphones-symbolic"
+                        }
+                        SinkKind::Speaker => {
+                            if *volume < 33 {
+                                "audio-volume-low-symbolic"
+                            } else if *volume < 66 {
+                                "audio-volume-medium-symbolic"
+                            } else if *volume <= 100 {
+                                "audio-volume-high-symbolic"
+                            } else {
+                                "audio-volume-overamplified-symbolic"
+                            }
+                        }
+                    }
                 }
             }
             Self::SourceVolume(volume, muted) => {
@@ -75,6 +101,28 @@ impl Params {
             }
             Self::TouchpadEnabled(TouchpadOverride::None) => "input-touchpad-symbolic",
             Self::TouchpadEnabled(TouchpadOverride::ForceDisable) => "touchpad-disabled-symbolic",
+            Self::BatteryStatus(pct, on_battery, charging) => {
+                if !on_battery || *charging {
+                    // Plugged in / charging
+                    match pct {
+                        0..=10 => "battery-level-10-charging-symbolic",
+                        11..=30 => "battery-level-30-charging-symbolic",
+                        31..=50 => "battery-level-50-charging-symbolic",
+                        51..=70 => "battery-level-70-charging-symbolic",
+                        71..=90 => "battery-level-90-charging-symbolic",
+                        _ => "battery-level-100-charged-symbolic",
+                    }
+                } else {
+                    match pct {
+                        0..=10 => "battery-level-10-symbolic",
+                        11..=30 => "battery-level-30-symbolic",
+                        31..=50 => "battery-level-50-symbolic",
+                        51..=70 => "battery-level-70-symbolic",
+                        71..=90 => "battery-level-90-symbolic",
+                        _ => "battery-level-100-symbolic",
+                    }
+                }
+            }
         }
     }
 
@@ -105,14 +153,15 @@ impl Params {
                 Some(p as u32)
             }
             Self::KeyboardBrightness(value) => Some((*value * 100.) as u32),
-            Self::SinkVolume(_, true) => Some(0),
+            Self::SinkVolume(_, true, _) => Some(0),
             Self::SourceVolume(_, true) => Some(0),
-            Self::SinkVolume(value, false) => Some(*value),
+            Self::SinkVolume(value, false, _) => Some(*value),
             Self::SourceVolume(value, false) => Some(*value),
             Self::AirplaneMode(_) => None,
             Self::TouchpadEnabled(_) => None,
             Self::DisplayToggle(_) => None,
             Self::DisplayNumber(_) => None,
+            Self::BatteryStatus(pct, _, _) => Some(*pct),
         }
     }
 }
@@ -280,7 +329,7 @@ impl State {
 
     fn max_value(&self) -> f32 {
         match self.params {
-            Params::SinkVolume(_, _) if self.amplification_sink => 150.0,
+            Params::SinkVolume(_, _, _) if self.amplification_sink => 150.0,
             Params::SourceVolume(_, _) if self.amplification_source => 150.0,
             _ => 100.0,
         }
