@@ -278,14 +278,8 @@ impl State {
 
     fn max_value(&self) -> f32 {
         match self.params {
-            Params::SinkVolume(_, _)
-                if self.amplification_sink => {
-                    150.0
-                }
-            Params::SourceVolume(_, _)
-                if self.amplification_source => {
-                    150.0
-                }
+            Params::SinkVolume(_, _) if self.amplification_sink => 150.0,
+            Params::SourceVolume(_, _) if self.amplification_source => 150.0,
             _ => 100.0,
         }
     }
