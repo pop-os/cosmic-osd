@@ -140,7 +140,6 @@ impl State {
                         self.password.clear();
                         let cmd = widget::text_input::focus(self.text_input_id.clone());
                         return (Some(self), cmd);
-                        //Err(PolkitError::Failed)
                     };
                 }
             },
@@ -148,7 +147,16 @@ impl State {
                 self.sensitive = false; // TODO: show spinner?
                 if let Some(responder) = self.responder.clone() {
                     let password = self.password.clone();
-                    tokio::spawn(async move { responder.response(&password).await });
+
+                    return (
+                        Some(self),
+                        Task::perform(async move { responder.response(&password).await }, |r| {
+                            if r.is_err() {
+                                log::error!("failed to send password");
+                            }
+                        })
+                        .discard(),
+                    );
                 }
             }
             Msg::Cancel => return (None, self.cancel()),
