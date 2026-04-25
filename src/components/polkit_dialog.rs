@@ -1,4 +1,4 @@
-// If the way this handes surface/window is awkward, could inform design of multi-window in iced
+// If the way this handles surface/window is awkward, could inform design of multi-window in iced
 
 #![allow(clippy::single_match)]
 
@@ -34,11 +34,12 @@ pub struct Params {
 
 #[derive(Clone, Debug)]
 pub enum Msg {
-    Layer(wayland::LayerEvent),
     Agent(polkit_agent_helper::Event),
     Authenticate,
     Cancel,
+    Layer(wayland::LayerEvent),
     Password(String),
+    Sent(bool),
     TogglePasswordVisibility,
 }
 
@@ -137,10 +138,10 @@ impl State {
                     } else {
                         self.retries += 1;
                         self.sensitive = true;
+                        self.responder = None;
                         self.password.clear();
                         let cmd = widget::text_input::focus(self.text_input_id.clone());
                         return (Some(self), cmd);
-                        //Err(PolkitError::Failed)
                     };
                 }
             },
@@ -148,7 +149,14 @@ impl State {
                 self.sensitive = false; // TODO: show spinner?
                 if let Some(responder) = self.responder.clone() {
                     let password = self.password.clone();
-                    tokio::spawn(async move { responder.response(&password).await });
+
+                    return (
+                        Some(self),
+                        Task::perform(
+                            async move { responder.response(&password).await },
+                            |result| Msg::Sent(result.is_ok()),
+                        ),
+                    );
                 }
             }
             Msg::Cancel => return (None, self.cancel()),
@@ -157,6 +165,14 @@ impl State {
             }
             Msg::TogglePasswordVisibility => {
                 self.password_visible = !self.password_visible;
+            }
+            Msg::Sent(success) => {
+                if !success {
+                    self.sensitive = true;
+                    self.password.clear();
+
+                    log::error!("failed to send password");
+                }
             }
         }
         (Some(self), Task::none())
@@ -180,11 +196,13 @@ impl State {
         let mut cancel_button = widget::button::standard(&self.msg_cancel);
         let mut authenticate_button = widget::button::suggested(&self.msg_authenticate);
         if self.sensitive {
-            password_input = password_input
-                .on_input(Msg::Password)
-                .on_submit(|_| Msg::Authenticate);
+            password_input = password_input.on_input(Msg::Password);
             cancel_button = cancel_button.on_press(Msg::Cancel);
-            authenticate_button = authenticate_button.on_press(Msg::Authenticate);
+
+            if self.responder.is_some() {
+                password_input = password_input.on_submit(|_| Msg::Authenticate);
+                authenticate_button = authenticate_button.on_press(Msg::Authenticate);
+            }
         }
         let mut right_column: Vec<cosmic::Element<_>> = vec![password_input.into()];
         if self.retries > 0 {
@@ -228,12 +246,8 @@ impl State {
                 )) => Some(Msg::Layer(e)),
                 _ => None,
             }),
-            polkit_agent_helper::subscription(
-                &self.params.pw_name,
-                &self.params.cookie,
-                self.retries,
-            )
-            .map(Msg::Agent),
+            polkit_agent_helper::subscription(&self.params.pw_name, &self.params.cookie)
+                .map(Msg::Agent),
         ])
     }
 }
