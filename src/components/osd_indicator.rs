@@ -32,6 +32,9 @@ pub enum Params {
     SourceVolume(u32, bool),
     AirplaneMode(bool),
     TouchpadEnabled(TouchpadOverride),
+    /// Battery power status on AC plug/unplug.
+    /// (percent 0-100, on_battery, charging)
+    BatteryStatus(u32, bool, bool),
 }
 
 impl Params {
@@ -74,6 +77,28 @@ impl Params {
             }
             Self::TouchpadEnabled(TouchpadOverride::None) => "input-touchpad-symbolic",
             Self::TouchpadEnabled(TouchpadOverride::ForceDisable) => "touchpad-disabled-symbolic",
+            Self::BatteryStatus(pct, on_battery, charging) => {
+                if !on_battery || *charging {
+                    // Plugged in / charging
+                    match pct {
+                        0..=10 => "battery-level-10-charging-symbolic",
+                        11..=30 => "battery-level-30-charging-symbolic",
+                        31..=50 => "battery-level-50-charging-symbolic",
+                        51..=70 => "battery-level-70-charging-symbolic",
+                        71..=90 => "battery-level-90-charging-symbolic",
+                        _ => "battery-level-100-charged-symbolic",
+                    }
+                } else {
+                    match pct {
+                        0..=10 => "battery-level-10-symbolic",
+                        11..=30 => "battery-level-30-symbolic",
+                        31..=50 => "battery-level-50-symbolic",
+                        51..=70 => "battery-level-70-symbolic",
+                        71..=90 => "battery-level-90-symbolic",
+                        _ => "battery-level-100-symbolic",
+                    }
+                }
+            }
         }
     }
 
@@ -112,6 +137,7 @@ impl Params {
             Self::TouchpadEnabled(_) => None,
             Self::DisplayToggle(_) => None,
             Self::DisplayNumber(_) => None,
+            Self::BatteryStatus(pct, _, _) => Some(*pct),
         }
     }
 }
