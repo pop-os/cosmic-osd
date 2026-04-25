@@ -1,9 +1,10 @@
 cancel = Ακύρωση
 restart = Επανεκκίνηση
-sound-settings = Ρυθμίσεις Ήχου
+sound-settings = Ρυθμίσεις ήχου
 shutdown = Τερματισμός
 headphones = Ακουστικά
 headset = Ακουστικά
 confirm = Επιβεβαίωση
 log-out = Αποσύνδεση
 suspend = Αναστολή
+invalid-password = Μη έγκυρος κωδικός πρόσβασης. Δοκιμάστε ξανά.
