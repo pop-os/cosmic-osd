@@ -1,0 +1,13 @@
+cancel = Откажи
+confirm = Потврди
+log-out = Одјава
+suspend = Обустави
+restart = Поново покрени
+invalid-password = Нетачна лозинка. Покушајте поново.
+authentication-required = Потребна је идентификација
+authenticate = Идентификуј
+enter-bios = Уђи у БИОС
+sound-settings = Подешавања звука
+shutdown = Угаси
+headphones = Слушалице
+headset = Слушалице са микрофоном
