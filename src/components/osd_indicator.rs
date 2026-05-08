@@ -232,7 +232,7 @@ impl State {
         // Margin: (top, right, bottom, left)
         // Display numbers at top, other OSDs at bottom
         let margin = if is_display_number {
-            (48, 0, 0, 0) // Top margin for display numbers
+            (0, 0, 0, 0) // Top margin for display numbers
         } else {
             (0, 0, 48, 0) // Bottom margin for other OSDs
         };

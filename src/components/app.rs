@@ -1,3 +1,4 @@
+use crate::components::osd_indicator::Params;
 use crate::components::{osd_indicator, polkit_dialog};
 use crate::cosmic_session::CosmicSessionProxy;
 use crate::fl;
@@ -5,18 +6,22 @@ use crate::session_manager::SessionManagerProxy;
 use crate::subscriptions::{dbus, polkit_agent};
 use clap::Parser;
 use cosmic::app::{CosmicFlags, Task};
+use cosmic::core::AppType;
 use cosmic::dbus_activation::Details;
 use cosmic::iced::event::wayland::{self, LayerEvent, OutputEvent, OverlapNotifyEvent};
 use cosmic::iced::event::{self, listen_with};
 use cosmic::iced::keyboard::Key;
 use cosmic::iced::keyboard::key::Named;
 use cosmic::iced::platform_specific::shell::commands::activation::request_token;
+use cosmic::iced::platform_specific::shell::commands::corner_radius::corner_radius;
 use cosmic::iced::platform_specific::shell::commands::layer_surface::{
-    Anchor, KeyboardInteractivity, destroy_layer_surface, get_layer_surface,
+    Anchor, KeyboardInteractivity, destroy_layer_surface, get_layer_surface, set_padding,
 };
+use cosmic::iced::runtime::platform_specific::wayland::CornerRadius;
 use cosmic::iced::runtime::platform_specific::wayland::layer_surface::{
-    IcedOutput, SctkLayerSurfaceSettings,
+    IcedMargin, IcedOutput, SctkLayerSurfaceSettings,
 };
+use cosmic::iced::runtime::{Action, platform_specific, task};
 use cosmic::iced::widget::operation::focus;
 use cosmic::iced::window::Id as SurfaceId;
 use cosmic::iced::{self, Alignment, Length, Limits, Point, Rectangle, Size, Subscription, time};
@@ -254,11 +259,13 @@ impl App {
         .map(|x| cosmic::Action::App(Msg::OsdIndicator(x)))
     }
 
-    fn handle_overlap(&mut self) {
-        let Some((_, state)) = self.indicator.as_mut() else {
-            return;
+    fn handle_overlap(&mut self) -> Task<Msg> {
+        let Some((id, state)) = self.indicator.as_mut() else {
+            return Task::none();
         };
-        let Some((bl, br, tl, tr)) = self.size.as_ref().map(|s| {
+        let is_display_number = matches!(state.params(), &Params::DisplayNumber(_));
+
+        if let Some((bl, br, tl, tr)) = self.size.as_ref().map(|s| {
             (
                 Rectangle::new(
                     Point::new(0., s.height / 2.),
@@ -274,34 +281,99 @@ impl App {
                     Size::new(s.width / 2., s.height / 2.),
                 ),
             )
-        }) else {
-            return;
+        }) {
+            let (mut top, mut left, mut bottom, mut right) = if is_display_number {
+                (0, 0, 0, 0) // Top margin for display numbers
+            } else {
+                (0, 0, 48, 0) // Bottom margin for other OSDs
+            };
+            for overlap in self.overlap.values() {
+                let tl = tl.intersects(overlap);
+                let tr = tr.intersects(overlap);
+                let bl = bl.intersects(overlap);
+                let br = br.intersects(overlap);
+                if bl && br {
+                    bottom += overlap.height as i32;
+                    continue;
+                }
+                if tl && tr {
+                    top += overlap.height as i32;
+                    continue;
+                }
+                if tl && bl {
+                    left += overlap.width as i32;
+                    continue;
+                }
+                if tr && br {
+                    right += overlap.width as i32;
+                    continue;
+                }
+            }
+            state.margin = (top, right, bottom, left);
+        }
+        let mut cmds = Vec::with_capacity(2);
+
+        // TODO what to do about rounded corners...
+        let margin = IcedMargin {
+            #[allow(clippy::cast_possible_truncation)]
+            top: state.margin.0,
+            right: state.margin.1,
+            bottom: state.margin.2,
+            left: state.margin.3,
         };
 
-        let (mut top, mut left, mut bottom, mut right) = (0, 0, 48, 0);
-        for overlap in self.overlap.values() {
-            let tl = tl.intersects(overlap);
-            let tr = tr.intersects(overlap);
-            let bl = bl.intersects(overlap);
-            let br = br.intersects(overlap);
-            if bl && br {
-                bottom += overlap.height as i32;
-                continue;
-            }
-            if tl && tr {
-                top += overlap.height as i32;
-                continue;
-            }
-            if tl && bl {
-                left += overlap.width as i32;
-                continue;
-            }
-            if tr && br {
-                right += overlap.width as i32;
-                continue;
-            }
-        }
-        state.margin = (top, right, bottom, left);
+        cmds.push(
+            if self.core.system_theme().cosmic().frosted_system_interface {
+                task::effect(Action::PlatformSpecific(
+                    platform_specific::Action::Wayland(
+                        cosmic::iced::runtime::platform_specific::wayland::Action::BlurSurface(
+                            *id,
+                            Some(vec![Rectangle {
+                                x: 0.,
+                                y: 0.,
+                                width: f32::MAX,
+                                height: f32::MAX,
+                            }]),
+                        ),
+                    ),
+                ))
+            } else {
+                task::effect(Action::PlatformSpecific(
+                    platform_specific::Action::Wayland(
+                        cosmic::iced::runtime::platform_specific::wayland::Action::BlurSurface(
+                            *id, None,
+                        ),
+                    ),
+                ))
+            },
+        );
+        cmds.push(set_padding::<()>(*id, margin).discard());
+        let radius: Vec<_> = self
+            .core
+            .system_theme()
+            .cosmic()
+            .radius_l()
+            .into_iter()
+            .map(|r| {
+                let size = self.size.unwrap_or_default();
+                (r).min((size.height - margin.bottom as f32 - margin.top as f32).max(0.) / 2.)
+                    as u32
+            })
+            .collect();
+        cmds.push(
+            corner_radius(
+                *id,
+                Some(CornerRadius {
+                    top_left: radius[0],
+                    top_right: radius[1],
+                    bottom_left: radius[2],
+                    bottom_right: radius[3],
+                }),
+            )
+            .discard(),
+        );
+
+        Task::batch(cmds)
     }
 
     fn trigger_identify_displays(&self) -> cosmic::app::Task<Msg> {
@@ -358,7 +430,8 @@ impl cosmic::Application for App {
     type Flags = Args;
     const APP_ID: &'static str = "com.system76.CosmicOnScreenDisplay";
 
-    fn init(core: cosmic::app::Core, _flags: Args) -> (Self, cosmic::app::Task<Msg>) {
+    fn init(mut core: cosmic::app::Core, _flags: Args) -> (Self, cosmic::app::Task<Msg>) {
+        core.set_app_type(AppType::System);
         (
             Self {
                 core,
@@ -622,12 +695,12 @@ impl cosmic::Application for App {
                         ..
                     } if (namespace == "Dock" || namespace == "Panel" || exclusive > 0) => {
                         self.overlap.insert(identifier, logical_rect);
-                        self.handle_overlap();
+                        return self.handle_overlap();
                     }
                     OverlapNotifyEvent::OverlapLayerRemove { identifier }
                         if self.overlap.remove(&identifier).is_some() =>
                     {
-                        self.handle_overlap();
+                        return self.handle_overlap();
                     }
                     _ => {}
                 }
@@ -635,8 +708,7 @@ impl cosmic::Application for App {
             }
             Msg::Size(size) => {
                 self.size = Some(size);
-                self.handle_overlap();
-                Task::none()
+                return self.handle_overlap();
             }
             Msg::Zbus(result) => {
                 if let Err(e) = result {
