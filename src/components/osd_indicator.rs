@@ -333,15 +333,17 @@ impl State {
         .align_y(Alignment::Center)
         .class(cosmic::theme::Container::custom(move |theme| {
             widget::container::Style {
-                text_color: Some(theme.cosmic().on_bg_color().into()),
-                background: Some(iced::Color::from(theme.cosmic().bg_color()).into()),
+                text_color: Some(theme.cosmic().background(theme.transparent).on.into()),
+                background: Some(
+                    iced::Color::from(theme.cosmic().background(theme.transparent).base).into(),
+                ),
                 border: Border {
                     radius: radius.into(),
                     width: 1.0,
                     color: theme.cosmic().bg_divider().into(),
                 },
                 shadow: Default::default(),
-                icon_color: Some(theme.cosmic().on_bg_color().into()),
+                icon_color: Some(theme.cosmic().background(theme.transparent).on.into()),
                 snap: true,
             }
         }));
