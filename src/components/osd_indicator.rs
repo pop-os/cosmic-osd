@@ -120,7 +120,7 @@ impl Params {
 #[derive(Clone, Debug)]
 pub enum Msg {
     Ignore,
-    Close,
+    Close(SurfaceId),
 }
 
 #[derive(Debug)]
@@ -133,14 +133,14 @@ pub struct State {
     amplification_source: bool,
 }
 
-fn close_timer() -> (Task<Msg>, AbortHandle) {
+fn close_timer(id: SurfaceId) -> (Task<Msg>, AbortHandle) {
     let (future, timer_abort) = abortable(async {
         let duration = Duration::from_secs(3);
         tokio::time::sleep(duration).await;
     });
     let command = cosmic::task::future(async move {
         match future.await {
-            Ok(_) => Msg::Close,
+            Ok(_) => Msg::Close(id),
             Err(Aborted) => Msg::Ignore,
         }
     });
@@ -149,14 +149,14 @@ fn close_timer() -> (Task<Msg>, AbortHandle) {
 
 /// Creates a 1-second timer for display identifiers
 /// When the timer expires, it sends Msg::Close to remove the display identifier
-fn display_identifier_timer() -> (Task<Msg>, AbortHandle) {
+fn display_identifier_timer(id: SurfaceId) -> (Task<Msg>, AbortHandle) {
     let (future, timer_abort) = abortable(async {
         let duration = Duration::from_secs(1);
         tokio::time::sleep(duration).await;
     });
     let command = cosmic::task::future(async move {
         match future.await {
-            Ok(_) => Msg::Close,
+            Ok(_) => Msg::Close(id),
             Err(Aborted) => Msg::Ignore,
         }
     });
@@ -217,11 +217,11 @@ impl State {
 
         // Display numbers auto-close after 1 second, other OSDs after 3 seconds
         let timer_abort = if is_display_number {
-            let (cmd, timer_abort) = display_identifier_timer();
+            let (cmd, timer_abort) = display_identifier_timer(id);
             cmds.push(cmd);
             timer_abort
         } else {
-            let (cmd, timer_abort) = close_timer();
+            let (cmd, timer_abort) = close_timer(id);
             cmds.push(cmd);
             timer_abort
         };
@@ -260,7 +260,7 @@ impl State {
         self.params = params;
         // Reset timer
         self.timer_abort.abort();
-        let (cmd, timer_abort) = close_timer();
+        let (cmd, timer_abort) = close_timer(self.id);
         self.timer_abort = timer_abort;
         cmd
     }
@@ -273,7 +273,7 @@ impl State {
         }
 
         self.timer_abort.abort();
-        let (cmd, timer_abort) = display_identifier_timer();
+        let (cmd, timer_abort) = display_identifier_timer(self.id);
         self.timer_abort = timer_abort;
         cmd
     }
@@ -445,7 +445,7 @@ impl State {
         log::trace!("indicator msg: {:?}", msg);
         match msg {
             Msg::Ignore => (Some(self), Task::none()),
-            Msg::Close => (None, destroy_layer_surface(self.id)),
+            Msg::Close(id) => (None, destroy_layer_surface(id)),
         }
     }
 }

@@ -312,11 +312,17 @@ impl App {
         if let Some((_id, state)) = &mut self.indicator {
             state.replace_params(params)
         } else {
+            let mut cmds = Vec::new();
             let id = SurfaceId::unique();
             self.overlap.clear();
             let (state, cmd) = osd_indicator::State::new(id, params);
-            self.indicator = Some((id, state));
-            cmd
+
+            if let Some(old) = self.indicator.replace((id, state)) {
+                cmds.push(destroy_layer_surface(old.0));
+            }
+            cmds.push(cmd);
+
+            iced::Task::batch(cmds)
         }
         .map(|x| cosmic::Action::App(Msg::OsdIndicator(x)))
     }
@@ -790,6 +796,7 @@ impl cosmic::Application for App {
                 Task::none()
             }
             Msg::TouchpadEnabled(enabled) => {
+                let mut cmds = Vec::new();
                 let Some(enabled) = enabled else {
                     log::warn!("TouchpadEnabled event received with None value");
                     return Task::none();
@@ -798,10 +805,15 @@ impl cosmic::Application for App {
                 let id = SurfaceId::unique();
                 let (state, cmd) =
                     osd_indicator::State::new(id, osd_indicator::Params::TouchpadEnabled(enabled));
-                self.indicator = Some((id, state));
-                cmd.map(|x| cosmic::Action::App(Msg::OsdIndicator(x)))
+                if let Some(old) = self.indicator.replace((id, state)) {
+                    cmds.push(destroy_layer_surface(old.0));
+                }
+                cmds.push(cmd);
+                iced::Task::batch(cmds).map(|x| cosmic::Action::App(Msg::OsdIndicator(x)))
             }
             Msg::Display(enabled) => {
+                let mut cmds = Vec::new();
+
                 let Some(enabled) = enabled else {
                     log::warn!("Display event received with None value");
                     return Task::none();
@@ -809,8 +821,11 @@ impl cosmic::Application for App {
                 let id = SurfaceId::unique();
                 let (state, cmd) =
                     osd_indicator::State::new(id, osd_indicator::Params::DisplayToggle(enabled));
-                self.indicator = Some((id, state));
-                cmd.map(|x| cosmic::Action::App(Msg::OsdIndicator(x)))
+                if let Some(old) = self.indicator.replace((id, state)) {
+                    cmds.push(destroy_layer_surface(old.0));
+                }
+                cmds.push(cmd);
+                iced::Task::batch(cmds).map(|x| cosmic::Action::App(Msg::OsdIndicator(x)))
             }
             Msg::OutputInfo(output, name) => {
                 let is_new = !self.wayland_outputs.contains_key(&name);
