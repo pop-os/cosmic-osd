@@ -42,8 +42,10 @@ cosmic-randr-shell = { git = "https://github.com/pop-os/cosmic-randr", default-f
 [dependencies.cosmic-settings-airplane-mode-subscription]
 git = "https://github.com/pop-os/cosmic-settings"
 
-[dependencies.cosmic-settings-pulse-subscription]
-git = "https://github.com/pop-os/cosmic-settings"
+[dependencies.cosmic-settings-audio-client]
+path = "../cosmic-settings-daemon/audio-client"
+# branch = "varlink"
+features = ["codec"]
 
 [dependencies.cosmic-settings-upower-subscription]
 git = "https://github.com/pop-os/cosmic-settings"

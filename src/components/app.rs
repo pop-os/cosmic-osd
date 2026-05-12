@@ -24,18 +24,20 @@ use cosmic::widget::{self, autosize, button, container, icon, text};
 use cosmic::{Apply, Element, theme};
 use cosmic_comp_config::input::TouchpadOverride;
 use cosmic_settings_airplane_mode_subscription as airplane_mode;
+use cosmic_settings_audio_client as audio_client;
 use cosmic_settings_daemon_subscription as settings_daemon;
-use cosmic_settings_pulse_subscription as pulse;
 use cosmic_settings_upower_subscription::kbdbacklight::{
     KeyboardBacklightUpdate, kbd_backlight_subscription,
 };
 use logind_zbus::manager::ManagerProxy;
 use serde::{Deserialize, Serialize};
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Display;
 use std::process::Stdio;
+use std::rc::Rc;
 use std::str::FromStr;
-use std::sync::LazyLock;
+use std::sync::{Arc, LazyLock};
 use std::time::{Duration, Instant};
 use zbus::Connection;
 
@@ -250,6 +252,7 @@ pub enum DisplayMode {
 #[derive(Clone, Debug)]
 pub enum Msg {
     Action(OsdTask),
+    AudioClient(super::audio::Message),
     Confirm,
     Cancel,
     Countdown,
@@ -260,7 +263,6 @@ pub enum Msg {
     PolkitAgent(polkit_agent::Event),
     PolkitDialog((SurfaceId, polkit_dialog::Msg)),
     SettingsDaemon(settings_daemon::Event),
-    Pulse(pulse::Event),
     OsdIndicator(osd_indicator::Msg),
     AirplaneMode(bool),
     KeyboardBacklight(KeyboardBacklightUpdate),
@@ -293,11 +295,9 @@ struct App {
     display_brightness: Option<i32>,
     max_keyboard_brightness: Option<i32>,
     keyboard_brightness: Option<i32>,
+    audio: super::audio::model::Model,
+    audio_client: Option<Rc<RefCell<audio_client::Client>>>,
     sink_last_playback: Instant,
-    sink_mute: Option<bool>,
-    sink_volume: Option<u32>,
-    source_mute: Option<bool>,
-    source_volume: Option<u32>,
     airplane_mode: Option<bool>,
     overlap: HashMap<String, Rectangle>,
     size: Option<Size>,
@@ -443,11 +443,9 @@ impl cosmic::Application for App {
                 max_display_brightness: None,
                 keyboard_brightness: None,
                 max_keyboard_brightness: None,
+                audio_client: None,
+                audio: super::audio::model::Model::default(),
                 sink_last_playback: Instant::now(),
-                sink_mute: None,
-                sink_volume: None,
-                source_mute: None,
-                source_volume: None,
                 airplane_mode: None,
                 overlap: HashMap::new(),
                 size: None,
@@ -630,71 +628,29 @@ impl cosmic::Application for App {
                     Task::none()
                 }
             }
-            Msg::Pulse(evt) => {
-                match evt {
-                    pulse::Event::SinkMute(mute) => {
-                        if self.sink_mute.is_none() {
-                            self.sink_mute = Some(mute);
-                        } else if self.sink_mute != Some(mute) {
-                            self.sink_mute = Some(mute);
-                            if let Some(sink_volume) = self.sink_volume {
-                                return self.create_indicator(osd_indicator::Params::SinkVolume(
-                                    sink_volume,
-                                    mute,
-                                ));
-                            }
-                        }
-                    }
-                    pulse::Event::SinkVolume(volume) => {
+            Msg::AudioClient(super::audio::Message::Client(client)) => {
+                if let Some(client) = Arc::into_inner(client) {
+                    self.audio_client = Some(Rc::new(RefCell::new(client)));
+                    self.audio = super::audio::Model::default();
+                }
+                Task::none()
+            }
+            Msg::AudioClient(super::audio::Message::Subscription(message)) => {
+                match self.audio.update(message) {
+                    None => Task::none(),
+                    Some(super::audio::Response::SinkVolume(volume, mute)) => {
                         let now = Instant::now();
                         if now.duration_since(self.sink_last_playback) > Duration::from_millis(125)
                         {
                             self.sink_last_playback = now;
                             pipewire::play_audio_volume_change();
                         }
-
-                        if self.sink_volume.is_none() {
-                            self.sink_volume = Some(volume);
-                        } else if self.sink_volume != Some(volume) {
-                            self.sink_volume = Some(volume);
-                            if let Some(mute) = self.sink_mute {
-                                return self.create_indicator(osd_indicator::Params::SinkVolume(
-                                    volume, mute,
-                                ));
-                            }
-                        }
+                        self.create_indicator(osd_indicator::Params::SinkVolume(volume, mute))
                     }
-                    pulse::Event::SourceMute(mute) => {
-                        if self.source_mute.is_none() {
-                            self.source_mute = Some(mute);
-                        } else if self.source_mute != Some(mute) {
-                            self.source_mute = Some(mute);
-                            if let Some(source_volume) = self.source_volume {
-                                return self.create_indicator(osd_indicator::Params::SourceVolume(
-                                    source_volume,
-                                    mute,
-                                ));
-                            }
-                        }
+                    Some(super::audio::Response::SourceVolume(volume, mute)) => {
+                        self.create_indicator(osd_indicator::Params::SourceVolume(volume, mute))
                     }
-                    pulse::Event::SourceVolume(volume) => {
-                        if self.source_volume.is_none() {
-                            self.source_volume = Some(volume);
-                        } else if self.source_volume != Some(volume) {
-                            self.source_volume = Some(volume);
-                            if let Some(mute) = self.source_mute {
-                                return self.create_indicator(osd_indicator::Params::SourceVolume(
-                                    volume, mute,
-                                ));
-                            }
-                        }
-                    }
-                    pulse::Event::CardInfo(_) => {}
-                    pulse::Event::DefaultSink(_) => {}
-                    pulse::Event::DefaultSource(_) => {}
-                    pulse::Event::Balance(_) | pulse::Event::Channels(_) => {}
                 }
-                Task::none()
             }
             Msg::AirplaneMode(state) => {
                 if self.airplane_mode.is_none() {
@@ -1092,7 +1048,14 @@ impl cosmic::Application for App {
             subscriptions.push(settings_daemon::subscription(connection).map(Msg::SettingsDaemon));
         }
 
-        subscriptions.push(pulse::subscription().map(Msg::Pulse));
+        subscriptions.push(iced::Subscription::run(|| {
+            iced::stream::channel(
+                1,
+                move |emitter: futures::channel::mpsc::Sender<Msg>| async move {
+                    super::audio::subscribe(emitter, Msg::AudioClient).await
+                },
+            )
+        }));
 
         subscriptions.push(airplane_mode::subscription().map(Msg::AirplaneMode));
 

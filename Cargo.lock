@@ -1056,8 +1056,8 @@ dependencies = [
  "cosmic-config",
  "cosmic-randr-shell",
  "cosmic-settings-airplane-mode-subscription",
+ "cosmic-settings-audio-client",
  "cosmic-settings-daemon-subscription",
- "cosmic-settings-pulse-subscription",
  "cosmic-settings-upower-subscription",
  "env_logger",
  "futures",
@@ -1114,6 +1114,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "cosmic-settings-audio-client"
+version = "1.0.0"
+dependencies = [
+ "cosmic-settings-audio-core",
+ "dirs",
+ "futures-util",
+ "ron 0.12.1",
+ "serde",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "zlink",
+]
+
+[[package]]
+name = "cosmic-settings-audio-core"
+version = "1.0.0"
+dependencies = [
+ "dirs",
+ "ron 0.12.1",
+ "serde",
+ "zlink",
+]
+
+[[package]]
 name = "cosmic-settings-config"
 version = "0.1.0"
 source = "git+https://github.com/pop-os/cosmic-settings-daemon#fa82bdf9fe7b5f5bd6008f32f393efd5e7a71c47"
@@ -1145,18 +1170,6 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "zbus",
-]
-
-[[package]]
-name = "cosmic-settings-pulse-subscription"
-version = "0.1.0"
-source = "git+https://github.com/pop-os/cosmic-settings#78644a32e3741f8f80e9b8ce65c3550c85f9c1f8"
-dependencies = [
- "futures",
- "iced_futures",
- "libpulse-binding",
- "log",
- "rustix 1.1.4",
 ]
 
 [[package]]
@@ -3145,33 +3158,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b6d2cec3eae94f9f509c767b45932f1ada8350c4bdb85af2fcab4a3c14807981"
 
 [[package]]
-name = "libpulse-binding"
-version = "2.30.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "909eb3049e16e373680fe65afe6e2a722ace06b671250cc4849557bc57d6a397"
-dependencies = [
- "bitflags 2.11.1",
- "libc",
- "libpulse-sys",
- "num-derive",
- "num-traits",
- "winapi",
-]
-
-[[package]]
-name = "libpulse-sys"
-version = "1.23.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d74371848b22e989f829cc1621d2ebd74960711557d8b45cfe740f60d0a05e61"
-dependencies = [
- "libc",
- "num-derive",
- "num-traits",
- "pkg-config",
- "winapi",
-]
-
-[[package]]
 name = "libredox"
 version = "0.1.16"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3574,17 +3560,6 @@ name = "num-conv"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c6673768db2d862beb9b39a78fdcb1a69439615d5794a1be50caa9bc92c81967"
-
-[[package]]
-name = "num-derive"
-version = "0.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ed3955f1a9c7c0c15e092f9c887db08b1fc683305fdf6eb6684f22555355e202"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
 
 [[package]]
 name = "num-integer"
@@ -4709,6 +4684,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "ryu"
+version = "1.0.23"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9774ba4a74de5f7b1c1451ed6cd5285a32eddb5cccb8cc655a4e50009e06477f"
+
+[[package]]
 name = "same-file"
 version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5355,6 +5336,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32da49809aab5c3bc678af03902d4ccddea2a87d028d86392a4b1560c6906c70"
 dependencies = [
  "futures-core",
+ "pin-project-lite",
+ "tokio",
+ "tokio-util",
+]
+
+[[package]]
+name = "tokio-util"
+version = "0.7.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9ae9cec805b01e8fc3fd2fe289f89149a9b66dd16786abd8b19cfa7b48cb0098"
+dependencies = [
+ "bytes",
+ "futures-core",
+ "futures-sink",
  "pin-project-lite",
  "tokio",
 ]
@@ -7274,6 +7269,73 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "zlink"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9b895b99588dceb73f4d349b8323eabad9a97d48ce83698d475c7223727c6148"
+dependencies = [
+ "zlink-smol",
+ "zlink-tokio",
+]
+
+[[package]]
+name = "zlink-core"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bd12701bd1d42a982b931f0159cf5054bf13d90e7828a8377dfc02ed4b00342d"
+dependencies = [
+ "futures-util",
+ "itoa",
+ "libc",
+ "pin-project-lite",
+ "rustix 1.1.4",
+ "ryu",
+ "serde",
+ "serde_json",
+ "tracing",
+ "zlink-macros",
+]
+
+[[package]]
+name = "zlink-macros"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e6f2416a5f504dfd7e04fee49f31abafe3314a3f62b4ddaa8e9a5fd496d4dd50"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "zlink-smol"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4bc53cd0d636ad753f759aab0abb1f456e985c3938a279d11ebda92340ae37b1"
+dependencies = [
+ "async-broadcast",
+ "async-channel",
+ "async-io",
+ "futures-lite",
+ "futures-util",
+ "pin-project-lite",
+ "zlink-core",
+]
+
+[[package]]
+name = "zlink-tokio"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "28cbf366ac77ab41bf9a8d43535d3d620a072f7957813e03355d3d010c16cc4f"
+dependencies = [
+ "futures-util",
+ "pin-project-lite",
+ "tokio",
+ "tokio-stream",
+ "zlink-core",
 ]
 
 [[package]]
