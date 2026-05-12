@@ -24,7 +24,7 @@ use cosmic::widget::{self, autosize, button, container, icon, text};
 use cosmic::{Apply, Element, theme};
 use cosmic_comp_config::input::TouchpadOverride;
 use cosmic_settings_airplane_mode_subscription as airplane_mode;
-use cosmic_settings_audio_client as audio_client;
+use cosmic_settings_audio_client::{self as audio_client, CosmicAudioProxy};
 use cosmic_settings_daemon_subscription as settings_daemon;
 use cosmic_settings_upower_subscription::kbdbacklight::{
     KeyboardBacklightUpdate, kbd_backlight_subscription,
@@ -78,13 +78,19 @@ pub enum OsdTask {
     EnterBios,
     ConfirmHeadphones {
         #[arg(long)]
-        card_name: String,
+        device: u32,
         #[arg(long)]
-        headphone_profile: String,
+        headphone_card_profile_device: u32,
         #[arg(long)]
-        headset_profile: String,
+        headphone_profile: u32,
         #[arg(long)]
-        headset_port_name: String,
+        headphone_route: u32,
+        #[arg(long)]
+        headset_card_profile_device: u32,
+        #[arg(long)]
+        headset_profile: u32,
+        #[arg(long)]
+        headset_route: u32,
         #[clap(skip)]
         selected_headset: bool,
     },
@@ -99,19 +105,27 @@ impl OsdTask {
             OsdTask::Restart => cosmic::task::future(restart(false)).map(msg),
             OsdTask::Shutdown => cosmic::task::future(shutdown()).map(msg),
             OsdTask::ConfirmHeadphones {
-                card_name,
+                device,
+                headphone_card_profile_device,
                 headphone_profile,
+                headphone_route,
+                headset_card_profile_device,
                 headset_profile,
-                headset_port_name,
+                headset_route,
                 selected_headset,
-            } => cosmic::task::future(confirm_headphones(
-                card_name,
-                headphone_profile,
-                headset_profile,
-                headset_port_name,
-                selected_headset,
-            ))
-            .map(msg),
+            } => {
+                tokio::spawn(confirm_headphones(
+                    device,
+                    headphone_card_profile_device,
+                    headphone_profile,
+                    headphone_route,
+                    headset_card_profile_device,
+                    headset_profile,
+                    headset_route,
+                    selected_headset,
+                ));
+                Task::none()
+            }
             OsdTask::Touchpad => Task::none(),
             OsdTask::Display => Task::none(),
             OsdTask::IdentifyDisplays => Task::none(),
@@ -152,71 +166,33 @@ async fn log_out() -> zbus::Result<()> {
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn confirm_headphones(
-    card_name: String,
-    headphone_profile: String,
-    headset_profile: String,
-    headset_port_name: String,
+    device: u32,
+    headphone_card_profile_device: u32,
+    headphone_profile: u32,
+    headphone_route: u32,
+    headset_card_profile_device: u32,
+    headset_profile: u32,
+    headset_route: u32,
     selected_headset: bool,
-) -> zbus::Result<()> {
-    use tokio::process::Command;
-
-    let profile = if selected_headset {
-        headset_profile
+) {
+    let (card_profile_device, profile, route) = if selected_headset {
+        (headset_card_profile_device, headset_profile, headset_route)
     } else {
-        headphone_profile
+        (
+            headphone_card_profile_device,
+            headphone_profile,
+            headphone_route,
+        )
     };
 
-    let status = Command::new("pactl")
-        .arg("set-card-profile")
-        .arg(card_name)
-        .arg(profile)
-        .status()
-        .await;
-
-    match status {
-        Ok(s) if s.success() => {}
-        Ok(s) => {
-            return Err(zbus::Error::Failure(format!(
-                "pactl exited with status: {}",
-                s
-            )));
-        }
-
-        Err(e) => {
-            return Err(zbus::Error::Failure(format!("Failed to run pactl: {}", e)));
-        }
-    };
-
-    if selected_headset {
-        let output = Command::new("pactl")
-            .arg("get-default-source")
-            .stdout(Stdio::piped())
-            .output()
-            .await?;
-
-        if !output.status.success() {
-            return Err(zbus::Error::Failure(
-                "Failed to get source name.".to_string(),
-            ));
-        }
-
-        let source_name = String::from_utf8_lossy(&output.stdout).trim().to_string();
-
-        let status = Command::new("pactl")
-            .arg("set-source-port")
-            .arg(&source_name)
-            .arg(&headset_port_name)
-            .status()
-            .await?;
-
-        if status.success() {
-            Ok(())
-        } else {
-            Err(zbus::Error::Failure("Failed to set port.".to_string()))
-        }
-    } else {
-        Ok(())
+    if let Ok(mut client) = audio_client::connect().await {
+        _ = client.conn.set_profile(device, profile, true).await;
+        _ = client
+            .conn
+            .set_route(device, card_profile_device, route, true)
+            .await;
     }
 }
 
