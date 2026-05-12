@@ -79,18 +79,6 @@ pub enum OsdTask {
     ConfirmHeadphones {
         #[arg(long)]
         device: u32,
-        #[arg(long)]
-        headphone_card_profile_device: u32,
-        #[arg(long)]
-        headphone_profile: u32,
-        #[arg(long)]
-        headphone_route: u32,
-        #[arg(long)]
-        headset_card_profile_device: u32,
-        #[arg(long)]
-        headset_profile: u32,
-        #[arg(long)]
-        headset_route: u32,
         #[clap(skip)]
         selected_headset: bool,
     },
@@ -106,24 +94,17 @@ impl OsdTask {
             OsdTask::Shutdown => cosmic::task::future(shutdown()).map(msg),
             OsdTask::ConfirmHeadphones {
                 device,
-                headphone_card_profile_device,
-                headphone_profile,
-                headphone_route,
-                headset_card_profile_device,
-                headset_profile,
-                headset_route,
                 selected_headset,
             } => {
-                tokio::spawn(confirm_headphones(
-                    device,
-                    headphone_card_profile_device,
-                    headphone_profile,
-                    headphone_route,
-                    headset_card_profile_device,
-                    headset_profile,
-                    headset_route,
-                    selected_headset,
-                ));
+                tokio::spawn(async move {
+                    if let Ok(mut client) = audio_client::connect().await {
+                        if selected_headset {
+                            _ = client.conn.select_headset_profile(device).await;
+                        } else {
+                            _ = client.conn.select_headphone_profile(device).await;
+                        }
+                    }
+                });
                 Task::none()
             }
             OsdTask::Touchpad => Task::none(),
@@ -164,36 +145,6 @@ async fn log_out() -> zbus::Result<()> {
         }
     }
     Ok(())
-}
-
-#[allow(clippy::too_many_arguments)]
-async fn confirm_headphones(
-    device: u32,
-    headphone_card_profile_device: u32,
-    headphone_profile: u32,
-    headphone_route: u32,
-    headset_card_profile_device: u32,
-    headset_profile: u32,
-    headset_route: u32,
-    selected_headset: bool,
-) {
-    let (card_profile_device, profile, route) = if selected_headset {
-        (headset_card_profile_device, headset_profile, headset_route)
-    } else {
-        (
-            headphone_card_profile_device,
-            headphone_profile,
-            headphone_route,
-        )
-    };
-
-    if let Ok(mut client) = audio_client::connect().await {
-        _ = client.conn.set_profile(device, profile, true).await;
-        _ = client
-            .conn
-            .set_route(device, card_profile_device, route, true)
-            .await;
-    }
 }
 
 impl Display for OsdTask {
