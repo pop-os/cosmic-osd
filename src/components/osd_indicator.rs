@@ -300,25 +300,16 @@ impl State {
         let osd_contents = if let Some(value) = self.params.value() {
             radius = cosmic::theme::active().cosmic().radius_l();
             let max_value = self.max_value();
+            let progress = value as f32 / max_value;
+
             let osd_bar = if max_value > 100.0 {
-                iced::widget::row![
-                    widget::determinate_linear(((value as f32) / 100.).min(1.0))
-                        .girth(4)
-                        .width(Length::FillPortion(2)),
-                    widget::determinate_linear(
-                        (value as f32 - 100.0).max(0.0) / (max_value - 100.0)
-                    )
-                    .girth(4)
-                    .width(Length::FillPortion(1)),
-                ]
-                .width(Length::Fixed(266.0))
-                .apply(Element::from)
+                widget::determinate_linear(progress).markers([1.0 / 1.5])
             } else {
-                widget::determinate_linear(value as f32 / max_value)
-                    .girth(4)
-                    .width(Length::Fixed(266.0))
-                    .apply(Element::from)
-            };
+                widget::determinate_linear(progress)
+            }
+            .girth(4)
+            .width(Length::Fixed(266.0));
+
             iced::widget::row![
                 widget::container(icon.size(20)).center_x(Length::Fixed(32.0)),
                 widget::text::body(format!("{}%", value))
