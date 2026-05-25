@@ -9,7 +9,7 @@ enter-bios = Belépés a BIOS-ba
 sound-settings = Hangbeállítások
 shutdown = Leállítás
 headphones = Fejhallgató
-headset = Fejhallgató
+headset = Mikrofonos fejhallgató
 confirm = Megerősítés
 confirm-button =
     { $action ->
@@ -39,4 +39,4 @@ confirm-body =
         [log-out] ki fog jelentkezni
         [enter-bios] újraindul a BIOS-ba
        *[other] alkalmazni fogja a kiválasztott műveletet
-    } { $countdown } másodperc múlva
+    } { $countdown } másodperc múlva.
