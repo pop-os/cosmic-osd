@@ -12,7 +12,8 @@ use cosmic::iced::platform_specific::shell::commands::layer_surface::{
 use cosmic::iced::runtime::platform_specific::wayland::layer_surface::SctkLayerSurfaceSettings;
 use cosmic::iced::window::Id as SurfaceId;
 use cosmic::iced::{self, Subscription, Task};
-use cosmic::widget;
+use cosmic::surface::action::{LiveSettings, simple_layer_shell};
+use cosmic::{Element, widget};
 use std::collections::HashMap;
 use std::sync::{Arc, LazyLock, Mutex};
 use tokio::sync::oneshot;
@@ -63,16 +64,23 @@ pub struct State {
 }
 
 impl State {
-    pub fn new<T: 'static>(id: SurfaceId, params: Params) -> (Self, Task<T>) {
+    pub fn new<T: Send + Sync + 'static>(
+        id: SurfaceId,
+        params: Params,
+    ) -> (Self, Task<cosmic::Action<T>>) {
         let text_input_id = iced::id::Id::unique();
-        let cmd = get_layer_surface(SctkLayerSurfaceSettings {
-            id,
-            keyboard_interactivity: KeyboardInteractivity::Exclusive,
-            namespace: "osd".into(),
-            layer: Layer::Overlay,
-            size: None,
-            ..Default::default()
-        });
+        let cmd = cosmic::surface::surface_task(simple_layer_shell(
+            || LiveSettings::default(),
+            move || SctkLayerSurfaceSettings {
+                id,
+                keyboard_interactivity: KeyboardInteractivity::Exclusive,
+                namespace: "osd".into(),
+                layer: Layer::Overlay,
+                size: None,
+                ..Default::default()
+            },
+            None::<fn() -> Element<'static, cosmic::Action<Msg>>>,
+        ));
         (
             Self {
                 id,

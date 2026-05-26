@@ -13,6 +13,7 @@ use cosmic::iced::runtime::platform_specific::wayland::layer_surface::{
 };
 use cosmic::iced::window::Id as SurfaceId;
 use cosmic::iced::{self, Alignment, Border, Length};
+use cosmic::surface::action::{LiveSettings, simple_layer_shell};
 use cosmic::{Apply, Element, Task, widget};
 use cosmic_comp_config::input::TouchpadOverride;
 use futures::future::{AbortHandle, Aborted, abortable};
@@ -164,11 +165,18 @@ fn display_identifier_timer(id: SurfaceId) -> (Task<Msg>, AbortHandle) {
 }
 
 impl State {
-    pub fn new(id: SurfaceId, params: Params) -> (Self, Task<Msg>) {
+    pub fn new(
+        id: SurfaceId,
+        params: Params,
+    ) -> (Self, Task<cosmic::Action<crate::components::app::Msg>>) {
         Self::new_with_output(id, params, IcedOutput::Active)
     }
 
-    pub fn new_with_output(id: SurfaceId, params: Params, output: IcedOutput) -> (Self, Task<Msg>) {
+    pub fn new_with_output(
+        id: SurfaceId,
+        params: Params,
+        output: IcedOutput,
+    ) -> (Self, Task<cosmic::Action<crate::components::app::Msg>>) {
         let mut cmds = vec![];
 
         let is_display_number = matches!(params, Params::DisplayNumber(_));
@@ -199,30 +207,48 @@ impl State {
             }
         };
 
-        cmds.push(get_layer_surface(SctkLayerSurfaceSettings {
-            id,
-            keyboard_interactivity: KeyboardInteractivity::None,
-            namespace: "osd".into(),
-            layer: Layer::Overlay,
-            size: None,
-            anchor,
-            output,
-            exclusive_zone,
-            margin,
-            input_zone: Some(Vec::new()),
-            ..Default::default()
-        }));
-
-        cmds.push(overlap_notify(id, true));
+        cmds.push(cosmic::surface::surface_task(simple_layer_shell(
+            || LiveSettings::default(),
+            move || SctkLayerSurfaceSettings {
+                id,
+                keyboard_interactivity: KeyboardInteractivity::None,
+                namespace: "osd".into(),
+                layer: Layer::Overlay,
+                size: None,
+                anchor,
+                output: output.clone(),
+                exclusive_zone,
+                margin,
+                input_zone: Some(Vec::new()),
+                ..Default::default()
+            },
+            None::<fn() -> Element<'static, cosmic::Action<Msg>>>,
+        )));
 
         // Display numbers auto-close after 1 second, other OSDs after 3 seconds
         let timer_abort = if is_display_number {
             let (cmd, timer_abort) = display_identifier_timer(id);
-            cmds.push(cmd);
+            cmds.push(cmd.map(move |x| {
+                if is_display_number {
+                    cosmic::action::app(crate::components::app::Msg::DisplayIdentifierSurface((
+                        id, x,
+                    )))
+                } else {
+                    cosmic::Action::App(crate::components::app::Msg::OsdIndicator(x))
+                }
+            }));
             timer_abort
         } else {
             let (cmd, timer_abort) = close_timer(id);
-            cmds.push(cmd);
+            cmds.push(cmd.map(move |x| {
+                if is_display_number {
+                    cosmic::action::app(crate::components::app::Msg::DisplayIdentifierSurface((
+                        id, x,
+                    )))
+                } else {
+                    cosmic::Action::App(crate::components::app::Msg::OsdIndicator(x))
+                }
+            }));
             timer_abort
         };
 

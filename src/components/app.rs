@@ -15,16 +15,18 @@ use cosmic::iced::keyboard::key::Named;
 use cosmic::iced::platform_specific::shell::commands::activation::request_token;
 use cosmic::iced::platform_specific::shell::commands::corner_radius::corner_radius;
 use cosmic::iced::platform_specific::shell::commands::layer_surface::{
-    Anchor, KeyboardInteractivity, destroy_layer_surface, get_layer_surface, set_padding,
+    Anchor, KeyboardInteractivity, destroy_layer_surface, set_padding,
 };
+use cosmic::iced::platform_specific::shell::commands::overlap_notify::overlap_notify;
 use cosmic::iced::runtime::platform_specific::wayland::CornerRadius;
 use cosmic::iced::runtime::platform_specific::wayland::layer_surface::{
     IcedMargin, IcedOutput, SctkLayerSurfaceSettings,
 };
 use cosmic::iced::runtime::{Action, platform_specific, task};
 use cosmic::iced::widget::operation::focus;
-use cosmic::iced::window::Id as SurfaceId;
+use cosmic::iced::window::{self, Id as SurfaceId};
 use cosmic::iced::{self, Alignment, Length, Limits, Point, Rectangle, Size, Subscription, time};
+use cosmic::surface::action::{LiveSettings, simple_layer_shell};
 use cosmic::widget::{self, autosize, button, container, icon, text};
 use cosmic::{Apply, Element, theme};
 use cosmic_comp_config::input::TouchpadOverride;
@@ -199,7 +201,7 @@ pub enum Msg {
     AirplaneMode(bool),
     KeyboardBacklight(KeyboardBacklightUpdate),
     Overlap(OverlapNotifyEvent),
-    Size(Size),
+    Size(window::Id, Size),
     Zbus(Result<(), zbus::Error>),
     SoundSettings,
     TouchpadEnabled(Option<TouchpadOverride>),
@@ -217,7 +219,7 @@ enum Surface {
     OsdIndicator(osd_indicator::State),
 }
 
-struct App {
+pub(crate) struct App {
     core: cosmic::app::Core,
     connection: Option<zbus::Connection>,
     system_connection: Option<zbus::Connection>,
@@ -242,7 +244,9 @@ struct App {
 impl App {
     fn create_indicator(&mut self, params: osd_indicator::Params) -> cosmic::app::Task<Msg> {
         if let Some((_id, state)) = &mut self.indicator {
-            state.replace_params(params)
+            state
+                .replace_params(params)
+                .map(|x| cosmic::Action::App(Msg::OsdIndicator(x)))
         } else {
             let mut cmds = Vec::new();
             let id = SurfaceId::unique();
@@ -250,13 +254,12 @@ impl App {
             let (state, cmd) = osd_indicator::State::new(id, params);
 
             if let Some(old) = self.indicator.replace((id, state)) {
-                cmds.push(destroy_layer_surface(old.0));
+                cmds.push(destroy_layer_surface(old.0).map(cosmic::Action::App));
             }
             cmds.push(cmd);
 
             iced::Task::batch(cmds)
         }
-        .map(|x| cosmic::Action::App(Msg::OsdIndicator(x)))
     }
 
     fn handle_overlap(&mut self) -> Task<Msg> {
@@ -483,15 +486,19 @@ impl cosmic::Application for App {
                 } else {
                     let id = SurfaceId::unique();
                     self.action_to_confirm = Some((id, action, COUNTDOWN_LENGTH));
-                    get_layer_surface(SctkLayerSurfaceSettings {
-                        id,
-                        keyboard_interactivity: KeyboardInteractivity::Exclusive,
-                        anchor: Anchor::empty(),
-                        namespace: "dialog".into(),
-                        size: None,
-                        size_limits: Limits::NONE.min_width(1.0).min_height(1.0),
-                        ..Default::default()
-                    })
+                    cosmic::surface::surface_task(simple_layer_shell(
+                        || LiveSettings::default(),
+                        move || SctkLayerSurfaceSettings {
+                            id,
+                            keyboard_interactivity: KeyboardInteractivity::Exclusive,
+                            anchor: Anchor::empty(),
+                            namespace: "dialog".into(),
+                            size: None,
+                            size_limits: Limits::NONE.min_width(1.0).min_height(1.0),
+                            ..Default::default()
+                        },
+                        None::<fn() -> Element<'static, cosmic::Action<Msg>>>,
+                    ))
                 }
             }
             Msg::Confirm => {
@@ -706,9 +713,9 @@ impl cosmic::Application for App {
                 }
                 Task::none()
             }
-            Msg::Size(size) => {
+            Msg::Size(id, size) => {
                 self.size = Some(size);
-                return self.handle_overlap();
+                return Task::batch([self.handle_overlap(), overlap_notify(id, true)]);
             }
             Msg::Zbus(result) => {
                 if let Err(e) = result {
@@ -764,7 +771,7 @@ impl cosmic::Application for App {
                     cmds.push(destroy_layer_surface(old.0));
                 }
                 cmds.push(cmd);
-                iced::Task::batch(cmds).map(|x| cosmic::Action::App(Msg::OsdIndicator(x)))
+                iced::Task::batch(cmds)
             }
             Msg::Display(enabled) => {
                 let mut cmds = Vec::new();
@@ -780,7 +787,7 @@ impl cosmic::Application for App {
                     cmds.push(destroy_layer_surface(old.0));
                 }
                 cmds.push(cmd);
-                iced::Task::batch(cmds).map(|x| cosmic::Action::App(Msg::OsdIndicator(x)))
+                iced::Task::batch(cmds)
             }
             Msg::OutputInfo(output, name) => {
                 let is_new = !self.wayland_outputs.contains_key(&name);
@@ -914,9 +921,7 @@ impl cosmic::Application for App {
                             self.surfaces.insert(id, Surface::OsdIndicator(state));
                             self.display_identifier_displays
                                 .insert(id, display_name.clone());
-                            tasks.push(cmd.map(move |msg| {
-                                cosmic::action::app(Msg::DisplayIdentifierSurface((id, msg)))
-                            }));
+                            tasks.push(cmd);
                         }
                     } else {
                         // No existing identifier for this display, create new one
@@ -945,9 +950,7 @@ impl cosmic::Application for App {
                         self.surfaces.insert(id, Surface::OsdIndicator(state));
                         self.display_identifier_displays
                             .insert(id, display_name.clone());
-                        tasks.push(cmd.map(move |msg| {
-                            cosmic::action::app(Msg::DisplayIdentifierSurface((id, msg)))
-                        }));
+                        tasks.push(cmd);
                     }
                 }
 
@@ -1060,11 +1063,11 @@ impl cosmic::Application for App {
 
         subscriptions.push(kbd_backlight_subscription("kbd-backlight").map(Msg::KeyboardBacklight));
 
-        subscriptions.push(listen_with(|event, _, _id| match event {
+        subscriptions.push(listen_with(|event, _, id| match event {
             event::Event::Window(iced::window::Event::Opened { position: _, size }) => {
-                Some(Msg::Size(size))
+                Some(Msg::Size(id, size))
             }
-            event::Event::Window(iced::window::Event::Resized(s)) => Some(Msg::Size(s)),
+            event::Event::Window(iced::window::Event::Resized(s)) => Some(Msg::Size(id, s)),
             event::Event::PlatformSpecific(event::PlatformSpecific::Wayland(wayland_event)) => {
                 match wayland_event {
                     wayland::Event::OverlapNotify(event, ..) => Some(Msg::Overlap(event)),
@@ -1465,15 +1468,19 @@ impl cosmic::Application for App {
                 } else {
                     let id = SurfaceId::unique();
                     self.action_to_confirm = Some((id, cmd, COUNTDOWN_LENGTH));
-                    return get_layer_surface(SctkLayerSurfaceSettings {
-                        id,
-                        keyboard_interactivity: KeyboardInteractivity::Exclusive,
-                        anchor: Anchor::empty(),
-                        namespace: "dialog".into(),
-                        size: None,
-                        size_limits: Limits::NONE.min_width(1.0).min_height(1.0),
-                        ..Default::default()
-                    });
+                    return cosmic::surface::surface_task(simple_layer_shell(
+                        || LiveSettings::default(),
+                        move || SctkLayerSurfaceSettings {
+                            id,
+                            keyboard_interactivity: KeyboardInteractivity::Exclusive,
+                            anchor: Anchor::empty(),
+                            namespace: "dialog".into(),
+                            size: None,
+                            size_limits: Limits::NONE.min_width(1.0).min_height(1.0),
+                            ..Default::default()
+                        },
+                        None::<fn() -> Element<'static, cosmic::Action<Msg>>>,
+                    ));
                 }
             }
             Details::Open { .. } => {}
