@@ -260,6 +260,8 @@ pub enum Msg {
     PolkitAgent(polkit_agent::Event),
     PolkitDialog((SurfaceId, polkit_dialog::Msg)),
     SettingsDaemon(settings_daemon::Event),
+    HotkeyBrightness(i32, i32),
+    BatteryStatus(u32, bool, bool), // percent, on_battery, charging
     Pulse(pulse::Event),
     OsdIndicator(osd_indicator::Msg),
     AirplaneMode(bool),
@@ -296,9 +298,14 @@ struct App {
     sink_last_playback: Instant,
     sink_mute: Option<bool>,
     sink_volume: Option<u32>,
+    /// Name of the current default audio sink (e.g. `bluez_output.*` /
+    /// `alsa_output.*-headphones`); used to pick a device-aware volume OSD icon.
+    default_sink_name: Option<String>,
     source_mute: Option<bool>,
     source_volume: Option<u32>,
     airplane_mode: Option<bool>,
+    /// Tracks on_battery to detect AC plug/unplug and show a battery OSD.
+    on_battery: Option<bool>,
     overlap: HashMap<String, Rectangle>,
     size: Option<Size>,
     action_to_confirm: Option<(SurfaceId, OsdTask, u8)>,
@@ -446,9 +453,11 @@ impl cosmic::Application for App {
                 sink_last_playback: Instant::now(),
                 sink_mute: None,
                 sink_volume: None,
+                default_sink_name: None,
                 source_mute: None,
                 source_volume: None,
                 airplane_mode: None,
+                on_battery: None,
                 overlap: HashMap::new(),
                 size: None,
                 action_to_confirm: None,
@@ -604,30 +613,22 @@ impl cosmic::Application for App {
                 Task::none()
             }
             Msg::SettingsDaemon(settings_daemon::Event::DisplayBrightness(brightness)) => {
-                if self.display_brightness.is_none() {
-                    self.display_brightness = Some(brightness);
-                    Task::none()
-                } else if self.display_brightness != Some(brightness) {
-                    self.display_brightness = Some(brightness);
-                    if let Some(max) = self.max_display_brightness {
-                        if max <= 20 {
-                            // Coarse displays: rung_ratio=(raw+1)/20
-                            let rung_ratio = ((brightness + 1) as f64) / 20.0;
-                            self.create_indicator(osd_indicator::Params::DisplayBrightness(
-                                rung_ratio,
-                            ))
-                        } else {
-                            // Fine displays: exact integer percent from raw/max
-                            let ratio = (brightness as f64) / (max as f64);
-                            self.create_indicator(osd_indicator::Params::DisplayBrightnessExact(
-                                ratio,
-                            ))
-                        }
-                    } else {
-                        Task::none()
-                    }
+                // Silently track brightness state but never show OSD for property
+                // changes. OSD is shown only on HotkeyBrightness events fired
+                // by cosmic-settings-daemon when the brightness hotkey is used.
+                self.display_brightness = Some(brightness);
+                Task::none()
+            }
+            Msg::HotkeyBrightness(brightness, max) => {
+                // Cache the values so other code paths see fresh state.
+                self.display_brightness = Some(brightness);
+                self.max_display_brightness = Some(max);
+                if max <= 20 {
+                    let rung_ratio = ((brightness + 1) as f64) / 20.0;
+                    self.create_indicator(osd_indicator::Params::DisplayBrightness(rung_ratio))
                 } else {
-                    Task::none()
+                    let ratio = (brightness as f64) / (max as f64);
+                    self.create_indicator(osd_indicator::Params::DisplayBrightnessExact(ratio))
                 }
             }
             Msg::Pulse(evt) => {
@@ -638,9 +639,11 @@ impl cosmic::Application for App {
                         } else if self.sink_mute != Some(mute) {
                             self.sink_mute = Some(mute);
                             if let Some(sink_volume) = self.sink_volume {
+                                let kind = sink_kind_from_name(self.default_sink_name.as_deref());
                                 return self.create_indicator(osd_indicator::Params::SinkVolume(
                                     sink_volume,
                                     mute,
+                                    kind,
                                 ));
                             }
                         }
@@ -658,8 +661,9 @@ impl cosmic::Application for App {
                         } else if self.sink_volume != Some(volume) {
                             self.sink_volume = Some(volume);
                             if let Some(mute) = self.sink_mute {
+                                let kind = sink_kind_from_name(self.default_sink_name.as_deref());
                                 return self.create_indicator(osd_indicator::Params::SinkVolume(
-                                    volume, mute,
+                                    volume, mute, kind,
                                 ));
                             }
                         }
@@ -690,11 +694,28 @@ impl cosmic::Application for App {
                         }
                     }
                     pulse::Event::CardInfo(_) => {}
-                    pulse::Event::DefaultSink(_) => {}
+                    pulse::Event::DefaultSink(name) => {
+                        self.default_sink_name = Some(name);
+                    }
                     pulse::Event::DefaultSource(_) => {}
                     pulse::Event::Balance(_) | pulse::Event::Channels(_) => {}
                 }
                 Task::none()
+            }
+            Msg::BatteryStatus(pct, on_battery, charging) => {
+                // Only show OSD on actual AC plug/unplug transition (not on
+                // initial state detection or while-running percent updates).
+                if self.on_battery.is_none() {
+                    self.on_battery = Some(on_battery);
+                    Task::none()
+                } else if self.on_battery != Some(on_battery) {
+                    self.on_battery = Some(on_battery);
+                    self.create_indicator(osd_indicator::Params::BatteryStatus(
+                        pct, on_battery, charging,
+                    ))
+                } else {
+                    Task::none()
+                }
             }
             Msg::AirplaneMode(state) => {
                 if self.airplane_mode.is_none() {
@@ -1091,6 +1112,16 @@ impl cosmic::Application for App {
         if let Some(connection) = self.connection.clone() {
             subscriptions.push(settings_daemon::subscription(connection).map(Msg::SettingsDaemon));
         }
+
+        // Hotkey-only brightness signal — shows OSD only when brightness hotkey
+        // is pressed, not on other brightness changes (slider, programmatic).
+        subscriptions
+            .push(hotkey_brightness_subscription().map(|(b, m)| Msg::HotkeyBrightness(b, m)));
+
+        // UPower AC plug/unplug notifier → battery status OSD
+        subscriptions.push(battery_status_subscription().map(|(pct, on_bat, chg)| {
+            Msg::BatteryStatus(pct, on_bat, chg)
+        }));
 
         subscriptions.push(pulse::subscription().map(Msg::Pulse));
 
@@ -1576,4 +1607,150 @@ fn min_width_and_height(
 
 fn text_icon(name: &str, size: u16) -> widget::Icon {
     icon::from_name(name).size(size).symbolic(true).icon()
+}
+
+/// Coarse-classify the default audio sink for the volume OSD icon.
+///
+/// The pulse subscription only gives us the sink's node name (e.g.
+/// `bluez_output.58_18_62_27_28_EA.1`, `alsa_output.pci-...HiFi__Headphones__sink`),
+/// not its full property set — but the name is enough to distinguish the
+/// common cases. Anything we can't recognise falls back to `Speaker`,
+/// which preserves the upstream icon family.
+fn sink_kind_from_name(name: Option<&str>) -> osd_indicator::SinkKind {
+    let n = match name {
+        Some(s) => s,
+        None => return osd_indicator::SinkKind::Speaker,
+    };
+    if n.starts_with("bluez_output.") || n.starts_with("bluez_sink.") {
+        osd_indicator::SinkKind::Bluetooth
+    } else if n.contains("headphone") || n.contains("Headphone") {
+        // Wired headphones: the alsa node name carries the route, e.g.
+        // `alsa_output.pci-....HiFi__Headphones__sink`.
+        osd_indicator::SinkKind::Headphones
+    } else {
+        osd_indicator::SinkKind::Speaker
+    }
+}
+
+/// Listens to the `DisplayBrightnessHotkey` signal from cosmic-settings-daemon.
+/// This signal is fired only when the brightness hotkey methods are called,
+/// so the OSD shows only for hotkey presses (not slider drags or programmatic
+/// brightness changes like the dim-idle feature).
+fn hotkey_brightness_subscription() -> cosmic::iced::Subscription<(i32, i32)> {
+    use cosmic::iced::futures::{SinkExt, channel::mpsc, stream::StreamExt};
+    use std::hash::Hash;
+    #[derive(Clone)]
+    struct Id;
+    impl Hash for Id {
+        fn hash<H: std::hash::Hasher>(&self, _: &mut H) {}
+    }
+    cosmic::iced::Subscription::run_with(Id, |_| {
+        let (tx, rx) = mpsc::channel::<(i32, i32)>(4);
+        tokio::spawn(async move {
+            let mut tx = tx;
+            loop {
+                if let Err(e) = listen_hotkey_signal(&mut tx).await {
+                    log::warn!("hotkey brightness signal listener error: {e}");
+                    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+                }
+            }
+        });
+        rx.boxed()
+    })
+}
+
+async fn listen_hotkey_signal(
+    output: &mut cosmic::iced::futures::channel::mpsc::Sender<(i32, i32)>,
+) -> zbus::Result<()> {
+    use cosmic::iced::futures::{SinkExt, StreamExt};
+    let conn = zbus::Connection::session().await?;
+    let proxy = zbus::Proxy::new(
+        &conn,
+        "com.system76.CosmicSettingsDaemon",
+        "/com/system76/CosmicSettingsDaemon",
+        "com.system76.CosmicSettingsDaemon",
+    )
+    .await?;
+    // Pair the new-brightness value from the signal with `MaxDisplayBrightness`
+    // so the OSD doesn't depend on a separately-arriving SettingsDaemon
+    // subscription having populated `max` first. Without this, hotkey OSD silently
+    // no-ops if the signal arrives before the property subscription does.
+    let max: i32 = proxy
+        .get_property::<i32>("MaxDisplayBrightness")
+        .await
+        .unwrap_or(20);
+    let mut stream = proxy.receive_signal("DisplayBrightnessHotkey").await?;
+    while let Some(msg) = stream.next().await {
+        if let Ok(value) = msg.body().deserialize::<i32>() {
+            let _ = output.send((value, max)).await;
+        }
+    }
+    Ok(())
+}
+
+/// Listens for UPower `OnBattery` property changes. Emits (percent, on_battery, charging)
+/// so the OSD can pop up a status modal when the AC adapter is plugged/unplugged.
+fn battery_status_subscription() -> cosmic::iced::Subscription<(u32, bool, bool)> {
+    use cosmic::iced::futures::{SinkExt, channel::mpsc, stream::StreamExt};
+    use std::hash::Hash;
+    #[derive(Clone)]
+    struct Id;
+    impl Hash for Id {
+        fn hash<H: std::hash::Hasher>(&self, _: &mut H) {}
+    }
+    cosmic::iced::Subscription::run_with(Id, |_| {
+        let (tx, rx) = mpsc::channel::<(u32, bool, bool)>(4);
+        tokio::spawn(async move {
+            let mut tx = tx;
+            loop {
+                if let Err(e) = listen_upower_ac(&mut tx).await {
+                    log::warn!("upower ac listener error: {e}");
+                    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+                }
+            }
+        });
+        rx.boxed()
+    })
+}
+
+async fn listen_upower_ac(
+    output: &mut cosmic::iced::futures::channel::mpsc::Sender<(u32, bool, bool)>,
+) -> zbus::Result<()> {
+    use cosmic::iced::futures::{SinkExt, StreamExt};
+    let conn = zbus::Connection::system().await?;
+    let proxy = zbus::Proxy::new(
+        &conn,
+        "org.freedesktop.UPower",
+        "/org/freedesktop/UPower",
+        "org.freedesktop.UPower",
+    )
+    .await?;
+    // Emit initial state so the app tracks it
+    let on_battery: bool = proxy.get_property("OnBattery").await.unwrap_or(false);
+    let (pct, charging) = get_display_device_state(&conn).await.unwrap_or((0, false));
+    let _ = output.send((pct, on_battery, charging)).await;
+
+    let mut changes = proxy.receive_property_changed::<bool>("OnBattery").await;
+    while let Some(change) = changes.next().await {
+        let on_battery = change.get().await.unwrap_or(false);
+        let (pct, charging) = get_display_device_state(&conn).await.unwrap_or((0, false));
+        let _ = output.send((pct, on_battery, charging)).await;
+    }
+    Ok(())
+}
+
+async fn get_display_device_state(
+    conn: &zbus::Connection,
+) -> zbus::Result<(u32, bool)> {
+    let dev_proxy = zbus::Proxy::new(
+        conn,
+        "org.freedesktop.UPower",
+        "/org/freedesktop/UPower/devices/DisplayDevice",
+        "org.freedesktop.UPower.Device",
+    )
+    .await?;
+    let pct: f64 = dev_proxy.get_property("Percentage").await.unwrap_or(0.0);
+    let state: u32 = dev_proxy.get_property("State").await.unwrap_or(0);
+    // State 1 = Charging
+    Ok((pct.round() as u32, state == 1))
 }
