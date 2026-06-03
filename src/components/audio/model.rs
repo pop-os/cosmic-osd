@@ -55,13 +55,13 @@ impl Model {
             audio_client::Event::NodeMute(node_id, mute) => {
                 if let Some(pos) = self.sinks.id.iter().position(|id| node_id == *id) {
                     self.sinks.mute[pos] = mute;
-                    if self.sinks.active == Some(pos) {
+                    if self.sinks.active == Some(pos) && self.active_sink.mute != mute {
                         self.active_sink.mute = mute;
                         return Some(Response::SinkVolume(self.sinks.volume[pos], mute));
                     }
                 } else if let Some(pos) = self.sources.id.iter().position(|id| node_id == *id) {
                     self.sources.mute[pos] = mute;
-                    if self.sources.active == Some(pos) {
+                    if self.sources.active == Some(pos) && self.active_source.mute != mute {
                         self.active_source.mute = mute;
                         return Some(Response::SourceVolume(self.sources.volume[pos], mute));
                     }
@@ -74,9 +74,12 @@ impl Model {
                     if self.default_sink.as_ref().is_some_and(|&id| id == node_id)
                         && let Some(pos) = self.sinks.active
                     {
+                        let changed = self.active_sink.mute != self.sinks.mute[pos]
+                            || self.active_sink.volume != self.sinks.volume[pos];
                         self.active_sink.mute = self.sinks.mute[pos];
                         self.active_sink.volume = self.sinks.volume[pos];
-                        return Some(Response::SinkVolume(
+
+                        return changed.then_some(Response::SinkVolume(
                             self.active_sink.volume,
                             self.active_sink.mute,
                         ));
@@ -89,9 +92,11 @@ impl Model {
                         .is_some_and(|&id| id == node_id)
                         && let Some(pos) = self.sources.active
                     {
+                        let changed = self.active_source.mute != self.sources.mute[pos]
+                            || self.active_source.volume != self.sinks.volume[pos];
                         self.active_source.mute = self.sources.mute[pos];
                         self.active_source.volume = self.sources.volume[pos];
-                        return Some(Response::SourceVolume(
+                        return changed.then_some(Response::SourceVolume(
                             self.active_source.volume,
                             self.active_source.mute,
                         ));
