@@ -44,7 +44,6 @@ git = "https://github.com/pop-os/cosmic-settings"
 
 [dependencies.cosmic-settings-audio-client]
 git = "https://github.com/pop-os/cosmic-settings-daemon"
-branch = "varlink"
 features = ["codec"]
 
 [dependencies.cosmic-settings-upower-subscription]
