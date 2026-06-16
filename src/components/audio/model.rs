@@ -93,7 +93,7 @@ impl Model {
                         && let Some(pos) = self.sources.active
                     {
                         let changed = self.active_source.mute != self.sources.mute[pos]
-                            || self.active_source.volume != self.sinks.volume[pos];
+                            || self.active_source.volume != self.sources.volume[pos];
                         self.active_source.mute = self.sources.mute[pos];
                         self.active_source.volume = self.sources.volume[pos];
                         return changed.then_some(Response::SourceVolume(
