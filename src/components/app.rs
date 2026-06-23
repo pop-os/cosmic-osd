@@ -758,20 +758,12 @@ impl cosmic::Application for App {
                 Task::none()
             }
             Msg::TouchpadEnabled(enabled) => {
-                let mut cmds = Vec::new();
                 let Some(enabled) = enabled else {
                     log::warn!("TouchpadEnabled event received with None value");
                     return Task::none();
                 };
-                // Show the OSD indicator for touchpad enabled/disabled
-                let id = SurfaceId::unique();
-                let (state, cmd) =
-                    osd_indicator::State::new(id, osd_indicator::Params::TouchpadEnabled(enabled));
-                if let Some(old) = self.indicator.replace((id, state)) {
-                    cmds.push(destroy_layer_surface(old.0));
-                }
-                cmds.push(cmd);
-                iced::Task::batch(cmds)
+
+                self.create_indicator(osd_indicator::Params::TouchpadEnabled(enabled))
             }
             Msg::Display(enabled) => {
                 let mut cmds = Vec::new();
