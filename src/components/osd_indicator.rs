@@ -3,16 +3,15 @@
 
 use crate::components::app::DisplayMode;
 use crate::config;
-use cosmic::cctk::sctk::seat::input_method_v3::Rectangle;
 use cosmic::iced::platform_specific::shell::commands::layer_surface::{
-    Anchor, KeyboardInteractivity, Layer, destroy_layer_surface, get_layer_surface,
+    Anchor, KeyboardInteractivity, Layer, destroy_layer_surface,
 };
-use cosmic::iced::platform_specific::shell::commands::overlap_notify::overlap_notify;
 use cosmic::iced::runtime::platform_specific::wayland::layer_surface::{
     IcedMargin, IcedOutput, SctkLayerSurfaceSettings,
 };
 use cosmic::iced::window::Id as SurfaceId;
 use cosmic::iced::{self, Alignment, Border, Length};
+use cosmic::surface::action::{LiveSettings, simple_layer_shell};
 use cosmic::{Apply, Element, Task, widget};
 use cosmic_comp_config::input::TouchpadOverride;
 use futures::future::{AbortHandle, Aborted, abortable};
@@ -78,7 +77,7 @@ impl Params {
         }
     }
 
-    fn value(&self) -> Option<u32> {
+    pub(crate) fn value(&self) -> Option<u32> {
         match self {
             Self::DisplayBrightness(value) => {
                 let mut rung = (*value * 20.0).round() as u32;
@@ -164,11 +163,20 @@ fn display_identifier_timer(id: SurfaceId) -> (Task<Msg>, AbortHandle) {
 }
 
 impl State {
-    pub fn new(id: SurfaceId, params: Params) -> (Self, Task<Msg>) {
-        Self::new_with_output(id, params, IcedOutput::Active)
+    pub fn new(
+        id: SurfaceId,
+        params: Params,
+        margin: IcedMargin,
+    ) -> (Self, Task<cosmic::Action<crate::components::app::Msg>>) {
+        Self::new_with_output(id, params, IcedOutput::Active, margin)
     }
 
-    pub fn new_with_output(id: SurfaceId, params: Params, output: IcedOutput) -> (Self, Task<Msg>) {
+    pub fn new_with_output(
+        id: SurfaceId,
+        params: Params,
+        output: IcedOutput,
+        margin: IcedMargin,
+    ) -> (Self, Task<cosmic::Action<crate::components::app::Msg>>) {
         let mut cmds = vec![];
 
         let is_display_number = matches!(params, Params::DisplayNumber(_));
@@ -190,39 +198,51 @@ impl State {
                 left: 0,
             }
         } else {
-            // No margin for other OSDs (they use widget-based margins)
-            IcedMargin {
-                top: 0,
-                right: 0,
-                bottom: 0,
-                left: 0,
-            }
+            margin
         };
 
-        cmds.push(get_layer_surface(SctkLayerSurfaceSettings {
-            id,
-            keyboard_interactivity: KeyboardInteractivity::None,
-            namespace: "osd".into(),
-            layer: Layer::Overlay,
-            size: None,
-            anchor,
-            output,
-            exclusive_zone,
-            margin,
-            input_zone: Some(Vec::new()),
-            ..Default::default()
-        }));
-
-        cmds.push(overlap_notify(id, true));
+        cmds.push(cosmic::surface::surface_task(simple_layer_shell(
+            || LiveSettings::default(),
+            move || SctkLayerSurfaceSettings {
+                id,
+                keyboard_interactivity: KeyboardInteractivity::None,
+                namespace: "osd".into(),
+                layer: Layer::Overlay,
+                size: None,
+                anchor,
+                output: output.clone(),
+                exclusive_zone,
+                margin,
+                input_zone: Some(Vec::new()),
+                ..Default::default()
+            },
+            None::<fn() -> Element<'static, cosmic::Action<Msg>>>,
+        )));
 
         // Display numbers auto-close after 1 second, other OSDs after 3 seconds
         let timer_abort = if is_display_number {
             let (cmd, timer_abort) = display_identifier_timer(id);
-            cmds.push(cmd);
+            cmds.push(cmd.map(move |x| {
+                if is_display_number {
+                    cosmic::action::app(crate::components::app::Msg::DisplayIdentifierSurface((
+                        id, x,
+                    )))
+                } else {
+                    cosmic::Action::App(crate::components::app::Msg::OsdIndicator(x))
+                }
+            }));
             timer_abort
         } else {
             let (cmd, timer_abort) = close_timer(id);
-            cmds.push(cmd);
+            cmds.push(cmd.map(move |x| {
+                if is_display_number {
+                    cosmic::action::app(crate::components::app::Msg::DisplayIdentifierSurface((
+                        id, x,
+                    )))
+                } else {
+                    cosmic::Action::App(crate::components::app::Msg::OsdIndicator(x))
+                }
+            }));
             timer_abort
         };
 
@@ -232,7 +252,7 @@ impl State {
         // Margin: (top, right, bottom, left)
         // Display numbers at top, other OSDs at bottom
         let margin = if is_display_number {
-            (48, 0, 0, 0) // Top margin for display numbers
+            (0, 0, 0, 0) // Top margin for display numbers
         } else {
             (0, 0, 48, 0) // Bottom margin for other OSDs
         };
@@ -333,47 +353,21 @@ impl State {
         .align_y(Alignment::Center)
         .class(cosmic::theme::Container::custom(move |theme| {
             widget::container::Style {
-                text_color: Some(theme.cosmic().on_bg_color().into()),
-                background: Some(iced::Color::from(theme.cosmic().bg_color()).into()),
+                text_color: Some(theme.cosmic().background(theme.transparent).on.into()),
+                background: Some(
+                    iced::Color::from(theme.cosmic().background(theme.transparent).base).into(),
+                ),
                 border: Border {
                     radius: radius.into(),
                     width: 1.0,
                     color: theme.cosmic().bg_divider().into(),
                 },
                 shadow: Default::default(),
-                icon_color: Some(theme.cosmic().on_bg_color().into()),
+                icon_color: Some(theme.cosmic().background(theme.transparent).on.into()),
                 snap: true,
             }
         }));
 
-        let osd_contents = if self.margin.0 != 0 || self.margin.2 != 0 {
-            widget::column::with_children([
-                widget::space::vertical()
-                    .height(self.margin.0 as f32)
-                    .into(),
-                osd_contents.into(),
-                widget::space::vertical()
-                    .height(self.margin.2 as f32)
-                    .into(),
-            ])
-            .into()
-        } else {
-            osd_contents.into()
-        };
-        let osd_contents = if self.margin.1 != 0 || self.margin.3 != 0 {
-            widget::row::with_children([
-                widget::space::horizontal()
-                    .width(self.margin.1 as f32)
-                    .into(),
-                osd_contents,
-                widget::space::horizontal()
-                    .width(self.margin.3 as f32)
-                    .into(),
-            ])
-            .into()
-        } else {
-            osd_contents
-        };
         widget::autosize::autosize(
             widget::container(osd_contents)
                 .align_x(Alignment::Center)
