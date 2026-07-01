@@ -3,11 +3,9 @@
 
 use crate::components::app::DisplayMode;
 use crate::config;
-use cosmic::cctk::sctk::seat::input_method_v3::Rectangle;
 use cosmic::iced::platform_specific::shell::commands::layer_surface::{
-    Anchor, KeyboardInteractivity, Layer, destroy_layer_surface, get_layer_surface,
+    Anchor, KeyboardInteractivity, Layer, destroy_layer_surface,
 };
-use cosmic::iced::platform_specific::shell::commands::overlap_notify::overlap_notify;
 use cosmic::iced::runtime::platform_specific::wayland::layer_surface::{
     IcedMargin, IcedOutput, SctkLayerSurfaceSettings,
 };
@@ -79,7 +77,7 @@ impl Params {
         }
     }
 
-    fn value(&self) -> Option<u32> {
+    pub(crate) fn value(&self) -> Option<u32> {
         match self {
             Self::DisplayBrightness(value) => {
                 let mut rung = (*value * 20.0).round() as u32;

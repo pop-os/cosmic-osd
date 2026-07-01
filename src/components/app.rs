@@ -351,7 +351,7 @@ impl App {
             },
         );
         cmds.push(set_padding::<()>(*id, margin).discard());
-        let radius: Vec<_> = self
+        let mut radius: Vec<_> = self
             .core
             .system_theme()
             .cosmic()
@@ -363,6 +363,17 @@ impl App {
                     as u32
             })
             .collect();
+
+        if state.params().value().is_none() {
+            radius = self
+                .core
+                .system_theme()
+                .cosmic()
+                .radius_m()
+                .into_iter()
+                .map(|v| v as u32)
+                .collect()
+        }
         cmds.push(
             corner_radius(
                 *id,
