@@ -166,14 +166,16 @@ impl State {
     pub fn new(
         id: SurfaceId,
         params: Params,
+        margin: IcedMargin,
     ) -> (Self, Task<cosmic::Action<crate::components::app::Msg>>) {
-        Self::new_with_output(id, params, IcedOutput::Active)
+        Self::new_with_output(id, params, IcedOutput::Active, margin)
     }
 
     pub fn new_with_output(
         id: SurfaceId,
         params: Params,
         output: IcedOutput,
+        margin: IcedMargin,
     ) -> (Self, Task<cosmic::Action<crate::components::app::Msg>>) {
         let mut cmds = vec![];
 
@@ -196,13 +198,7 @@ impl State {
                 left: 0,
             }
         } else {
-            // No margin for other OSDs (they use widget-based margins)
-            IcedMargin {
-                top: 0,
-                right: 0,
-                bottom: 0,
-                left: 0,
-            }
+            margin
         };
 
         cmds.push(cosmic::surface::surface_task(simple_layer_shell(
@@ -372,34 +368,6 @@ impl State {
             }
         }));
 
-        let osd_contents = if self.margin.0 != 0 || self.margin.2 != 0 {
-            widget::column::with_children([
-                widget::space::vertical()
-                    .height(self.margin.0 as f32)
-                    .into(),
-                osd_contents.into(),
-                widget::space::vertical()
-                    .height(self.margin.2 as f32)
-                    .into(),
-            ])
-            .into()
-        } else {
-            osd_contents.into()
-        };
-        let osd_contents = if self.margin.1 != 0 || self.margin.3 != 0 {
-            widget::row::with_children([
-                widget::space::horizontal()
-                    .width(self.margin.1 as f32)
-                    .into(),
-                osd_contents,
-                widget::space::horizontal()
-                    .width(self.margin.3 as f32)
-                    .into(),
-            ])
-            .into()
-        } else {
-            osd_contents
-        };
         widget::autosize::autosize(
             widget::container(osd_contents)
                 .align_x(Alignment::Center)

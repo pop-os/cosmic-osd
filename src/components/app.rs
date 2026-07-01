@@ -6,6 +6,7 @@ use crate::session_manager::SessionManagerProxy;
 use crate::subscriptions::{dbus, polkit_agent};
 use clap::Parser;
 use cosmic::app::{CosmicFlags, Task};
+use cosmic::cctk::sctk::shell::wlr_layer;
 use cosmic::core::AppType;
 use cosmic::dbus_activation::Details;
 use cosmic::iced::event::wayland::{self, LayerEvent, OutputEvent, OverlapNotifyEvent};
@@ -15,7 +16,7 @@ use cosmic::iced::keyboard::key::Named;
 use cosmic::iced::platform_specific::shell::commands::activation::request_token;
 use cosmic::iced::platform_specific::shell::commands::corner_radius::corner_radius;
 use cosmic::iced::platform_specific::shell::commands::layer_surface::{
-    Anchor, KeyboardInteractivity, destroy_layer_surface, set_padding,
+    Anchor, KeyboardInteractivity, destroy_layer_surface, set_margin,
 };
 use cosmic::iced::platform_specific::shell::commands::overlap_notify::overlap_notify;
 use cosmic::iced::runtime::platform_specific::wayland::CornerRadius;
@@ -239,9 +240,43 @@ pub(crate) struct App {
     wayland_outputs: HashMap<String, (WlOutput, String)>,
     display_identifier_displays: HashMap<SurfaceId, String>,
     identifiers_dismissed: bool,
+    dummy_id: Option<window::Id>,
+    margin: IcedMargin,
 }
 
 impl App {
+    fn create_dummy_layer_surface(&mut self) -> Task<Msg> {
+        let id = window::Id::unique();
+        self.dummy_id = Some(id);
+        Task::batch(vec![
+            cosmic::surface::surface_task(simple_layer_shell::<Msg>(
+                || LiveSettings {
+                    padding: Some(IcedMargin::default()),
+                    corners: Some(CornerRadius::default()),
+                    blur: Some(false),
+                },
+                move || {
+                    SctkLayerSurfaceSettings {
+                        id,
+                        layer: wlr_layer::Layer::Bottom,
+                        keyboard_interactivity: wlr_layer::KeyboardInteractivity::None,
+                        input_zone: Some(Vec::new()),
+                        anchor: wlr_layer::Anchor::BOTTOM,
+                        output:
+                            cosmic::iced::runtime::platform_specific::wayland::layer_surface::IcedOutput::Active,
+                        namespace: "cosmic_launcher_dummy".into(),
+                        margin: IcedMargin::default(),
+                        size: Some((Some(600), Some(200))),
+                        exclusive_zone: -1,
+                        size_limits: Limits::NONE,
+                    }
+                },
+                None::<fn() -> Element<'static, cosmic::Action<Msg>>>,
+            )),
+            self.handle_overlap(),
+        ])
+    }
+
     fn create_indicator(&mut self, params: osd_indicator::Params) -> cosmic::app::Task<Msg> {
         if let Some((_id, state)) = &mut self.indicator {
             state
@@ -250,8 +285,7 @@ impl App {
         } else {
             let mut cmds = Vec::new();
             let id = SurfaceId::unique();
-            self.overlap.clear();
-            let (state, cmd) = osd_indicator::State::new(id, params);
+            let (state, cmd) = osd_indicator::State::new(id, params, self.margin);
 
             if let Some(old) = self.indicator.replace((id, state)) {
                 cmds.push(destroy_layer_surface(old.0).map(cosmic::Action::App));
@@ -266,27 +300,42 @@ impl App {
         let Some((id, state)) = self.indicator.as_mut() else {
             return Task::none();
         };
+        if self.size.is_none_or(|s| s.height < 2. || s.width < 2.) {
+            return Task::none();
+        }
+
         let is_display_number = matches!(state.params(), &Params::DisplayNumber(_));
 
         if let Some((bl, br, tl, tr)) = self.size.as_ref().map(|s| {
+            let mut s = *s;
+            s.width = 600.;
+            s.height += 48.;
+            let offset = if is_display_number {
+                0.
+            } else {
+                (200.0 - s.height).max(0.)
+            };
             (
                 Rectangle::new(
-                    Point::new(0., s.height / 2.),
+                    Point::new(0., offset + s.height / 2.),
+                    Size::new(s.width / 2., offset + s.height / 2.),
+                ),
+                Rectangle::new(
+                    Point::new(s.width / 2., offset + s.height / 2.),
                     Size::new(s.width / 2., s.height / 2.),
                 ),
                 Rectangle::new(
-                    Point::new(s.width / 2., s.height / 2.),
+                    Point::new(0., offset),
                     Size::new(s.width / 2., s.height / 2.),
                 ),
-                Rectangle::new(Point::new(0., 0.), Size::new(s.width / 2., s.height / 2.)),
                 Rectangle::new(
-                    Point::new(s.width / 2., 0.),
+                    Point::new(s.width / 2., offset),
                     Size::new(s.width / 2., s.height / 2.),
                 ),
             )
         }) {
             let (mut top, mut left, mut bottom, mut right) = if is_display_number {
-                (0, 0, 0, 0) // Top margin for display numbers
+                (0, 0, 48, 0) // Top margin for display numbers
             } else {
                 (0, 0, 48, 0) // Bottom margin for other OSDs
             };
@@ -295,6 +344,7 @@ impl App {
                 let tr = tr.intersects(overlap);
                 let bl = bl.intersects(overlap);
                 let br = br.intersects(overlap);
+
                 if bl && br {
                     bottom += overlap.height as i32;
                     continue;
@@ -312,6 +362,7 @@ impl App {
                     continue;
                 }
             }
+
             state.margin = (top, right, bottom, left);
         }
         let mut cmds = Vec::with_capacity(2);
@@ -350,7 +401,10 @@ impl App {
                 ))
             },
         );
-        cmds.push(set_padding::<()>(*id, margin).discard());
+        cmds.push(
+            set_margin::<()>(*id, margin.top, margin.right, margin.bottom, margin.left).discard(),
+        );
+        self.margin = margin;
         let mut radius: Vec<_> = self
             .core
             .system_theme()
@@ -359,11 +413,9 @@ impl App {
             .into_iter()
             .map(|r| {
                 let size = self.size.unwrap_or_default();
-                (r).min((size.height - margin.bottom as f32 - margin.top as f32).max(0.) / 2.)
-                    as u32
+                (r).min((size.height).max(0.) / 2.) as u32
             })
             .collect();
-
         if state.params().value().is_none() {
             radius = self
                 .core
@@ -371,9 +423,13 @@ impl App {
                 .cosmic()
                 .radius_m()
                 .into_iter()
-                .map(|v| v as u32)
+                .map(|r| {
+                    let size = self.size.unwrap_or_default();
+                    (r).min((size.height).max(0.) / 2.) as u32
+                })
                 .collect()
         }
+
         cmds.push(
             corner_radius(
                 *id,
@@ -446,30 +502,31 @@ impl cosmic::Application for App {
 
     fn init(mut core: cosmic::app::Core, _flags: Args) -> (Self, cosmic::app::Task<Msg>) {
         core.set_app_type(AppType::System);
-        (
-            Self {
-                core,
-                connection: None,
-                system_connection: None,
-                surfaces: HashMap::new(),
-                indicator: None,
-                display_brightness: None,
-                max_display_brightness: None,
-                keyboard_brightness: None,
-                max_keyboard_brightness: None,
-                audio_client: None,
-                audio: super::audio::model::Model::default(),
-                sink_last_playback: Instant::now(),
-                airplane_mode: None,
-                overlap: HashMap::new(),
-                size: None,
-                action_to_confirm: None,
-                wayland_outputs: HashMap::new(),
-                display_identifier_displays: HashMap::new(),
-                identifiers_dismissed: false,
-            },
-            Task::none(),
-        )
+        let mut app = Self {
+            core,
+            connection: None,
+            system_connection: None,
+            surfaces: HashMap::new(),
+            indicator: None,
+            display_brightness: None,
+            max_display_brightness: None,
+            keyboard_brightness: None,
+            max_keyboard_brightness: None,
+            audio_client: None,
+            audio: super::audio::model::Model::default(),
+            sink_last_playback: Instant::now(),
+            airplane_mode: None,
+            overlap: HashMap::new(),
+            size: None,
+            action_to_confirm: None,
+            wayland_outputs: HashMap::new(),
+            display_identifier_displays: HashMap::new(),
+            identifiers_dismissed: false,
+            dummy_id: None,
+            margin: IcedMargin::default(),
+        };
+        let t = app.create_dummy_layer_surface();
+        (app, t)
     }
 
     fn core(&self) -> &cosmic::app::Core {
@@ -726,7 +783,12 @@ impl cosmic::Application for App {
             }
             Msg::Size(id, size) => {
                 self.size = Some(size);
-                return Task::batch([self.handle_overlap(), overlap_notify(id, true)]);
+                let mut tasks = Vec::with_capacity(3);
+                tasks.push(self.handle_overlap());
+                if self.dummy_id.is_none_or(|dummy| id == dummy) {
+                    tasks.push(overlap_notify(id, true));
+                }
+                return Task::batch(tasks);
             }
             Msg::Zbus(result) => {
                 if let Err(e) = result {
@@ -784,8 +846,11 @@ impl cosmic::Application for App {
                     return Task::none();
                 };
                 let id = SurfaceId::unique();
-                let (state, cmd) =
-                    osd_indicator::State::new(id, osd_indicator::Params::DisplayToggle(enabled));
+                let (state, cmd) = osd_indicator::State::new(
+                    id,
+                    osd_indicator::Params::DisplayToggle(enabled),
+                    self.margin,
+                );
                 if let Some(old) = self.indicator.replace((id, state)) {
                     cmds.push(destroy_layer_surface(old.0));
                 }
@@ -800,7 +865,11 @@ impl cosmic::Application for App {
                 if is_new {
                     log::debug!("Display '{}' added to wayland outputs tracking", name);
                 }
-                Task::none()
+                if self.dummy_id.is_none() {
+                    return self.create_dummy_layer_surface();
+                } else {
+                    return Task::none();
+                }
             }
             Msg::OutputRemoved(output) => {
                 // Find and remove the output from our tracking map
@@ -919,6 +988,7 @@ impl cosmic::Application for App {
                                 id,
                                 osd_indicator::Params::DisplayNumber(*display_number),
                                 iced_output,
+                                self.margin,
                             );
 
                             self.surfaces.insert(id, Surface::OsdIndicator(state));
@@ -948,6 +1018,7 @@ impl cosmic::Application for App {
                             id,
                             osd_indicator::Params::DisplayNumber(*display_number),
                             iced_output,
+                            self.margin,
                         );
 
                         self.surfaces.insert(id, Surface::OsdIndicator(state));
