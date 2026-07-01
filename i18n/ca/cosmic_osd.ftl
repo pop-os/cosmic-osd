@@ -3,3 +3,7 @@ confirm = Confirmar
 restart = Reinicia
 suspend = Suspèn
 shutdown = Apaga
+log-out = Tanca la sessió
+invalid-password = La contrasenya no és vàlida. Torneu a provar-ho.
+authentication-required = Cal autenticació
+authenticate = Autentica
