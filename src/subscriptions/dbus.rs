@@ -8,6 +8,7 @@ static NAME: &str = "com.system76.CosmicOsd";
 #[derive(Clone, Debug)]
 pub enum Event {
     Connection(zbus::Connection),
+    SettingsConnection(zbus::Connection),
     SystemConnection(zbus::Connection),
     Error(&'static str, zbus::Error),
 }
@@ -15,6 +16,7 @@ pub enum Event {
 enum State {
     Start,
     CreatedConnection,
+    CreatedSettingsConnection,
     CreatedSystemConnection,
 }
 
@@ -32,6 +34,14 @@ pub fn subscription() -> iced::Subscription<Event> {
                 )),
                 State::CreatedConnection => Some((
                     result_to_event(
+                        settings_connection().await,
+                        "create settings connection",
+                        Event::SettingsConnection,
+                    ),
+                    State::CreatedSettingsConnection,
+                )),
+                State::CreatedSettingsConnection => Some((
+                    result_to_event(
                         system_connection().await,
                         "create system connection",
                         Event::SystemConnection,
@@ -45,10 +55,18 @@ pub fn subscription() -> iced::Subscription<Event> {
 }
 
 async fn connection() -> zbus::Result<zbus::Connection> {
-    zbus::connection::Builder::session()?
+    let conn = zbus::connection::Builder::session()?
         .name(NAME)?
         .build()
-        .await
+        .await?;
+    conn.object_server();
+    Ok(conn)
+}
+
+// Nameless session connection dedicated to signal-stream consumers, so their
+// backpressure can't wedge the `com.system76.CosmicOsd` name-holding connection.
+async fn settings_connection() -> zbus::Result<zbus::Connection> {
+    zbus::connection::Builder::session()?.build().await
 }
 
 async fn system_connection() -> zbus::Result<zbus::Connection> {

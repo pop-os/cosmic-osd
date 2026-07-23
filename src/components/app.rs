@@ -222,7 +222,9 @@ enum Surface {
 
 pub(crate) struct App {
     core: cosmic::app::Core,
+    #[allow(dead_code)]
     connection: Option<zbus::Connection>,
+    settings_connection: Option<zbus::Connection>,
     system_connection: Option<zbus::Connection>,
     surfaces: HashMap<SurfaceId, Surface>,
     indicator: Option<(SurfaceId, osd_indicator::State)>,
@@ -515,6 +517,7 @@ impl cosmic::Application for App {
         let mut app = Self {
             core,
             connection: None,
+            settings_connection: None,
             system_connection: None,
             surfaces: HashMap::new(),
             indicator: None,
@@ -608,6 +611,9 @@ impl cosmic::Application for App {
             Msg::DBus(event) => {
                 match event {
                     dbus::Event::Connection(connection) => self.connection = Some(connection),
+                    dbus::Event::SettingsConnection(connection) => {
+                        self.settings_connection = Some(connection)
+                    }
                     dbus::Event::SystemConnection(connection) => {
                         self.system_connection = Some(connection)
                     }
@@ -1133,7 +1139,7 @@ impl cosmic::Application for App {
             subscriptions.push(polkit_agent::subscription(connection).map(Msg::PolkitAgent));
         }
 
-        if let Some(connection) = self.connection.clone() {
+        if let Some(connection) = self.settings_connection.clone() {
             subscriptions.push(settings_daemon::subscription(connection).map(Msg::SettingsDaemon));
         }
 
