@@ -14,6 +14,26 @@ use tokio::sync::mpsc::{self, Sender};
 const HELPER_BIN_PATH: Option<&str> = option_env!("POLKIT_AGENT_HELPER_1");
 const HELPER_SOCKET_PATH: &str = "/run/polkit/agent-helper.socket";
 
+// polkit-agent-helper-1 lives in different places per distro. Honor the
+// compile-time override, else probe known paths (Fedora/Debian use
+// /usr/lib/polkit-1) so we don't ENOENT on a single hardcoded path.
+const HELPER_BIN_CANDIDATES: &[&str] = &[
+    "/usr/lib/polkit-1/polkit-agent-helper-1",
+    "/usr/libexec/polkit-1/polkit-agent-helper-1",
+    "/usr/libexec/polkit-agent-helper-1",
+];
+
+fn resolve_helper_bin_path() -> &'static str {
+    if let Some(path) = HELPER_BIN_PATH {
+        return path;
+    }
+    HELPER_BIN_CANDIDATES
+        .iter()
+        .copied()
+        .find(|path| Path::new(path).exists())
+        .unwrap_or("/usr/libexec/polkit-agent-helper-1")
+}
+
 #[derive(Clone, Debug)]
 pub enum Event {
     Failed,
@@ -197,7 +217,7 @@ impl AgentHelper {
     async fn new_bin(pw_name: &str) -> io::Result<Self> {
         log::info!("using binary");
 
-        let helper_bin_path = HELPER_BIN_PATH.unwrap_or("/usr/libexec/polkit-agent-helper-1");
+        let helper_bin_path = resolve_helper_bin_path();
         log::trace!("using helper binary from: {helper_bin_path}");
 
         let mut child = Command::new(helper_bin_path)

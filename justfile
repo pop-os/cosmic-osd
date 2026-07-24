@@ -1,7 +1,7 @@
 name := 'cosmic-osd'
 rootdir := ''
 prefix := '/usr'
-polkit-agent-helper-1 := '/usr/libexec/polkit-agent-helper-1'
+polkit-agent-helper-1 := '/usr/lib/polkit-1/polkit-agent-helper-1'
 cargo-target-dir := env('CARGO_TARGET_DIR', 'target')
 
 base-dir := absolute_path(clean(rootdir / prefix))
