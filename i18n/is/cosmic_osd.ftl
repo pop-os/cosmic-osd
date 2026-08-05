@@ -30,3 +30,14 @@ confirm-button =
         [enter-bios] { enter-bios }
        *[other] { confirm }
     }
+
+confirm-title =
+    { $action ->
+        [restart] { restart } núna?
+        [suspend] { suspend } núna?
+        [shutdown] { shutdown } núna?
+        [enter-bios] { enter-bios } núna?
+        [log-out] Loka öllum forritum og skrá út núna?
+        [confirm-device-type] Staðfesta tegund tækis
+        *[other] Framkvæma völdu aðgerðina núna?
+    }
