@@ -22,10 +22,10 @@ confirm-button =
     }
 confirm-title =
     { $action ->
-        [restart] { restart } niha?
-        [suspend] { suspend } niha?
-        [shutdown] { shutdown } niha?
-        [enter-bios] { enter-bios } niha?
+        [restart] Niha { restart }?
+        [suspend] Niha { suspend }?
+        [shutdown] Niha { shutdown }?
+        [enter-bios] Niha { enter-bios }?
         [log-out] Hemû sepanan bigire û niha derkeve?
         [confirm-device-type] Cûreya amûrê bipejirîne
        *[other] Çalakiya hilbijartî niha bisepîne?
