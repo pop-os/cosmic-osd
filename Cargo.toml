@@ -38,6 +38,7 @@ xdg = "3.0"
 zbus = { version = "5.14", default-features = false, features = ["tokio"] }
 kdl = "6"
 cosmic-randr-shell = { git = "https://github.com/pop-os/cosmic-randr", default-features = false }
+xkb-data = "0.2.2"
 
 [dependencies.cosmic-settings-airplane-mode-subscription]
 git = "https://github.com/pop-os/cosmic-settings"

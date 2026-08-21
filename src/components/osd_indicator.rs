@@ -28,6 +28,7 @@ pub enum Params {
     DisplayToggle(DisplayMode),
     DisplayNumber(u32),
     KeyboardBrightness(f64),
+    KeyboardLayout(String),
     SinkVolume(u32, bool),
     SourceVolume(u32, bool),
     AirplaneMode(bool),
@@ -46,6 +47,7 @@ impl Params {
                 unreachable!("DisplayNumber uses custom rendering and should not call icon_name()")
             }
             Self::KeyboardBrightness(_) => "keyboard-brightness-symbolic",
+            Self::KeyboardLayout(_) => "input-keyboard-symbolic",
             Self::AirplaneMode(true) => "airplane-mode-symbolic",
             Self::AirplaneMode(false) => "airplane-mode-disabled-symbolic",
             Self::SinkVolume(volume, muted) => {
@@ -101,9 +103,12 @@ impl Params {
                 if p > 100 {
                     p = 100;
                 }
+
                 Some(p as u32)
             }
             Self::KeyboardBrightness(value) => Some((*value * 100.) as u32),
+            // XXX
+            Self::KeyboardLayout(_) => None,
             Self::SinkVolume(_, true) => Some(0),
             Self::SourceVolume(_, true) => Some(0),
             Self::SinkVolume(value, false) => Some(*value),
@@ -337,6 +342,17 @@ impl State {
                     .center(),
                 widget::space::horizontal().width(Length::Fixed(8.0)),
                 osd_bar,
+            ]
+            .align_y(Alignment::Center)
+            .apply(widget::container)
+            .width(Length::Fixed(392.0))
+            .height(Length::Fixed(52.0))
+        } else if let Params::KeyboardLayout(layout) = &self.params {
+            radius = cosmic::theme::active().cosmic().radius_m();
+
+            iced::widget::row![
+                widget::container(icon.size(20)).center_x(Length::Fixed(32.0)),
+                widget::text::body(layout)
             ]
             .align_y(Alignment::Center)
             .apply(widget::container)
