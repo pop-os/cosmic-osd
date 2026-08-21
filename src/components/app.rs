@@ -3,10 +3,11 @@ use crate::components::{osd_indicator, polkit_dialog};
 use crate::cosmic_session::CosmicSessionProxy;
 use crate::fl;
 use crate::session_manager::SessionManagerProxy;
-use crate::subscriptions::{dbus, polkit_agent};
+use crate::subscriptions::{dbus, keyboard_layout, polkit_agent};
 use clap::Parser;
 use cosmic::app::{CosmicFlags, Task};
 use cosmic::cctk::sctk::shell::wlr_layer;
+use cosmic::cctk::wayland_client::{self, Proxy};
 use cosmic::core::AppType;
 use cosmic::dbus_activation::Details;
 use cosmic::iced::event::wayland::{self, LayerEvent, OutputEvent, OverlapNotifyEvent};
@@ -30,7 +31,7 @@ use cosmic::iced::{self, Alignment, Length, Limits, Point, Rectangle, Size, Subs
 use cosmic::surface::action::{LiveSettings, simple_layer_shell};
 use cosmic::widget::{self, autosize, button, container, icon, text};
 use cosmic::{Apply, Element, theme};
-use cosmic_comp_config::input::TouchpadOverride;
+use cosmic_comp_config::{CosmicCompConfig, XkbConfig, input::TouchpadOverride};
 use cosmic_settings_airplane_mode_subscription as airplane_mode;
 use cosmic_settings_audio_client::{self as audio_client, CosmicAudioProxy};
 use cosmic_settings_daemon_subscription as settings_daemon;
@@ -47,6 +48,7 @@ use std::rc::Rc;
 use std::str::FromStr;
 use std::sync::{Arc, LazyLock};
 use std::time::{Duration, Instant};
+use xkb_data::KeyboardLayout;
 use zbus::Connection;
 
 // Type alias for Wayland output. Matches what's used in SctkLayerSurfaceSettings
@@ -121,6 +123,13 @@ impl OsdTask {
             OsdTask::DismissDisplayIdentifiers => Task::none(),
         }
     }
+}
+
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct ActiveLayout {
+    layout: String,
+    description: String,
+    variant: String,
 }
 
 async fn restart(reboot_to_firmware_setup: bool) -> zbus::Result<()> {
@@ -213,6 +222,8 @@ pub enum Msg {
     DismissDisplayIdentifiers,
     OutputInfo(WlOutput, String),
     OutputRemoved(WlOutput),
+    CompConfig(Box<CosmicCompConfig>),
+    KeyboardLayout(keyboard_layout::Event),
 }
 
 enum Surface {
@@ -242,6 +253,10 @@ pub(crate) struct App {
     identifiers_dismissed: bool,
     dummy_id: Option<window::Id>,
     margin: IcedMargin,
+    layouts: Vec<KeyboardLayout>,
+    active_layouts: Vec<ActiveLayout>,
+    wayland_connection: Option<wayland_client::Connection>,
+    keyboard_layout_group: Option<usize>,
 }
 
 impl App {
@@ -502,6 +517,57 @@ impl App {
         })
         .map(cosmic::Action::App)
     }
+
+    fn update_xkb(&self, xkb: &XkbConfig) -> Vec<ActiveLayout> {
+        let mut active_layouts = Vec::new();
+
+        let layouts = xkb.layout.split_terminator(',');
+
+        let variants = xkb
+            .variant
+            .split_terminator(',')
+            .chain(std::iter::repeat(""));
+
+        'outer: for (layout, variant) in layouts.zip(variants) {
+            for xkb_layout in &self.layouts {
+                if layout != xkb_layout.name() {
+                    continue;
+                }
+
+                if variant.is_empty() {
+                    let active_layout = ActiveLayout {
+                        description: xkb_layout.description().to_owned(),
+                        layout: layout.to_owned(),
+                        variant: variant.to_owned(),
+                    };
+
+                    active_layouts.push(active_layout);
+                    continue 'outer;
+                }
+
+                let Some(xkb_variants) = xkb_layout.variants() else {
+                    continue;
+                };
+
+                for xkb_variant in xkb_variants {
+                    if variant != xkb_variant.name() {
+                        continue;
+                    }
+
+                    let active_layout = ActiveLayout {
+                        description: xkb_variant.description().to_owned(),
+                        layout: layout.to_owned(),
+                        variant: variant.to_owned(),
+                    };
+
+                    active_layouts.push(active_layout);
+                    continue 'outer;
+                }
+            }
+        }
+
+        active_layouts
+    }
 }
 
 impl cosmic::Application for App {
@@ -512,6 +578,13 @@ impl cosmic::Application for App {
 
     fn init(mut core: cosmic::app::Core, _flags: Args) -> (Self, cosmic::app::Task<Msg>) {
         core.set_app_type(AppType::System);
+        let layouts = match xkb_data::all_keyboard_layouts() {
+            Ok(layouts) => layouts.layout_list.layout,
+            Err(why) => {
+                log::error!("could not get keyboard layouts data: {:?}", why);
+                Vec::new()
+            }
+        };
         let mut app = Self {
             core,
             connection: None,
@@ -534,6 +607,10 @@ impl cosmic::Application for App {
             identifiers_dismissed: false,
             dummy_id: None,
             margin: IcedMargin::default(),
+            layouts,
+            active_layouts: Vec::new(),
+            wayland_connection: None,
+            keyboard_layout_group: None,
         };
         let t = app.create_dummy_layer_surface();
         (app, t)
@@ -871,6 +948,13 @@ impl cosmic::Application for App {
                 iced::Task::batch(cmds)
             }
             Msg::OutputInfo(output, name) => {
+                if self.wayland_connection.is_none() {
+                    if let Some(backend) = output.backend().upgrade() {
+                        self.wayland_connection =
+                            Some(wayland_client::Connection::from_backend(backend));
+                    }
+                }
+
                 let is_new = !self.wayland_outputs.contains_key(&name);
                 self.wayland_outputs
                     .insert(name.clone(), (output, name.clone()));
@@ -1121,6 +1205,23 @@ impl cosmic::Application for App {
                     Task::none()
                 }
             }
+            Msg::CompConfig(config) => {
+                self.active_layouts = self.update_xkb(&config.xkb_config);
+                Task::none()
+            }
+            Msg::KeyboardLayout(keyboard_layout::Event::Group(group)) => {
+                let task = if self.keyboard_layout_group.is_some_and(|g| g != group)
+                    && let Some(layout) = self.active_layouts.get(group)
+                {
+                    self.create_indicator(osd_indicator::Params::KeyboardLayout(
+                        layout.description.clone(),
+                    ))
+                } else {
+                    Task::none()
+                };
+                self.keyboard_layout_group = Some(group);
+                task
+            }
         }
     }
 
@@ -1149,6 +1250,25 @@ impl cosmic::Application for App {
         subscriptions.push(airplane_mode::subscription().map(Msg::AirplaneMode));
 
         subscriptions.push(kbd_backlight_subscription("kbd-backlight").map(Msg::KeyboardBacklight));
+
+        subscriptions.push(
+            self.core
+                .watch_config("com.system76.CosmicComp")
+                .map(|update| {
+                    if !update.errors.is_empty() {
+                        log::error!(
+                            "errors loading config {:?}: {:?}",
+                            update.keys,
+                            update.errors
+                        );
+                    }
+                    Msg::CompConfig(Box::new(update.config))
+                }),
+        );
+
+        if let Some(connection) = self.wayland_connection.clone() {
+            subscriptions.push(keyboard_layout::subscription(connection).map(Msg::KeyboardLayout));
+        }
 
         subscriptions.push(listen_with(|event, _, id| match event {
             event::Event::Window(iced::window::Event::Opened { position: _, size }) => {

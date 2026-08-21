@@ -1083,6 +1083,7 @@ dependencies = [
  "tokio-stream",
  "uzers",
  "xdg",
+ "xkb-data",
  "zbus",
 ]
 
@@ -4835,6 +4836,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde-xml-rs"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fb3aa78ecda1ebc9ec9847d5d3aba7d618823446a049ba2491940506da6e2782"
+dependencies = [
+ "log",
+ "serde",
+ "thiserror 1.0.69",
+ "xml-rs",
+]
+
+[[package]]
 name = "serde_core"
 version = "1.0.228"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -6939,6 +6952,16 @@ name = "xdg"
 version = "3.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2fb433233f2df9344722454bc7e96465c9d03bff9d77c248f9e7523fe79585b5"
+
+[[package]]
+name = "xkb-data"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "08bde286fb1aad6e18459bdf90da78b611bb8a1993605de5d1ddacca4995c10a"
+dependencies = [
+ "serde",
+ "serde-xml-rs",
+]
 
 [[package]]
 name = "xkbcommon"
