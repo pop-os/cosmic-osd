@@ -6,6 +6,10 @@ cargo-target-dir := env('CARGO_TARGET_DIR', 'target')
 
 base-dir := absolute_path(clean(rootdir / prefix))
 bin-dst := base-dir / 'bin' / name
+helper-name := 'cosmic-polkit-helper'
+helper-dst := base-dir / 'libexec' / helper-name
+unit-dst := base-dir / 'lib' / 'systemd' / 'system'
+pam-dst := absolute_path(clean(rootdir / 'etc' / 'pam.d'))
 
 # Default recipe which runs `just build-release`
 [private]
@@ -43,6 +47,11 @@ check-json: (check '--message-format=json')
 # Installs files
 install:
     install -Dm0755 {{ cargo-target-dir / 'release' / name }} {{bin-dst}}
+    install -Dm0755 {{ cargo-target-dir / 'release' / helper-name }} {{helper-dst}}
+    install -Dm0644 data/pam.d/cosmic-osd-fingerprint {{ pam-dst / 'cosmic-osd-fingerprint' }}
+    install -Dm0644 data/systemd/cosmic-polkit-helper.socket {{ unit-dst / 'cosmic-polkit-helper.socket' }}
+    sed 's|@LIBEXECDIR@|{{ prefix / 'libexec' }}|' 'data/systemd/cosmic-polkit-helper@.service' \
+        | install -Dm0644 /dev/stdin '{{ unit-dst / 'cosmic-polkit-helper@.service' }}'
 
 # Vendor Cargo dependencies locally
 vendor:

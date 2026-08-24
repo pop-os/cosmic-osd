@@ -50,8 +50,10 @@ pub struct State {
     responder: Option<polkit_agent_helper::Responder>,
     password: String,
     password_visible: bool,
-    message: Option<String>, // TODO show
-    password_label: String,  // TODO
+    fingerprint: bool,
+    info: Option<String>,
+    error: Option<String>,
+    password_label: String, // TODO
     echo: bool,
     pub text_input_id: iced::id::Id,
     sensitive: bool,
@@ -61,6 +63,7 @@ pub struct State {
     msg_authenticate: String,
     msg_authentication_required: String,
     msg_invalid_password: String,
+    msg_fingerprint_or_password: String,
 }
 
 impl State {
@@ -88,7 +91,9 @@ impl State {
                 responder: None,
                 password: String::new(),
                 password_visible: false,
-                message: None,
+                fingerprint: false,
+                info: None,
+                error: None,
                 password_label: String::new(),
                 echo: false,
                 text_input_id,
@@ -98,6 +103,7 @@ impl State {
                 msg_authenticate: fl!("authenticate"),
                 msg_authentication_required: fl!("authentication-required"),
                 msg_invalid_password: fl!("invalid-password"),
+                msg_fingerprint_or_password: fl!("fingerprint-or-password"),
             },
             cmd,
         )
@@ -135,10 +141,11 @@ impl State {
                     self.echo = echo;
                 }
                 polkit_agent_helper::Event::ShowError(s) => {
-                    self.message = Some(s);
+                    self.error = Some(s);
                 }
                 polkit_agent_helper::Event::ShowDebug(s) => {
-                    self.message = Some(s);
+                    self.fingerprint = true;
+                    self.info = Some(s);
                 }
                 polkit_agent_helper::Event::Complete(success) => {
                     if success {
@@ -148,6 +155,9 @@ impl State {
                         self.sensitive = true;
                         self.responder = None;
                         self.password.clear();
+                        self.fingerprint = false;
+                        self.info = None;
+                        self.error = None;
                         let cmd = widget::text_input::focus(self.text_input_id.clone());
                         return (Some(self), cmd);
                     };
@@ -212,15 +222,25 @@ impl State {
                 authenticate_button = authenticate_button.on_press(Msg::Authenticate);
             }
         }
-        let mut right_column: Vec<cosmic::Element<_>> = vec![password_input.into()];
-        if self.retries > 0 {
+        let mut right_column: Vec<cosmic::Element<_>> = Vec::new();
+        if self.fingerprint {
+            right_column.push(widget::text::body(&self.msg_fingerprint_or_password).into());
+        }
+        right_column.push(password_input.into());
+        let status = self
+            .error
+            .as_deref()
+            .or_else(|| (self.retries > 0).then_some(self.msg_invalid_password.as_str()));
+        if let Some(error) = status {
             right_column.push(
-                widget::text::body(&self.msg_invalid_password)
+                widget::text::body(error)
                     .class(cosmic::theme::Text::Color(iced::Color::from_rgb(
                         1.0, 0.0, 0.0,
                     )))
                     .into(),
             );
+        } else if let Some(info) = &self.info {
+            right_column.push(widget::text::body(info).into());
         } else {
             right_column.push(widget::text::body("").into())
         }

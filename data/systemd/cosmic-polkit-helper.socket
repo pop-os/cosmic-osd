@@ -1,0 +1,20 @@
+[Unit]
+Description=COSMIC polkit authentication helper socket
+Documentation=man:polkit(8)
+
+[Socket]
+RuntimeDirectory=cosmic-osd
+ListenStream=/run/cosmic-osd/polkit-helper.socket
+
+# World-accessible, as polkit's own agent-helper socket is: any local user may
+# ask to be authenticated. Nothing is granted without credentials, the helper
+# takes the peer's uid from SO_PEERCRED rather than from the peer, and polkitd
+# checks that uid against the agent that registered for the cookie.
+SocketMode=0666
+
+# One helper process per connection, so a wedged authentication attempt cannot
+# affect any other.
+Accept=yes
+
+[Install]
+WantedBy=sockets.target

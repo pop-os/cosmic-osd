@@ -1,0 +1,18 @@
+[Unit]
+Description=COSMIC polkit authentication helper
+CollectMode=inactive-or-failed
+
+[Service]
+# Runs as root, which system units do by default: PAM stacks need privileges the
+# session agent does not have, and polkitd only accepts an authentication agent
+# response from uid 0. Sandboxing is deliberately left off, since PAM modules
+# load arbitrary configured code and rely on setuid helpers such as unix_chkpwd.
+ExecStart=@LIBEXECDIR@/cosmic-polkit-helper
+
+StandardInput=socket
+StandardOutput=socket
+
+# Must be set explicitly. StandardError= otherwise inherits StandardOutput=,
+# which would write log output into the client's socket and corrupt the
+# protocol stream.
+StandardError=journal

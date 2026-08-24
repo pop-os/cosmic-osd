@@ -1,1 +1,5 @@
 /usr/bin/cosmic-osd
+/usr/libexec/cosmic-polkit-helper
+/usr/lib/systemd/system/cosmic-polkit-helper.socket
+/usr/lib/systemd/system/cosmic-polkit-helper@.service
+/etc/pam.d/cosmic-osd-fingerprint
