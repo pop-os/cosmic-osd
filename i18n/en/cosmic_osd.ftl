@@ -1,4 +1,5 @@
 invalid-password = Invalid password. Please try again.
+fingerprint-or-password = Use your fingerprint or enter your password
 authentication-required = Authentication Required
 cancel = Cancel
 authenticate = Authenticate

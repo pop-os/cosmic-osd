@@ -44,8 +44,12 @@
           };
 
           nativeBuildInputs = with pkgs; [
+            # keep-sorted start
             makeWrapper
             pkg-config
+            # pam-sys generates its bindings at build time, so it needs libclang.
+            rustPlatform.bindgenHook
+            # keep-sorted end
           ];
 
           buildInputs = with pkgs; [
@@ -58,6 +62,7 @@
             libinput
             libpulseaudio
             libxkbcommon
+            pam
             polkit
             systemd
             wayland

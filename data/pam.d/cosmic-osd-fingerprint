@@ -1,0 +1,7 @@
+#%PAM-1.0
+# Fingerprint-only stack, run in parallel with the password stack (polkit-1).
+#
+# Note for non-Debian packaging: common-account is Debian's aggregate. Point
+# this at the distribution's equivalent (e.g. `include system-auth` on Fedora).
+auth    required        pam_fprintd.so timeout=10 max-tries=1
+@include common-account

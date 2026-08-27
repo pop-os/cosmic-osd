@@ -12,7 +12,9 @@ use tokio::select;
 use tokio::sync::mpsc::{self, Sender};
 
 const HELPER_BIN_PATH: Option<&str> = option_env!("POLKIT_AGENT_HELPER_1");
-const HELPER_SOCKET_PATH: &str = "/run/polkit/agent-helper.socket";
+const POLKIT_HELPER_SOCKET_PATH: &str = "/run/polkit/agent-helper.socket";
+const COSMIC_HELPER_SOCKET_PATH: &str = "/run/cosmic-osd/polkit-helper.socket";
+const HELPER_SOCKET_PATHS: [&str; 2] = [COSMIC_HELPER_SOCKET_PATH, POLKIT_HELPER_SOCKET_PATH];
 
 #[derive(Clone, Debug)]
 pub enum Event {
@@ -165,10 +167,25 @@ enum AgentHelper {
 
 impl AgentHelper {
     async fn new(pw_name: &str, cookie: &str) -> io::Result<Self> {
-        let mut agent_helper = if Path::new(HELPER_SOCKET_PATH).exists() {
-            Self::new_socket(pw_name).await?
-        } else {
-            Self::new_bin(pw_name).await?
+        let mut agent_helper = None;
+
+        for path in HELPER_SOCKET_PATHS {
+            if !Path::new(path).exists() {
+                continue;
+            }
+
+            match Self::new_socket(path, pw_name).await {
+                Ok(helper) => {
+                    agent_helper = Some(helper);
+                    break;
+                }
+                Err(err) => log::warn!("failed to use helper socket {path}: {}", err.kind()),
+            }
+        }
+
+        let mut agent_helper = match agent_helper {
+            Some(agent_helper) => agent_helper,
+            None => Self::new_bin(pw_name).await?,
         };
 
         agent_helper.write(cookie).await?;
@@ -176,10 +193,10 @@ impl AgentHelper {
         Ok(agent_helper)
     }
 
-    async fn new_socket(pw_name: &str) -> io::Result<Self> {
-        log::info!("using socket");
+    async fn new_socket(path: &str, pw_name: &str) -> io::Result<Self> {
+        log::info!("using socket {path}");
 
-        let stream = UnixStream::connect(HELPER_SOCKET_PATH).await?;
+        let stream = UnixStream::connect(path).await?;
         let (read, write_half) = stream.into_split();
 
         let read_half = BufReader::new(read);
