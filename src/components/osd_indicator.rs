@@ -207,7 +207,7 @@ impl State {
         };
 
         cmds.push(cosmic::surface::surface_task(simple_layer_shell(
-            || LiveSettings::default(),
+            LiveSettings::default,
             move || SctkLayerSurfaceSettings {
                 id,
                 keyboard_interactivity: KeyboardInteractivity::None,

@@ -227,7 +227,7 @@ pub enum Msg {
 }
 
 enum Surface {
-    PolkitDialog(polkit_dialog::State),
+    PolkitDialog(Box<polkit_dialog::State>),
     OsdIndicator(osd_indicator::State),
 }
 
@@ -359,11 +359,7 @@ impl App {
                 ),
             )
         }) {
-            let (mut top, mut left, mut bottom, mut right) = if is_display_number {
-                (0, 0, 48, 0) // Top margin for display numbers
-            } else {
-                (0, 0, 48, 0) // Bottom margin for other OSDs
-            };
+            let (mut top, mut left, mut bottom, mut right) = (0, 0, 48, 0);
             for overlap in self.overlap.values() {
                 let tl = tl.intersects(overlap);
                 let tr = tr.intersects(overlap);
@@ -642,7 +638,7 @@ impl cosmic::Application for App {
                     let id = SurfaceId::unique();
                     self.action_to_confirm = Some((id, action, COUNTDOWN_LENGTH));
                     cosmic::surface::surface_task(simple_layer_shell(
-                        || LiveSettings::default(),
+                        LiveSettings::default,
                         move || SctkLayerSurfaceSettings {
                             id,
                             keyboard_interactivity: KeyboardInteractivity::Exclusive,
@@ -699,7 +695,8 @@ impl cosmic::Application for App {
                     log::trace!("create polkit dialog: {}", params.cookie);
                     let id = SurfaceId::unique();
                     let (state, cmd) = polkit_dialog::State::new(id, params);
-                    self.surfaces.insert(id, Surface::PolkitDialog(state));
+                    self.surfaces
+                        .insert(id, Surface::PolkitDialog(Box::new(state)));
                     cmd
                 }
                 polkit_agent::Event::CancelDialog { cookie } => {
@@ -713,7 +710,7 @@ impl cosmic::Application for App {
                     }) {
                         let id = *id;
                         if let Surface::PolkitDialog(state) = self.surfaces.remove(&id).unwrap() {
-                            state.cancel()
+                            (*state).cancel()
                         } else {
                             unreachable!()
                         }
@@ -724,9 +721,10 @@ impl cosmic::Application for App {
             },
             Msg::PolkitDialog((id, msg)) => {
                 if let Some(Surface::PolkitDialog(state)) = self.surfaces.remove(&id) {
-                    let (state, cmd) = state.update(msg);
+                    let (state, cmd) = (*state).update(msg);
                     if let Some(state) = state {
-                        self.surfaces.insert(id, Surface::PolkitDialog(state));
+                        self.surfaces
+                            .insert(id, Surface::PolkitDialog(Box::new(state)));
                     }
                     return cmd.map(move |msg| cosmic::action::app(Msg::PolkitDialog((id, msg))));
                 }
@@ -869,7 +867,6 @@ impl cosmic::Application for App {
                 Task::none()
             }
             Msg::Size(id, size) => {
-                if self.dummy_id.is_none_or(|dummy| id == dummy) {}
                 if self.dummy_id.is_some_and(|d| d != id) {
                     self.size = Some(size);
                     let mut tasks = Vec::with_capacity(3);
@@ -948,11 +945,11 @@ impl cosmic::Application for App {
                 iced::Task::batch(cmds)
             }
             Msg::OutputInfo(output, name) => {
-                if self.wayland_connection.is_none() {
-                    if let Some(backend) = output.backend().upgrade() {
-                        self.wayland_connection =
-                            Some(wayland_client::Connection::from_backend(backend));
-                    }
+                if self.wayland_connection.is_none()
+                    && let Some(backend) = output.backend().upgrade()
+                {
+                    self.wayland_connection =
+                        Some(wayland_client::Connection::from_backend(backend));
                 }
 
                 let is_new = !self.wayland_outputs.contains_key(&name);
@@ -963,9 +960,9 @@ impl cosmic::Application for App {
                     log::debug!("Display '{}' added to wayland outputs tracking", name);
                 }
                 if self.dummy_id.is_none() {
-                    return self.create_dummy_layer_surface();
+                    self.create_dummy_layer_surface()
                 } else {
-                    return Task::none();
+                    Task::none()
                 }
             }
             Msg::OutputRemoved(output) => {
@@ -1676,7 +1673,7 @@ impl cosmic::Application for App {
                     let id = SurfaceId::unique();
                     self.action_to_confirm = Some((id, cmd, COUNTDOWN_LENGTH));
                     return cosmic::surface::surface_task(simple_layer_shell(
-                        || LiveSettings::default(),
+                        LiveSettings::default,
                         move || SctkLayerSurfaceSettings {
                             id,
                             keyboard_interactivity: KeyboardInteractivity::Exclusive,
