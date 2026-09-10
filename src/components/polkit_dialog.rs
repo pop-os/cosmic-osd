@@ -79,7 +79,7 @@ impl State {
                 size: None,
                 ..Default::default()
             },
-            None::<fn() -> Element<'static, cosmic::Action<Msg>>>,
+            None::<fn() -> Element<'static, cosmic::Action<T>>>,
         ));
         (
             Self {

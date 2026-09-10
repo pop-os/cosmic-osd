@@ -221,7 +221,7 @@ impl State {
                 input_zone: Some(Vec::new()),
                 ..Default::default()
             },
-            None::<fn() -> Element<'static, cosmic::Action<Msg>>>,
+            None::<fn() -> Element<'static, cosmic::Action<crate::components::app::Msg>>>,
         )));
 
         // Display numbers auto-close after 1 second, other OSDs after 3 seconds
