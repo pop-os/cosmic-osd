@@ -10,7 +10,7 @@ log-out = Derkeve
 enter-bios = Têkeve BIOS
 sound-settings = Sazkariyên dengê
 headphones = Guhik
-headset = Guhik
+headset = Serguhik
 confirm-button =
     { $action ->
         [restart] { restart }

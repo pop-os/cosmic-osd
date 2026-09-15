@@ -1,0 +1,2 @@
+cancel = ยกเลิก
+confirm = ยืนยัน

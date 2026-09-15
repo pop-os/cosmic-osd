@@ -1,1 +1,2 @@
 shutdown = Atudar
+cancel = Anullar

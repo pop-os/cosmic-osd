@@ -1,4 +1,4 @@
-cancel = Sefsex
+cancel = Semmet
 confirm = Sentem
 restart = Ales asekker
 suspend = Ḥbes di leɛḍil
