@@ -1,3 +1,9 @@
+cosmic-osd (1.9.0) noble; urgency=medium
+
+  * Epoch 1.9.0 version update
+
+ -- Michael Murphy <michael@mmurphy.dev>  Tue, 15 Sep 2026 19:18:05 +0200
+
 cosmic-osd (0.1.0) jammy; urgency=medium
 
   * Initial release.
