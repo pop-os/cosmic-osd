@@ -1,5 +1,6 @@
 use crate::components::osd_indicator::Params;
 use crate::components::{osd_indicator, polkit_dialog};
+use crate::config;
 use crate::cosmic_session::CosmicSessionProxy;
 use crate::fl;
 use crate::session_manager::SessionManagerProxy;
@@ -1211,6 +1212,7 @@ impl cosmic::Application for App {
             }
             Msg::KeyboardLayout(keyboard_layout::Event::Group(group)) => {
                 let task = if self.keyboard_layout_group.is_some_and(|g| g != group)
+                    && config::show_keyboard_layout_osd()
                     && let Some(layout) = self.active_layouts.get(group)
                 {
                     self.create_indicator(osd_indicator::Params::KeyboardLayout(
