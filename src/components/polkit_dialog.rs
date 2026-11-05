@@ -201,11 +201,10 @@ impl State {
         } else {
             widget::text_input(placeholder, &self.password).id(self.text_input_id.clone())
         };
-        let mut cancel_button = widget::button::standard(&self.msg_cancel);
+        let mut cancel_button = widget::button::standard(&self.msg_cancel).on_press(Msg::Cancel);
         let mut authenticate_button = widget::button::suggested(&self.msg_authenticate);
         if self.sensitive {
             password_input = password_input.on_input(Msg::Password);
-            cancel_button = cancel_button.on_press(Msg::Cancel);
 
             if self.responder.is_some() {
                 password_input = password_input.on_submit(|_| Msg::Authenticate);
