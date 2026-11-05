@@ -231,7 +231,7 @@ impl AgentHelper {
                     log::error!(
                         "Unknown prefix: '{prefix}' in line '{line}' from 'polkit-agent-helper-1'"
                     );
-                    continue;
+                    line.clear();
                 }
             }
         }
