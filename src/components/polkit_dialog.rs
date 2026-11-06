@@ -133,6 +133,15 @@ impl State {
                 polkit_agent_helper::Event::Request(s, echo) => {
                     self.password_label = s;
                     self.echo = echo;
+                    // PAM modules like pam_systemd_home re-prompt within the same
+                    // conversation after a wrong password instead of failing.
+                    if !self.sensitive {
+                        self.retries += 1;
+                        self.sensitive = true;
+                        self.password.clear();
+                        let cmd = widget::text_input::focus(self.text_input_id.clone());
+                        return (Some(self), cmd);
+                    }
                 }
                 polkit_agent_helper::Event::ShowError(s) => {
                     self.message = Some(s);
