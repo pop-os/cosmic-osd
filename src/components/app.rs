@@ -32,13 +32,13 @@ use cosmic::surface::action::{LiveSettings, simple_layer_shell};
 use cosmic::widget::{self, autosize, button, container, icon, text};
 use cosmic::{Apply, Element, theme};
 use cosmic_comp_config::{CosmicCompConfig, XkbConfig, input::TouchpadOverride};
+use cosmic_login1_zbus::manager::ManagerProxy;
 use cosmic_settings_airplane_mode_subscription as airplane_mode;
 use cosmic_settings_audio_client::{self as audio_client, CosmicAudioProxy};
 use cosmic_settings_daemon_subscription as settings_daemon;
 use cosmic_settings_upower_subscription::kbdbacklight::{
     KeyboardBacklightUpdate, kbd_backlight_subscription,
 };
-use logind_zbus::manager::ManagerProxy;
 use serde::{Deserialize, Serialize};
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -808,7 +808,8 @@ impl cosmic::Application for App {
                         // Don't notify the first time we receive volume
                         if self.have_sink_volume {
                             let now = Instant::now();
-                            if now.duration_since(self.sink_last_playback) > Duration::from_millis(125)
+                            if now.duration_since(self.sink_last_playback)
+                                > Duration::from_millis(125)
                             {
                                 self.sink_last_playback = now;
                                 pipewire::play_audio_volume_change();
@@ -820,7 +821,8 @@ impl cosmic::Application for App {
                     }
                     Some(super::audio::Response::SourceVolume(value)) => {
                         if self.have_source_volume {
-                            return self.create_indicator(osd_indicator::Params::SourceVolume(value));
+                            return self
+                                .create_indicator(osd_indicator::Params::SourceVolume(value));
                         }
                         self.have_source_volume = true;
                         Task::none()
@@ -906,8 +908,30 @@ impl cosmic::Application for App {
                     envs.push(("XDG_ACTIVATION_TOKEN".to_string(), token.clone()));
                     envs.push(("DESKTOP_STARTUP_ID".to_string(), token));
                 }
+                let Some(conn) = self.connection.clone() else {
+                    return Task::none();
+                };
                 Task::perform(
-                    cosmic::desktop::spawn_desktop_exec("cosmic-settings sound", envs, None, false),
+                    async move {
+                        let executable = cosmic_launch::CustomExecutable::new(
+                            String::from("com.system76.CosmicSettings"),
+                            String::from("cosmic-settings sound"),
+                        );
+
+                        if let Err(why) = cosmic_launch::spawn(
+                            &conn,
+                            &executable,
+                            None,
+                            &[],
+                            None,
+                            envs,
+                            &[] as &[String],
+                        )
+                        .await
+                        {
+                            log::error!("failed to launch cosmic-settings: {why}");
+                        }
+                    },
                     |()| cosmic::action::app(Msg::Cancel),
                 )
             }
