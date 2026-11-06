@@ -14,23 +14,22 @@ use cosmic::iced::window::Id as SurfaceId;
 use cosmic::iced::{self, Subscription, Task};
 use cosmic::surface::action::{LiveSettings, simple_layer_shell};
 use cosmic::{Element, widget};
-use std::collections::HashMap;
 use std::sync::{Arc, LazyLock, Mutex};
 use tokio::sync::oneshot;
 
 pub static POLKIT_DIALOG_ID: LazyLock<widget::Id> =
     LazyLock::new(|| widget::Id::new("polkit-dialog".to_string()));
 
+pub type ResponseSender = Arc<Mutex<Option<oneshot::Sender<Result<(), PolkitError>>>>>;
+
 #[derive(Clone, Debug)]
 pub struct Params {
     pub pw_name: String,
-    pub action_id: String,
     pub message: String,
     pub icon_name: Option<String>,
-    pub details: HashMap<String, String>,
     pub cookie: String,
     // XXX `Clone` bound is awkward here
-    pub response_sender: Arc<Mutex<Option<oneshot::Sender<Result<(), PolkitError>>>>>,
+    pub response_sender: ResponseSender,
 }
 
 #[derive(Clone, Debug)]
@@ -70,7 +69,7 @@ impl State {
     ) -> (Self, Task<cosmic::Action<T>>) {
         let text_input_id = iced::id::Id::unique();
         let cmd = cosmic::surface::surface_task(simple_layer_shell(
-            || LiveSettings::default(),
+            LiveSettings::default,
             move || SctkLayerSurfaceSettings {
                 id,
                 keyboard_interactivity: KeyboardInteractivity::Exclusive,
