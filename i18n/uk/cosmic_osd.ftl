@@ -26,17 +26,17 @@ confirm-title =
         [suspend] { suspend } зараз?
         [shutdown] { shutdown } зараз?
         [enter-bios] { enter-bios } зараз?
-        [log-out] Закрити застосунки й вийти зараз?
+        [log-out] Закрити застосунки й вийти?
         [confirm-device-type] Підтвердіть тип пристрою
        *[other] Виконати обрану дію зараз?
     }
 confirm-body =
-    Система { $action ->
-        [restart] перезавантажиться
-        [suspend] призупинеться
-        [shutdown] вимкнеться
-        [lock-screen] заблокує екран
-        [log-out] завершить сеанс
-        [enter-bios] перезавантажиться у BIOS
-       *[other] виконає обрану дію
-    } автоматично через { $countdown } секунд.
+    { $action ->
+        [restart] Перезавантаження системи
+        [suspend] Призупинення системи
+        [shutdown] Вимкнення системи
+        [lock-screen] Блокування екрана
+        [log-out] Завершення сеансу
+        [enter-bios] Перехід до BIOS
+       *[other] Виконання дії
+    } за { $countdown } секунд.
