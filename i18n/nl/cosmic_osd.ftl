@@ -4,9 +4,9 @@ cancel = Annuleren
 authenticate = Verifieer
 log-out = Afmelden
 suspend = Slaapstand
-restart = Herstart
+restart = Herstarten
 enter-bios = Ga naar BIOS
-shutdown = Sluit af
+shutdown = Afsluiten
 confirm = Bevestigen
 confirm-button =
     { $action ->
