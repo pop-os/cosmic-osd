@@ -2,7 +2,7 @@ invalid-password = Nepareiza parole. Lūdzu, mēģiniet vēlreiz.
 authentication-required = Nepieciešama autentifikācija
 cancel = Atcelt
 authenticate = Autentificēties
-log-out = Atteikties
+log-out = Izrakstīties
 suspend = Iesnaudināt
 restart = Pārstartēt
 enter-bios = Atvērt BIOS
@@ -26,7 +26,7 @@ confirm-title =
         [suspend] { suspend } tagad?
         [shutdown] { shutdown } tagad?
         [enter-bios] { enter-bios } tagad?
-        [log-out] Aizvērt visas lietotnes un atteikties tagad?
+        [log-out] Aizvērt visas lietotnes un izrakstīties tagad?
         [confirm-device-type] Apstipriniet ierīces tipu
        *[other] Veikt atlasīto darbību tagad?
     }
@@ -36,7 +36,7 @@ confirm-body =
         [suspend] tiks iesnaudināta
         [shutdown] tiks izslēgta
         [lock-screen] bloķēs ekrānu
-        [log-out] atteiksies
+        [log-out] izrakstīs lietotāju
         [enter-bios] tiks pārstartēta BIOS
        *[other] veiks atlasīto darbību
     } automātiski pēc { $countdown } s.
