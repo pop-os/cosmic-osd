@@ -125,10 +125,10 @@ struct PolkitAgent {
 impl PolkitAgent {
     async fn begin_authentication(
         &self,
-        action_id: String,
+        _action_id: String,
         message: String,
         icon_name: String,
-        details: HashMap<String, String>,
+        _details: HashMap<String, String>,
         cookie: String,
         identities: Vec<Identity<'_>>,
     ) -> Result<(), PolkitError> {
@@ -143,10 +143,8 @@ impl PolkitAgent {
                 .sender
                 .send(Event::CreateDialog(polkit_dialog::Params {
                     pw_name,
-                    action_id,
                     message,
                     icon_name,
-                    details,
                     cookie,
                     response_sender: Arc::new(Mutex::new(Some(response_sender))),
                 }))
